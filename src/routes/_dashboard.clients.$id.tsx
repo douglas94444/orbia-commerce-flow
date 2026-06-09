@@ -8,6 +8,7 @@ import { StatusPill } from '@/components/dashboard/status-pill'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useClientDetail } from '@/modules/clients/hooks/use-clients'
+import { useProfile } from '@/modules/auth/hooks/use-profile'
 import { useStartNuvemshopOAuth, useStartShopifyOAuth } from '@/modules/integrations/hooks/use-oauth'
 
 export const Route = createFileRoute('/_dashboard/clients/$id')({
@@ -37,9 +38,12 @@ const CONNECTABLE = new Set(['nuvemshop', 'shopify'])
 function ClientDetailPage() {
   const { id } = Route.useParams()
   const { data: client, isLoading, error } = useClientDetail(id)
+  const { data: profile } = useProfile()
   const nuvemshopOAuth = useStartNuvemshopOAuth()
   const shopifyOAuth = useStartShopifyOAuth()
   const [shopDomain, setShopDomain] = useState('')
+
+  const isStaff = profile?.role === 'orbia_admin' || profile?.role === 'orbia_staff'
 
   if (isLoading) {
     return (
@@ -143,7 +147,7 @@ function ClientDetailPage() {
                             {conn.externalAccount}
                           </span>
                         )}
-                        {!active && CONNECTABLE.has(p) && (
+                        {!active && isStaff && CONNECTABLE.has(p) && (
                           p === 'shopify' ? (
                             <div className="ml-2 flex items-center gap-1">
                               <Input
