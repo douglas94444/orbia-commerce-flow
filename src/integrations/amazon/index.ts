@@ -13,4 +13,4 @@
 // Rate limits: dynamic throttling via x-amzn-RateLimit-Limit header
 // Error handling: log to integration_logs with provider='amazon'
 
-export {}
+export {};

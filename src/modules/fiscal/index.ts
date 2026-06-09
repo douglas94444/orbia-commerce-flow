@@ -22,4 +22,4 @@
 //   - fiscal_configs (client_id, cnpj, tax_regime, cfop, cst, ncm, cert_expires_at)
 //   - fiscal_certificates (client_id, cert_data_encrypted, expires_at)
 
-export {}
+export {};

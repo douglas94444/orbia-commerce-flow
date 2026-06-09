@@ -6,6 +6,7 @@ import { Panel } from '@/components/dashboard/panel'
 import { GmvRoasChart } from '@/components/dashboard/charts'
 import { ClientsTable } from '@/components/dashboard/clients-table'
 import { useClients, usePortfolioStats } from '@/modules/clients/hooks/use-clients'
+import { usePortfolioAnalytics, useNfeCount30d } from '@/modules/analytics/hooks/use-analytics'
 import { formatBRL } from '@/lib/format'
 
 export const Route = createFileRoute('/_dashboard/overview')({
@@ -16,6 +17,8 @@ export const Route = createFileRoute('/_dashboard/overview')({
 function OverviewPage() {
   const { data: clients = [], isLoading: loadingClients } = useClients()
   const { data: stats, isLoading: loadingStats } = usePortfolioStats()
+  const { data: analytics, isLoading: loadingAnalytics } = usePortfolioAnalytics()
+  const { data: nfeCount, isLoading: loadingNfe } = useNfeCount30d()
 
   const loading = loadingClients || loadingStats
 
@@ -62,8 +65,8 @@ function OverviewPage() {
         />
         <KpiCard
           label="NF emitidas"
-          value="—"
-          hint="Disponível após integração fiscal"
+          value={loadingNfe ? '—' : String(nfeCount ?? 0)}
+          hint="Autorizadas nos últimos 30 dias"
           icon={FileCheck2}
           accent="success"
         />
@@ -88,7 +91,7 @@ function OverviewPage() {
             </div>
           }
         >
-          <GmvRoasChart />
+          <GmvRoasChart data={loadingAnalytics ? undefined : analytics?.gmvRoasSeries} />
         </Panel>
       </motion.div>
 

@@ -9,4 +9,4 @@
 // NOTE: Analytics only queries existing tables — no dedicated analytics tables initially.
 //       Add materialized views or a dedicated analytics schema when query latency demands it.
 
-export {}
+export {};

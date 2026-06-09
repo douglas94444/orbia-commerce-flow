@@ -12,4 +12,4 @@
 //   - customers (client_id, email, phone, rfm_score, ltv)
 //   - loyalty_points (customer_id, points, expires_at)
 
-export {}
+export {};

@@ -21,8 +21,12 @@ import { Route as DashboardLogisticsRouteImport } from './routes/_dashboard.logi
 import { Route as DashboardFiscalRouteImport } from './routes/_dashboard.fiscal'
 import { Route as DashboardClientsRouteImport } from './routes/_dashboard.clients'
 import { Route as DashboardAnalyticsRouteImport } from './routes/_dashboard.analytics'
+import { Route as ApiWebhooksShopifyRouteImport } from './routes/api/webhooks/shopify'
+import { Route as ApiWebhooksNuvemshopRouteImport } from './routes/api/webhooks/nuvemshop'
 import { Route as DashboardFiscalConfigRouteImport } from './routes/_dashboard.fiscal.config'
 import { Route as DashboardClientsIdRouteImport } from './routes/_dashboard.clients.$id'
+import { Route as ApiOauthShopifyCallbackRouteImport } from './routes/api/oauth/shopify/callback'
+import { Route as ApiOauthNuvemshopCallbackRouteImport } from './routes/api/oauth/nuvemshop/callback'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -83,6 +87,16 @@ const DashboardAnalyticsRoute = DashboardAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => DashboardRoute,
 } as any)
+const ApiWebhooksShopifyRoute = ApiWebhooksShopifyRouteImport.update({
+  id: '/api/webhooks/shopify',
+  path: '/api/webhooks/shopify',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWebhooksNuvemshopRoute = ApiWebhooksNuvemshopRouteImport.update({
+  id: '/api/webhooks/nuvemshop',
+  path: '/api/webhooks/nuvemshop',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardFiscalConfigRoute = DashboardFiscalConfigRouteImport.update({
   id: '/config',
   path: '/config',
@@ -93,6 +107,17 @@ const DashboardClientsIdRoute = DashboardClientsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => DashboardClientsRoute,
 } as any)
+const ApiOauthShopifyCallbackRoute = ApiOauthShopifyCallbackRouteImport.update({
+  id: '/api/oauth/shopify/callback',
+  path: '/api/oauth/shopify/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiOauthNuvemshopCallbackRoute =
+  ApiOauthNuvemshopCallbackRouteImport.update({
+    id: '/api/oauth/nuvemshop/callback',
+    path: '/api/oauth/nuvemshop/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -108,6 +133,10 @@ export interface FileRoutesByFullPath {
   '/traffic': typeof DashboardTrafficRoute
   '/clients/$id': typeof DashboardClientsIdRoute
   '/fiscal/config': typeof DashboardFiscalConfigRoute
+  '/api/webhooks/nuvemshop': typeof ApiWebhooksNuvemshopRoute
+  '/api/webhooks/shopify': typeof ApiWebhooksShopifyRoute
+  '/api/oauth/nuvemshop/callback': typeof ApiOauthNuvemshopCallbackRoute
+  '/api/oauth/shopify/callback': typeof ApiOauthShopifyCallbackRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -123,6 +152,10 @@ export interface FileRoutesByTo {
   '/traffic': typeof DashboardTrafficRoute
   '/clients/$id': typeof DashboardClientsIdRoute
   '/fiscal/config': typeof DashboardFiscalConfigRoute
+  '/api/webhooks/nuvemshop': typeof ApiWebhooksNuvemshopRoute
+  '/api/webhooks/shopify': typeof ApiWebhooksShopifyRoute
+  '/api/oauth/nuvemshop/callback': typeof ApiOauthNuvemshopCallbackRoute
+  '/api/oauth/shopify/callback': typeof ApiOauthShopifyCallbackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -140,6 +173,10 @@ export interface FileRoutesById {
   '/_dashboard/traffic': typeof DashboardTrafficRoute
   '/_dashboard/clients/$id': typeof DashboardClientsIdRoute
   '/_dashboard/fiscal/config': typeof DashboardFiscalConfigRoute
+  '/api/webhooks/nuvemshop': typeof ApiWebhooksNuvemshopRoute
+  '/api/webhooks/shopify': typeof ApiWebhooksShopifyRoute
+  '/api/oauth/nuvemshop/callback': typeof ApiOauthNuvemshopCallbackRoute
+  '/api/oauth/shopify/callback': typeof ApiOauthShopifyCallbackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -157,6 +194,10 @@ export interface FileRouteTypes {
     | '/traffic'
     | '/clients/$id'
     | '/fiscal/config'
+    | '/api/webhooks/nuvemshop'
+    | '/api/webhooks/shopify'
+    | '/api/oauth/nuvemshop/callback'
+    | '/api/oauth/shopify/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -172,6 +213,10 @@ export interface FileRouteTypes {
     | '/traffic'
     | '/clients/$id'
     | '/fiscal/config'
+    | '/api/webhooks/nuvemshop'
+    | '/api/webhooks/shopify'
+    | '/api/oauth/nuvemshop/callback'
+    | '/api/oauth/shopify/callback'
   id:
     | '__root__'
     | '/'
@@ -188,12 +233,20 @@ export interface FileRouteTypes {
     | '/_dashboard/traffic'
     | '/_dashboard/clients/$id'
     | '/_dashboard/fiscal/config'
+    | '/api/webhooks/nuvemshop'
+    | '/api/webhooks/shopify'
+    | '/api/oauth/nuvemshop/callback'
+    | '/api/oauth/shopify/callback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRouteWithChildren
   LoginRoute: typeof LoginRoute
+  ApiWebhooksNuvemshopRoute: typeof ApiWebhooksNuvemshopRoute
+  ApiWebhooksShopifyRoute: typeof ApiWebhooksShopifyRoute
+  ApiOauthNuvemshopCallbackRoute: typeof ApiOauthNuvemshopCallbackRoute
+  ApiOauthShopifyCallbackRoute: typeof ApiOauthShopifyCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -282,6 +335,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardAnalyticsRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/api/webhooks/shopify': {
+      id: '/api/webhooks/shopify'
+      path: '/api/webhooks/shopify'
+      fullPath: '/api/webhooks/shopify'
+      preLoaderRoute: typeof ApiWebhooksShopifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/webhooks/nuvemshop': {
+      id: '/api/webhooks/nuvemshop'
+      path: '/api/webhooks/nuvemshop'
+      fullPath: '/api/webhooks/nuvemshop'
+      preLoaderRoute: typeof ApiWebhooksNuvemshopRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_dashboard/fiscal/config': {
       id: '/_dashboard/fiscal/config'
       path: '/config'
@@ -295,6 +362,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/clients/$id'
       preLoaderRoute: typeof DashboardClientsIdRouteImport
       parentRoute: typeof DashboardClientsRoute
+    }
+    '/api/oauth/shopify/callback': {
+      id: '/api/oauth/shopify/callback'
+      path: '/api/oauth/shopify/callback'
+      fullPath: '/api/oauth/shopify/callback'
+      preLoaderRoute: typeof ApiOauthShopifyCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/oauth/nuvemshop/callback': {
+      id: '/api/oauth/nuvemshop/callback'
+      path: '/api/oauth/nuvemshop/callback'
+      fullPath: '/api/oauth/nuvemshop/callback'
+      preLoaderRoute: typeof ApiOauthNuvemshopCallbackRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -354,6 +435,10 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRouteWithChildren,
   LoginRoute: LoginRoute,
+  ApiWebhooksNuvemshopRoute: ApiWebhooksNuvemshopRoute,
+  ApiWebhooksShopifyRoute: ApiWebhooksShopifyRoute,
+  ApiOauthNuvemshopCallbackRoute: ApiOauthNuvemshopCallbackRoute,
+  ApiOauthShopifyCallbackRoute: ApiOauthShopifyCallbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -17,4 +17,4 @@
 // RLS note: client_id is NEVER passed from the frontend.
 //           All queries resolve via auth.current_client_id() in the DB.
 
-export {}
+export {};

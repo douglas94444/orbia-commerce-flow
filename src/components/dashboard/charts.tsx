@@ -11,7 +11,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { gmvRoasSeries, channelRoas } from "@/lib/mock/data";
 
 const tooltipStyle = {
   backgroundColor: "oklch(0.205 0.028 264)",
@@ -21,10 +20,27 @@ const tooltipStyle = {
   color: "var(--foreground)",
 } as const;
 
-export function GmvRoasChart() {
+export interface GmvRoasPoint {
+  day: string;
+  gmv: number;
+  roas: number;
+}
+
+export interface ChannelRoasPoint {
+  channel: string;
+  roas: number;
+}
+
+interface GmvRoasChartProps {
+  data?: GmvRoasPoint[];
+}
+
+export function GmvRoasChart({ data = [] }: GmvRoasChartProps) {
+  const chartData = data.length > 0 ? data : [{ day: "1", gmv: 0, roas: 0 }];
+
   return (
     <ResponsiveContainer width="100%" height={300}>
-      <AreaChart data={gmvRoasSeries} margin={{ top: 8, right: 8, bottom: 0, left: -8 }}>
+      <AreaChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: -8 }}>
         <defs>
           <linearGradient id="gmvFill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.4} />
@@ -69,11 +85,17 @@ export function GmvRoasChart() {
   );
 }
 
-export function ChannelRoasChart() {
+interface ChannelRoasChartProps {
+  data?: ChannelRoasPoint[];
+}
+
+export function ChannelRoasChart({ data = [] }: ChannelRoasChartProps) {
   const colors = ["var(--primary)", "var(--accent)", "var(--chart-4)", "var(--success)"];
+  const chartData = data.length > 0 ? data : [{ channel: "—", roas: 0 }];
+
   return (
     <ResponsiveContainer width="100%" height={260}>
-      <BarChart data={channelRoas} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
+      <BarChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
         <CartesianGrid stroke="var(--border)" vertical={false} />
         <XAxis
           dataKey="channel"
@@ -93,7 +115,7 @@ export function ChannelRoasChart() {
           formatter={(value: number) => [`${value}x`, "ROAS"]}
         />
         <Bar dataKey="roas" radius={[6, 6, 0, 0]} maxBarSize={48}>
-          {channelRoas.map((_, i) => (
+          {chartData.map((_, i) => (
             <Cell key={i} fill={colors[i % colors.length]} />
           ))}
         </Bar>

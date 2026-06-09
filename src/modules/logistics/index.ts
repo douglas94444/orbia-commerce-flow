@@ -23,4 +23,4 @@
 //   - order_items (order_id, sku, qty, unit_price)
 //   - inventory (client_id, sku, units, reserved_units, level)
 
-export {}
+export {};

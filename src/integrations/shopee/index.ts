@@ -15,4 +15,4 @@
 // Rate limits: varies per endpoint, respect Retry-After headers
 // Error handling: log to integration_logs with provider='shopee'
 
-export {}
+export {};

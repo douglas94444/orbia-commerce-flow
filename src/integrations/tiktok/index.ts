@@ -13,4 +13,4 @@
 // Signature: HMAC-SHA256 webhook validation
 // Error handling: log to integration_logs with provider='tiktok'
 
-export {}
+export {};

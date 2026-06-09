@@ -15,4 +15,4 @@
 // Rate limits: 200 calls / hour per ad account (respect X-Business-Use-Case-Usage header)
 // Error handling: log all failures to integration_logs with provider='meta'
 
-export {}
+export {};

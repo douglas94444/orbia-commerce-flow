@@ -8,4 +8,4 @@
 //
 // Access: orbia_admin and orbia_staff roles only (enforced via auth.is_orbia_staff() RLS)
 
-export {}
+export {};

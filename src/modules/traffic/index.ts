@@ -19,4 +19,4 @@
 //   - campaign_metrics (campaign_id, date, spend, revenue, impressions, clicks)
 //   - ad_accounts (client_id, provider, external_id, name)
 
-export {}
+export {};

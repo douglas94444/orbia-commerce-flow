@@ -16,4 +16,4 @@
 // Rate limits: 1000 req/min per user
 // Error handling: log to integration_logs with provider='mercado_livre'
 
-export {}
+export {};

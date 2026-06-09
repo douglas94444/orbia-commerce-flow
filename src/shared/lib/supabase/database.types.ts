@@ -410,6 +410,7 @@ export type Database = {
       fiscal_configs: {
         Row: {
           cert_expires_at: string | null
+          cert_path: string | null
           client_id: string
           cnpj: string
           company_name: string
@@ -423,6 +424,7 @@ export type Database = {
         }
         Insert: {
           cert_expires_at?: string | null
+          cert_path?: string | null
           client_id: string
           cnpj: string
           company_name: string
@@ -436,6 +438,7 @@ export type Database = {
         }
         Update: {
           cert_expires_at?: string | null
+          cert_path?: string | null
           client_id?: string
           cnpj?: string
           company_name?: string

@@ -15,4 +15,4 @@
 //   - notification_queue (client_id, kind, severity, message, scheduled_at, status)
 //   - notification_log (queue_id, channel, sent_at, delivered_at, error)
 
-export {}
+export {};

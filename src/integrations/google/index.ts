@@ -10,4 +10,4 @@
 // Rate limits: 15,000 operations / day (standard tier)
 // Error handling: log to integration_logs with provider='google'
 
-export {}
+export {};

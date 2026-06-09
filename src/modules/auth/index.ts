@@ -20,4 +20,4 @@
 //   - SignupForm
 //   - ResetPasswordForm
 
-export {}
+export {};

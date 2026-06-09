@@ -17,4 +17,4 @@
 //   - transactions (client_id, type, status, amount_cents, provider_tx_id, idempotency_key)
 //   - ledger_entries (transaction_id, account, direction, amount_cents)
 
-export {}
+export {};

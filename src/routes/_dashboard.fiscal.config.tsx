@@ -8,7 +8,7 @@ import { PageIntro, Panel } from '@/components/dashboard/panel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useFiscalConfig, useUpsertFiscalConfig } from '@/modules/fiscal/hooks/use-fiscal'
+import { useFiscalConfig, useUpsertFiscalConfig, useUploadFiscalCertificate } from '@/modules/fiscal/hooks/use-fiscal'
 
 export const Route = createFileRoute('/_dashboard/fiscal/config')({
   head: () => ({ meta: [{ title: 'Configuração Fiscal — Orbia' }] }),
@@ -35,6 +35,7 @@ const TAX_REGIME_OPTIONS = [
 function FiscalConfigPage() {
   const { data: config, isLoading } = useFiscalConfig()
   const { mutate, isPending } = useUpsertFiscalConfig()
+  const uploadCert = useUploadFiscalCertificate()
 
   const {
     register,
@@ -155,19 +156,40 @@ function FiscalConfigPage() {
             </div>
           </Panel>
 
-          {config?.certExpiresAt && (
-            <Panel title="Certificado A1">
-              <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/20 px-4 py-3">
+          <Panel title="Certificado A1" subtitle="Arquivo .pfx armazenado de forma privada no Supabase Storage">
+            {config?.certPath || config?.certExpiresAt ? (
+              <div className="mb-4 flex items-center gap-3 rounded-lg border border-border bg-muted/20 px-4 py-3">
                 <ShieldCheck className="size-5 text-success" />
                 <div>
                   <p className="text-sm font-medium text-foreground">Certificado configurado</p>
-                  <p className="text-xs text-muted-foreground">
-                    Vence em {new Date(config.certExpiresAt).toLocaleDateString('pt-BR')}
-                  </p>
+                  {config.certExpiresAt && (
+                    <p className="text-xs text-muted-foreground">
+                      Vence em {new Date(config.certExpiresAt).toLocaleDateString('pt-BR')}
+                    </p>
+                  )}
                 </div>
               </div>
-            </Panel>
-          )}
+            ) : null}
+            <div className="space-y-2">
+              <Label htmlFor="certFile">Upload certificado (.pfx)</Label>
+              <Input
+                id="certFile"
+                type="file"
+                accept=".pfx,.p12"
+                disabled={uploadCert.isPending}
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  const reader = new FileReader()
+                  reader.onload = () => {
+                    const base64 = (reader.result as string).split(',')[1]
+                    if (base64) uploadCert.mutate({ fileBase64: base64, fileName: file.name })
+                  }
+                  reader.readAsDataURL(file)
+                }}
+              />
+            </div>
+          </Panel>
 
           <div className="flex justify-end">
             <Button type="submit" disabled={isPending} className="gap-2">

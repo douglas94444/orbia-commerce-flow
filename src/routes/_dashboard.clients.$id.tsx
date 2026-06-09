@@ -1,10 +1,14 @@
+import { useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { ArrowLeft, Activity, CheckCircle2, XCircle, Clock } from 'lucide-react'
+import { ArrowLeft, Activity, CheckCircle2, XCircle, Clock, Link2, Loader2 } from 'lucide-react'
 import { PageIntro, Panel } from '@/components/dashboard/panel'
-import { HealthRing, HealthBadge } from '@/components/dashboard/health-ring'
+import { HealthRing } from '@/components/dashboard/health-ring'
 import { PlanBadge } from '@/components/dashboard/plan-badge'
 import { StatusPill } from '@/components/dashboard/status-pill'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { useClientDetail } from '@/modules/clients/hooks/use-clients'
+import { useStartNuvemshopOAuth, useStartShopifyOAuth } from '@/modules/integrations/hooks/use-oauth'
 
 export const Route = createFileRoute('/_dashboard/clients/$id')({
   head: () => ({ meta: [{ title: 'Detalhe do cliente — Orbia' }] }),
@@ -28,9 +32,14 @@ const MODULE_PROVIDERS: Array<{ label: string; providers: string[] }> = [
   { label: 'Fiscal',     providers: ['focus_nfe'] },
 ]
 
+const CONNECTABLE = new Set(['nuvemshop', 'shopify'])
+
 function ClientDetailPage() {
   const { id } = Route.useParams()
   const { data: client, isLoading, error } = useClientDetail(id)
+  const nuvemshopOAuth = useStartNuvemshopOAuth()
+  const shopifyOAuth = useStartShopifyOAuth()
+  const [shopDomain, setShopDomain] = useState('')
 
   if (isLoading) {
     return (
@@ -133,6 +142,39 @@ function ClientDetailPage() {
                           <span className="font-mono text-[10px] text-muted-foreground/60">
                             {conn.externalAccount}
                           </span>
+                        )}
+                        {!active && CONNECTABLE.has(p) && (
+                          p === 'shopify' ? (
+                            <div className="ml-2 flex items-center gap-1">
+                              <Input
+                                placeholder="loja.myshopify.com"
+                                className="h-7 w-36 text-xs"
+                                value={shopDomain}
+                                onChange={(e) => setShopDomain(e.target.value)}
+                              />
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 gap-1 px-2 text-xs"
+                                disabled={!shopDomain || shopifyOAuth.isPending}
+                                onClick={() => shopifyOAuth.mutate({ clientId: id, shop: shopDomain })}
+                              >
+                                {shopifyOAuth.isPending ? <Loader2 className="size-3 animate-spin" /> : <Link2 className="size-3" />}
+                                Conectar
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="ml-2 h-7 gap-1 px-2 text-xs"
+                              disabled={nuvemshopOAuth.isPending}
+                              onClick={() => nuvemshopOAuth.mutate(id)}
+                            >
+                              {nuvemshopOAuth.isPending ? <Loader2 className="size-3 animate-spin" /> : <Link2 className="size-3" />}
+                              Conectar
+                            </Button>
+                          )
                         )}
                       </div>
                     )
