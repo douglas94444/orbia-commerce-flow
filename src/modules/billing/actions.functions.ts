@@ -38,8 +38,7 @@ export interface Transaction {
 export const listSubscriptions = createServerFn({ method: 'GET' })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<Subscription[]> => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (context.supabase as any)
+    const { data, error } = await context.supabase
       .from('subscriptions')
       .select('*, clients(name)')
       .order('created_at', { ascending: false })
@@ -72,8 +71,7 @@ export const listSubscriptions = createServerFn({ method: 'GET' })
 export const getMrrStats = createServerFn({ method: 'GET' })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<MrrStats> => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data } = await (context.supabase as any)
+    const { data } = await context.supabase
       .from('subscriptions')
       .select('plan, amount_cents, status')
       .eq('status', 'active')
@@ -98,8 +96,7 @@ export const getMrrStats = createServerFn({ method: 'GET' })
 export const listTransactions = createServerFn({ method: 'GET' })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<Transaction[]> => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (context.supabase as any)
+    const { data, error } = await context.supabase
       .from('transactions')
       .select('id, type, status, amount_cents, provider, description, created_at, clients(name)')
       .order('created_at', { ascending: false })
@@ -160,8 +157,7 @@ export const createSubscription = createServerFn({ method: 'POST' })
 
     const amountCents = PLAN_PRICES[data.plan]
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: sub, error } = await (supabaseAdmin as any)
+    const { data: sub, error } = await supabaseAdmin
       .from('subscriptions')
       .upsert({
         client_id:          data.clientId,
@@ -179,8 +175,7 @@ export const createSubscription = createServerFn({ method: 'POST' })
 
     // Record initial transaction
     const idempotencyKey = `sub_${data.clientId}_${Date.now()}`
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: tx } = await (supabaseAdmin as any)
+    const { data: tx } = await supabaseAdmin
       .from('transactions')
       .insert({
         client_id:       data.clientId,
@@ -196,16 +191,14 @@ export const createSubscription = createServerFn({ method: 'POST' })
 
     // Double-entry ledger
     if (tx?.id) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabaseAdmin as any).from('ledger_entries').insert([
+      await supabaseAdmin.from('ledger_entries').insert([
         { transaction_id: tx.id, account: 'accounts_receivable', direction: 'debit',  amount_cents: amountCents },
         { transaction_id: tx.id, account: 'revenue',             direction: 'credit', amount_cents: amountCents },
       ])
     }
 
     // Update client plan
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabaseAdmin as any)
+    await supabaseAdmin
       .from('clients')
       .update({ plan: data.plan, status: 'active', updated_at: new Date().toISOString() })
       .eq('id', data.clientId)

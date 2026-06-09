@@ -12,8 +12,7 @@ const PLATFORM_LABEL: Record<string, 'Meta Ads' | 'Google Ads'> = {
 export const listCampaigns = createServerFn({ method: 'GET' })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<Campaign[]> => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (context.supabase as any)
+    const { data, error } = await context.supabase
       .from('campaigns')
       .select('id, name, platform, status, spend_cents, revenue_cents, roas, clients(name)')
       .order('roas', { ascending: false })
@@ -54,8 +53,7 @@ export interface TrafficStats {
 export const getTrafficStats = createServerFn({ method: 'GET' })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<TrafficStats> => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data } = await (context.supabase as any)
+    const { data } = await context.supabase
       .from('campaigns')
       .select('spend_cents, revenue_cents, roas, status')
 

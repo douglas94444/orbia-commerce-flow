@@ -8,6 +8,7 @@ import {
   LifeBuoy,
   LogOut,
   Repeat,
+  Settings,
   TrendingUp,
   Truck,
   Users,
@@ -32,6 +33,7 @@ const nav: NavItem[] = [
   { label: 'Fiscal',          to: '/fiscal',    icon: FileText        },
   { label: 'Analytics',       to: '/analytics', icon: BarChart3       },
   { label: 'Customer Success',to: '/success',   icon: LifeBuoy        },
+  { label: 'Configurações',   to: '/settings',  icon: Settings        },
 ]
 
 export function AppSidebar({

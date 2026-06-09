@@ -46,8 +46,7 @@ interface SaveWebhookInput {
 }
 
 export async function saveWebhookEvent(input: SaveWebhookInput): Promise<{ queued: boolean }> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabaseAdmin as any)
+  const { error } = await supabaseAdmin
     .from('webhook_events')
     .insert({
       provider:    input.provider,
@@ -79,8 +78,7 @@ export const processWebhookEvent = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     const start = Date.now()
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: event, error: fetchError } = await (supabaseAdmin as any)
+    const { data: event, error: fetchError } = await supabaseAdmin
       .from('webhook_events')
       .select('*')
       .eq('id', data.eventId)
@@ -92,8 +90,7 @@ export const processWebhookEvent = createServerFn({ method: 'POST' })
     if (event.status === 'dead')      return { skipped: true, reason: 'dead_event' }
 
     // Mark as processing
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabaseAdmin as any)
+    await supabaseAdmin
       .from('webhook_events')
       .update({ status: 'processing', attempts: event.attempts + 1, updated_at: new Date().toISOString() })
       .eq('id', data.eventId)
@@ -102,8 +99,7 @@ export const processWebhookEvent = createServerFn({ method: 'POST' })
       await routeWebhookEvent(event)
 
       // Mark as processed
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabaseAdmin as any)
+      await supabaseAdmin
         .from('webhook_events')
         .update({ status: 'processed', processed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
         .eq('id', data.eventId)
@@ -124,8 +120,7 @@ export const processWebhookEvent = createServerFn({ method: 'POST' })
       const dead     = attempts >= event.max_attempts
       const nextRetry = dead ? null : new Date(Date.now() + attempts * 5 * 60 * 1000).toISOString()
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabaseAdmin as any)
+      await supabaseAdmin
         .from('webhook_events')
         .update({
           status:        dead ? 'dead' : 'failed',

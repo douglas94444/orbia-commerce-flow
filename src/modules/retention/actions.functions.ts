@@ -24,8 +24,7 @@ const TRIGGER_LABEL: Record<string, string> = {
 export const listAutomations = createServerFn({ method: 'GET' })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<AutomationFlow[]> => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (context.supabase as any)
+    const { data, error } = await context.supabase
       .from('automation_flows')
       .select('id, name, trigger, channel, is_active, sent_30d, recovered')
       .order('is_active', { ascending: false })
@@ -73,10 +72,8 @@ export const getRetentionStats = createServerFn({ method: 'GET' })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<RetentionStats> => {
     const [customersResult, automationsResult] = await Promise.all([
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (context.supabase as any).from('customers').select('rfm_score, ltv_cents'),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (context.supabase as any).from('automation_flows').select('sent_30d, recovered'),
+      context.supabase.from('customers').select('rfm_score, ltv_cents'),
+      context.supabase.from('automation_flows').select('sent_30d, recovered'),
     ])
 
     const customers  = customersResult.data ?? []
@@ -112,8 +109,7 @@ export const toggleAutomation = createServerFn({ method: 'POST' })
   .inputValidator(toggleSchema)
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabaseAdmin as any)
+    const { error } = await supabaseAdmin
       .from('automation_flows')
       .update({ is_active: data.active, updated_at: new Date().toISOString() })
       .eq('id', data.id)

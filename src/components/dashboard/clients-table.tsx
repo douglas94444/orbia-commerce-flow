@@ -51,7 +51,8 @@ export function ClientsTable({ data, compact = false }: { data: Client[]; compac
               </td>
               <td className="py-3 text-right">
                 <Link
-                  to="/clients"
+                  to="/clients/$id"
+                  params={{ id: c.id }}
                   className="inline-flex items-center gap-1 text-xs text-muted-foreground opacity-0 transition-opacity hover:text-primary group-hover:opacity-100"
                 >
                   Detalhes <ArrowUpRight className="size-3" />

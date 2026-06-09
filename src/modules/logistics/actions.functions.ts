@@ -18,8 +18,7 @@ const CHANNEL: Record<string, SalesChannel> = {
 export const listOrders = createServerFn({ method: 'GET' })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<Order[]> => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (context.supabase as any)
+    const { data, error } = await context.supabase
       .from('orders')
       .select('external_id, channel, status, nf_status, carrier, value_cents, city, clients(name)')
       .order('created_at', { ascending: false })
@@ -64,10 +63,8 @@ export const getLogisticsStats = createServerFn({ method: 'GET' })
     today.setHours(0, 0, 0, 0)
 
     const [ordersResult, inventoryResult] = await Promise.all([
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (context.supabase as any).from('orders').select('status, nf_status, created_at'),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (context.supabase as any).from('inventory').select('units'),
+      context.supabase.from('orders').select('status, nf_status, created_at'),
+      context.supabase.from('inventory').select('units'),
     ])
 
     const orders = ordersResult.data ?? []
@@ -88,8 +85,7 @@ export const getLogisticsStats = createServerFn({ method: 'GET' })
 export const listInventory = createServerFn({ method: 'GET' })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<InventoryItem[]> => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (context.supabase as any)
+    const { data, error } = await context.supabase
       .from('inventory')
       .select('sku, product, units, clients(name)')
       .order('units', { ascending: true })

@@ -88,6 +88,57 @@ export const getPortfolioStats = createServerFn({ method: 'GET' })
     return { total, healthy, atRisk, onboarding, avgHealth, avgRoas }
   })
 
+// ─── getClient ────────────────────────────────────────────────
+
+export interface ClientDetail extends Client {
+  connections: Array<{ provider: string; externalAccount: string | null; isActive: boolean; lastRefreshed: string | null }>
+  recentActivity: Array<{ provider: string; operation: string; status: string; createdAt: string }>
+}
+
+const getClientSchema = z.object({ id: z.string().uuid() })
+
+export const getClient = createServerFn({ method: 'GET' })
+  .inputValidator(getClientSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }): Promise<ClientDetail> => {
+    const [clientResult, connectionsResult, activityResult] = await Promise.all([
+      context.supabase
+        .from('clients')
+        .select('*')
+        .eq('id', data.id)
+        .single(),
+      context.supabase
+        .from('oauth_connections')
+        .select('provider, external_account, is_active, last_refreshed_at')
+        .eq('client_id', data.id),
+      context.supabase
+        .from('integration_logs')
+        .select('provider, operation, status, created_at')
+        .eq('client_id', data.id)
+        .order('created_at', { ascending: false })
+        .limit(20),
+    ])
+
+    if (clientResult.error) throw new Error(clientResult.error.message)
+    const row = clientResult.data
+
+    return {
+      ...toUiClient(row),
+      connections: (connectionsResult.data ?? []).map((c) => ({
+        provider:        c.provider,
+        externalAccount: c.external_account,
+        isActive:        c.is_active,
+        lastRefreshed:   c.last_refreshed_at,
+      })),
+      recentActivity: (activityResult.data ?? []).map((a) => ({
+        provider:  a.provider,
+        operation: a.operation,
+        status:    a.status,
+        createdAt: a.created_at,
+      })),
+    }
+  })
+
 // ─── createClient ─────────────────────────────────────────────
 
 const createClientSchema = z.object({

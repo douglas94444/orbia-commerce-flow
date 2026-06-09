@@ -1,5 +1,8 @@
 import { createServerFn } from '@tanstack/react-start'
+import { z } from 'zod'
 import { requireSupabaseAuth } from '@/integrations/supabase/auth-middleware'
+import { supabaseAdmin } from '@/integrations/supabase/client.server'
+import { logAudit } from '@/shared/lib/logger'
 import type { NfEmission, NfStatus } from '@/shared/types/orbia'
 
 // ─── listNfEmissions ──────────────────────────────────────────
@@ -7,8 +10,7 @@ import type { NfEmission, NfStatus } from '@/shared/types/orbia'
 export const listNfEmissions = createServerFn({ method: 'GET' })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<NfEmission[]> => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (context.supabase as any)
+    const { data, error } = await context.supabase
       .from('nfe_emissions')
       .select('id, type, status, value_cents, retries, created_at, clients(name)')
       .order('created_at', { ascending: false })
@@ -35,6 +37,101 @@ export const listNfEmissions = createServerFn({ method: 'GET' })
     }))
   })
 
+// ─── getFiscalConfig ──────────────────────────────────────────
+
+export interface FiscalConfig {
+  id:             string
+  cnpj:           string
+  companyName:    string
+  taxRegime:      string
+  defaultCfop:    string | null
+  defaultCst:     string | null
+  defaultNcm:     string | null
+  certExpiresAt:  string | null
+}
+
+export const getFiscalConfig = createServerFn({ method: 'GET' })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<FiscalConfig | null> => {
+    const { data, error } = await context.supabase
+      .from('fiscal_configs')
+      .select('id, cnpj, company_name, tax_regime, default_cfop, default_cst, default_ncm, cert_expires_at')
+      .single()
+
+    if (error) {
+      if (error.code === 'PGRST116') return null // no row — not configured yet
+      throw new Error(error.message)
+    }
+
+    return {
+      id:            data.id,
+      cnpj:          data.cnpj,
+      companyName:   data.company_name,
+      taxRegime:     data.tax_regime,
+      defaultCfop:   data.default_cfop,
+      defaultCst:    data.default_cst,
+      defaultNcm:    data.default_ncm,
+      certExpiresAt: data.cert_expires_at,
+    }
+  })
+
+// ─── upsertFiscalConfig ───────────────────────────────────────
+
+const fiscalConfigSchema = z.object({
+  cnpj:         z.string().regex(/^\d{14}$/, 'CNPJ deve ter 14 dígitos sem pontuação'),
+  companyName:  z.string().min(2).max(150),
+  taxRegime:    z.enum(['simples', 'lucro_presumido', 'lucro_real']),
+  defaultCfop:  z.string().max(10).optional().nullable(),
+  defaultCst:   z.string().max(10).optional().nullable(),
+  defaultNcm:   z.string().max(10).optional().nullable(),
+})
+
+export type FiscalConfigInput = z.infer<typeof fiscalConfigSchema>
+
+export const upsertFiscalConfig = createServerFn({ method: 'POST' })
+  .inputValidator(fiscalConfigSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    // Resolve client_id from membership (client_id never comes from frontend)
+    const { data: member } = await context.supabase
+      .from('client_members')
+      .select('client_id')
+      .eq('user_id', context.userId)
+      .eq('status', 'active')
+      .single()
+
+    if (!member) throw new Error('Nenhum cliente associado a este usuário.')
+    const clientId = member.client_id
+
+    const { data: config, error } = await supabaseAdmin
+      .from('fiscal_configs')
+      .upsert({
+        client_id:    clientId,
+        cnpj:         data.cnpj,
+        company_name: data.companyName,
+        tax_regime:   data.taxRegime,
+        default_cfop: data.defaultCfop ?? null,
+        default_cst:  data.defaultCst ?? null,
+        default_ncm:  data.defaultNcm ?? null,
+        updated_at:   new Date().toISOString(),
+      }, { onConflict: 'client_id' })
+      .select('id')
+      .single()
+
+    if (error) throw new Error(error.message)
+
+    await logAudit({
+      user_id:     context.userId,
+      client_id:   clientId,
+      action:      'update',
+      resource:    'fiscal_config',
+      resource_id: config.id,
+      new_data:    data,
+    })
+
+    return { success: true }
+  })
+
 // ─── getFiscalStats ───────────────────────────────────────────
 
 export interface FiscalStats {
@@ -51,8 +148,7 @@ export const getFiscalStats = createServerFn({ method: 'GET' })
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data } = await (context.supabase as any)
+    const { data } = await context.supabase
       .from('nfe_emissions')
       .select('status, retries, created_at')
       .gte('created_at', thirtyDaysAgo)

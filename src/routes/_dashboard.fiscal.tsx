@@ -1,5 +1,5 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { FileCheck2, FileWarning, RefreshCw, ShieldCheck } from 'lucide-react'
+import { createFileRoute, Link } from '@tanstack/react-router'
+import { FileCheck2, FileWarning, RefreshCw, Settings, ShieldCheck } from 'lucide-react'
 import { PageIntro, Panel } from '@/components/dashboard/panel'
 import { KpiCard } from '@/components/dashboard/kpi-card'
 import { StatusPill, type Tone } from '@/components/dashboard/status-pill'
@@ -68,7 +68,20 @@ function FiscalPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <Panel title="Fila de emissão" subtitle="Tempo real · retorno SEFAZ" className="lg:col-span-2">
+        <Panel
+          title="Fila de emissão"
+          subtitle="Tempo real · retorno SEFAZ"
+          className="lg:col-span-2"
+          action={
+            <Link
+              to="/fiscal/config"
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary"
+            >
+              <Settings className="size-3.5" />
+              Configurar
+            </Link>
+          }
+        >
           {loadingEmissions ? (
             <div className="space-y-3 py-2">
               {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-12 animate-pulse rounded-lg bg-muted/40" />)}

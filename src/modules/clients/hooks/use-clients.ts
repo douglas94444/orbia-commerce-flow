@@ -4,11 +4,13 @@ import {
   listClients,
   getPortfolioStats,
   createClient,
+  getClient,
   type CreateClientInput,
 } from '../actions.functions'
 
 export const CLIENTS_QUERY_KEY    = ['clients'] as const
 export const PORTFOLIO_STATS_KEY  = ['portfolio-stats'] as const
+export const CLIENT_DETAIL_KEY    = (id: string) => ['client', id] as const
 
 // ─── Queries ──────────────────────────────────────────────────
 
@@ -17,6 +19,15 @@ export function useClients() {
     queryKey: CLIENTS_QUERY_KEY,
     queryFn:  () => listClients(),
     staleTime: 30_000, // 30s — clients data changes infrequently
+  })
+}
+
+export function useClientDetail(id: string) {
+  return useQuery({
+    queryKey: CLIENT_DETAIL_KEY(id),
+    queryFn:  () => getClient({ data: { id } }),
+    staleTime: 30_000,
+    enabled: !!id,
   })
 }
 

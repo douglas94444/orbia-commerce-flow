@@ -14,12 +14,15 @@ import { Route as DashboardRouteImport } from './routes/_dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardTrafficRouteImport } from './routes/_dashboard.traffic'
 import { Route as DashboardSuccessRouteImport } from './routes/_dashboard.success'
+import { Route as DashboardSettingsRouteImport } from './routes/_dashboard.settings'
 import { Route as DashboardRetentionRouteImport } from './routes/_dashboard.retention'
 import { Route as DashboardOverviewRouteImport } from './routes/_dashboard.overview'
 import { Route as DashboardLogisticsRouteImport } from './routes/_dashboard.logistics'
 import { Route as DashboardFiscalRouteImport } from './routes/_dashboard.fiscal'
 import { Route as DashboardClientsRouteImport } from './routes/_dashboard.clients'
 import { Route as DashboardAnalyticsRouteImport } from './routes/_dashboard.analytics'
+import { Route as DashboardFiscalConfigRouteImport } from './routes/_dashboard.fiscal.config'
+import { Route as DashboardClientsIdRouteImport } from './routes/_dashboard.clients.$id'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -43,6 +46,11 @@ const DashboardTrafficRoute = DashboardTrafficRouteImport.update({
 const DashboardSuccessRoute = DashboardSuccessRouteImport.update({
   id: '/success',
   path: '/success',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => DashboardRoute,
 } as any)
 const DashboardRetentionRoute = DashboardRetentionRouteImport.update({
@@ -75,30 +83,46 @@ const DashboardAnalyticsRoute = DashboardAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardFiscalConfigRoute = DashboardFiscalConfigRouteImport.update({
+  id: '/config',
+  path: '/config',
+  getParentRoute: () => DashboardFiscalRoute,
+} as any)
+const DashboardClientsIdRoute = DashboardClientsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => DashboardClientsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/analytics': typeof DashboardAnalyticsRoute
-  '/clients': typeof DashboardClientsRoute
-  '/fiscal': typeof DashboardFiscalRoute
+  '/clients': typeof DashboardClientsRouteWithChildren
+  '/fiscal': typeof DashboardFiscalRouteWithChildren
   '/logistics': typeof DashboardLogisticsRoute
   '/overview': typeof DashboardOverviewRoute
   '/retention': typeof DashboardRetentionRoute
+  '/settings': typeof DashboardSettingsRoute
   '/success': typeof DashboardSuccessRoute
   '/traffic': typeof DashboardTrafficRoute
+  '/clients/$id': typeof DashboardClientsIdRoute
+  '/fiscal/config': typeof DashboardFiscalConfigRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/analytics': typeof DashboardAnalyticsRoute
-  '/clients': typeof DashboardClientsRoute
-  '/fiscal': typeof DashboardFiscalRoute
+  '/clients': typeof DashboardClientsRouteWithChildren
+  '/fiscal': typeof DashboardFiscalRouteWithChildren
   '/logistics': typeof DashboardLogisticsRoute
   '/overview': typeof DashboardOverviewRoute
   '/retention': typeof DashboardRetentionRoute
+  '/settings': typeof DashboardSettingsRoute
   '/success': typeof DashboardSuccessRoute
   '/traffic': typeof DashboardTrafficRoute
+  '/clients/$id': typeof DashboardClientsIdRoute
+  '/fiscal/config': typeof DashboardFiscalConfigRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -106,13 +130,16 @@ export interface FileRoutesById {
   '/_dashboard': typeof DashboardRouteWithChildren
   '/login': typeof LoginRoute
   '/_dashboard/analytics': typeof DashboardAnalyticsRoute
-  '/_dashboard/clients': typeof DashboardClientsRoute
-  '/_dashboard/fiscal': typeof DashboardFiscalRoute
+  '/_dashboard/clients': typeof DashboardClientsRouteWithChildren
+  '/_dashboard/fiscal': typeof DashboardFiscalRouteWithChildren
   '/_dashboard/logistics': typeof DashboardLogisticsRoute
   '/_dashboard/overview': typeof DashboardOverviewRoute
   '/_dashboard/retention': typeof DashboardRetentionRoute
+  '/_dashboard/settings': typeof DashboardSettingsRoute
   '/_dashboard/success': typeof DashboardSuccessRoute
   '/_dashboard/traffic': typeof DashboardTrafficRoute
+  '/_dashboard/clients/$id': typeof DashboardClientsIdRoute
+  '/_dashboard/fiscal/config': typeof DashboardFiscalConfigRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -125,8 +152,11 @@ export interface FileRouteTypes {
     | '/logistics'
     | '/overview'
     | '/retention'
+    | '/settings'
     | '/success'
     | '/traffic'
+    | '/clients/$id'
+    | '/fiscal/config'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -137,8 +167,11 @@ export interface FileRouteTypes {
     | '/logistics'
     | '/overview'
     | '/retention'
+    | '/settings'
     | '/success'
     | '/traffic'
+    | '/clients/$id'
+    | '/fiscal/config'
   id:
     | '__root__'
     | '/'
@@ -150,8 +183,11 @@ export interface FileRouteTypes {
     | '/_dashboard/logistics'
     | '/_dashboard/overview'
     | '/_dashboard/retention'
+    | '/_dashboard/settings'
     | '/_dashboard/success'
     | '/_dashboard/traffic'
+    | '/_dashboard/clients/$id'
+    | '/_dashboard/fiscal/config'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -197,6 +233,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardSuccessRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/_dashboard/settings': {
+      id: '/_dashboard/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof DashboardSettingsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/_dashboard/retention': {
       id: '/_dashboard/retention'
       path: '/retention'
@@ -239,27 +282,66 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardAnalyticsRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/_dashboard/fiscal/config': {
+      id: '/_dashboard/fiscal/config'
+      path: '/config'
+      fullPath: '/fiscal/config'
+      preLoaderRoute: typeof DashboardFiscalConfigRouteImport
+      parentRoute: typeof DashboardFiscalRoute
+    }
+    '/_dashboard/clients/$id': {
+      id: '/_dashboard/clients/$id'
+      path: '/$id'
+      fullPath: '/clients/$id'
+      preLoaderRoute: typeof DashboardClientsIdRouteImport
+      parentRoute: typeof DashboardClientsRoute
+    }
   }
 }
 
+interface DashboardClientsRouteChildren {
+  DashboardClientsIdRoute: typeof DashboardClientsIdRoute
+}
+
+const DashboardClientsRouteChildren: DashboardClientsRouteChildren = {
+  DashboardClientsIdRoute: DashboardClientsIdRoute,
+}
+
+const DashboardClientsRouteWithChildren =
+  DashboardClientsRoute._addFileChildren(DashboardClientsRouteChildren)
+
+interface DashboardFiscalRouteChildren {
+  DashboardFiscalConfigRoute: typeof DashboardFiscalConfigRoute
+}
+
+const DashboardFiscalRouteChildren: DashboardFiscalRouteChildren = {
+  DashboardFiscalConfigRoute: DashboardFiscalConfigRoute,
+}
+
+const DashboardFiscalRouteWithChildren = DashboardFiscalRoute._addFileChildren(
+  DashboardFiscalRouteChildren,
+)
+
 interface DashboardRouteChildren {
   DashboardAnalyticsRoute: typeof DashboardAnalyticsRoute
-  DashboardClientsRoute: typeof DashboardClientsRoute
-  DashboardFiscalRoute: typeof DashboardFiscalRoute
+  DashboardClientsRoute: typeof DashboardClientsRouteWithChildren
+  DashboardFiscalRoute: typeof DashboardFiscalRouteWithChildren
   DashboardLogisticsRoute: typeof DashboardLogisticsRoute
   DashboardOverviewRoute: typeof DashboardOverviewRoute
   DashboardRetentionRoute: typeof DashboardRetentionRoute
+  DashboardSettingsRoute: typeof DashboardSettingsRoute
   DashboardSuccessRoute: typeof DashboardSuccessRoute
   DashboardTrafficRoute: typeof DashboardTrafficRoute
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardAnalyticsRoute: DashboardAnalyticsRoute,
-  DashboardClientsRoute: DashboardClientsRoute,
-  DashboardFiscalRoute: DashboardFiscalRoute,
+  DashboardClientsRoute: DashboardClientsRouteWithChildren,
+  DashboardFiscalRoute: DashboardFiscalRouteWithChildren,
   DashboardLogisticsRoute: DashboardLogisticsRoute,
   DashboardOverviewRoute: DashboardOverviewRoute,
   DashboardRetentionRoute: DashboardRetentionRoute,
+  DashboardSettingsRoute: DashboardSettingsRoute,
   DashboardSuccessRoute: DashboardSuccessRoute,
   DashboardTrafficRoute: DashboardTrafficRoute,
 }
