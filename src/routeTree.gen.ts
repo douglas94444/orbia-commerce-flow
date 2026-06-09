@@ -9,38 +9,153 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as DashboardRouteImport } from './routes/_dashboard'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DashboardTrafficRouteImport } from './routes/_dashboard.traffic'
+import { Route as DashboardSuccessRouteImport } from './routes/_dashboard.success'
+import { Route as DashboardRetentionRouteImport } from './routes/_dashboard.retention'
+import { Route as DashboardOverviewRouteImport } from './routes/_dashboard.overview'
+import { Route as DashboardLogisticsRouteImport } from './routes/_dashboard.logistics'
+import { Route as DashboardFiscalRouteImport } from './routes/_dashboard.fiscal'
+import { Route as DashboardClientsRouteImport } from './routes/_dashboard.clients'
+import { Route as DashboardAnalyticsRouteImport } from './routes/_dashboard.analytics'
 
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/_dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardTrafficRoute = DashboardTrafficRouteImport.update({
+  id: '/traffic',
+  path: '/traffic',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardSuccessRoute = DashboardSuccessRouteImport.update({
+  id: '/success',
+  path: '/success',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardRetentionRoute = DashboardRetentionRouteImport.update({
+  id: '/retention',
+  path: '/retention',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardOverviewRoute = DashboardOverviewRouteImport.update({
+  id: '/overview',
+  path: '/overview',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardLogisticsRoute = DashboardLogisticsRouteImport.update({
+  id: '/logistics',
+  path: '/logistics',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardFiscalRoute = DashboardFiscalRouteImport.update({
+  id: '/fiscal',
+  path: '/fiscal',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardClientsRoute = DashboardClientsRouteImport.update({
+  id: '/clients',
+  path: '/clients',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardAnalyticsRoute = DashboardAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => DashboardRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/analytics': typeof DashboardAnalyticsRoute
+  '/clients': typeof DashboardClientsRoute
+  '/fiscal': typeof DashboardFiscalRoute
+  '/logistics': typeof DashboardLogisticsRoute
+  '/overview': typeof DashboardOverviewRoute
+  '/retention': typeof DashboardRetentionRoute
+  '/success': typeof DashboardSuccessRoute
+  '/traffic': typeof DashboardTrafficRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/analytics': typeof DashboardAnalyticsRoute
+  '/clients': typeof DashboardClientsRoute
+  '/fiscal': typeof DashboardFiscalRoute
+  '/logistics': typeof DashboardLogisticsRoute
+  '/overview': typeof DashboardOverviewRoute
+  '/retention': typeof DashboardRetentionRoute
+  '/success': typeof DashboardSuccessRoute
+  '/traffic': typeof DashboardTrafficRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_dashboard': typeof DashboardRouteWithChildren
+  '/_dashboard/analytics': typeof DashboardAnalyticsRoute
+  '/_dashboard/clients': typeof DashboardClientsRoute
+  '/_dashboard/fiscal': typeof DashboardFiscalRoute
+  '/_dashboard/logistics': typeof DashboardLogisticsRoute
+  '/_dashboard/overview': typeof DashboardOverviewRoute
+  '/_dashboard/retention': typeof DashboardRetentionRoute
+  '/_dashboard/success': typeof DashboardSuccessRoute
+  '/_dashboard/traffic': typeof DashboardTrafficRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/analytics'
+    | '/clients'
+    | '/fiscal'
+    | '/logistics'
+    | '/overview'
+    | '/retention'
+    | '/success'
+    | '/traffic'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/analytics'
+    | '/clients'
+    | '/fiscal'
+    | '/logistics'
+    | '/overview'
+    | '/retention'
+    | '/success'
+    | '/traffic'
+  id:
+    | '__root__'
+    | '/'
+    | '/_dashboard'
+    | '/_dashboard/analytics'
+    | '/_dashboard/clients'
+    | '/_dashboard/fiscal'
+    | '/_dashboard/logistics'
+    | '/_dashboard/overview'
+    | '/_dashboard/retention'
+    | '/_dashboard/success'
+    | '/_dashboard/traffic'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DashboardRoute: typeof DashboardRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/_dashboard': {
+      id: '/_dashboard'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,11 +163,94 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_dashboard/traffic': {
+      id: '/_dashboard/traffic'
+      path: '/traffic'
+      fullPath: '/traffic'
+      preLoaderRoute: typeof DashboardTrafficRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/success': {
+      id: '/_dashboard/success'
+      path: '/success'
+      fullPath: '/success'
+      preLoaderRoute: typeof DashboardSuccessRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/retention': {
+      id: '/_dashboard/retention'
+      path: '/retention'
+      fullPath: '/retention'
+      preLoaderRoute: typeof DashboardRetentionRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/overview': {
+      id: '/_dashboard/overview'
+      path: '/overview'
+      fullPath: '/overview'
+      preLoaderRoute: typeof DashboardOverviewRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/logistics': {
+      id: '/_dashboard/logistics'
+      path: '/logistics'
+      fullPath: '/logistics'
+      preLoaderRoute: typeof DashboardLogisticsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/fiscal': {
+      id: '/_dashboard/fiscal'
+      path: '/fiscal'
+      fullPath: '/fiscal'
+      preLoaderRoute: typeof DashboardFiscalRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/clients': {
+      id: '/_dashboard/clients'
+      path: '/clients'
+      fullPath: '/clients'
+      preLoaderRoute: typeof DashboardClientsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/analytics': {
+      id: '/_dashboard/analytics'
+      path: '/analytics'
+      fullPath: '/analytics'
+      preLoaderRoute: typeof DashboardAnalyticsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
   }
 }
 
+interface DashboardRouteChildren {
+  DashboardAnalyticsRoute: typeof DashboardAnalyticsRoute
+  DashboardClientsRoute: typeof DashboardClientsRoute
+  DashboardFiscalRoute: typeof DashboardFiscalRoute
+  DashboardLogisticsRoute: typeof DashboardLogisticsRoute
+  DashboardOverviewRoute: typeof DashboardOverviewRoute
+  DashboardRetentionRoute: typeof DashboardRetentionRoute
+  DashboardSuccessRoute: typeof DashboardSuccessRoute
+  DashboardTrafficRoute: typeof DashboardTrafficRoute
+}
+
+const DashboardRouteChildren: DashboardRouteChildren = {
+  DashboardAnalyticsRoute: DashboardAnalyticsRoute,
+  DashboardClientsRoute: DashboardClientsRoute,
+  DashboardFiscalRoute: DashboardFiscalRoute,
+  DashboardLogisticsRoute: DashboardLogisticsRoute,
+  DashboardOverviewRoute: DashboardOverviewRoute,
+  DashboardRetentionRoute: DashboardRetentionRoute,
+  DashboardSuccessRoute: DashboardSuccessRoute,
+  DashboardTrafficRoute: DashboardTrafficRoute,
+}
+
+const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
+  DashboardRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DashboardRoute: DashboardRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
