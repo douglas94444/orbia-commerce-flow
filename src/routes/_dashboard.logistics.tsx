@@ -1,10 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { Lock, PackageCheck, PackageX, Truck } from 'lucide-react'
+import { Loader2, Lock, PackageCheck, PackageX, Tag, Truck } from 'lucide-react'
 import { PageIntro, Panel } from '@/components/dashboard/panel'
 import { KpiCard } from '@/components/dashboard/kpi-card'
 import { StatusPill, type Tone } from '@/components/dashboard/status-pill'
+import { Button } from '@/components/ui/button'
 import { formatBRL } from '@/lib/format'
-import { useOrders, useInventory, useLogisticsStats } from '@/modules/logistics/hooks/use-logistics'
+import { useOrders, useInventory, useLogisticsStats, useDispatchOrder } from '@/modules/logistics/hooks/use-logistics'
 import type { NfStatus, OrderStatus } from '@/types/orbia'
 
 export const Route = createFileRoute('/_dashboard/logistics')({
@@ -32,6 +33,7 @@ function LogisticsPage() {
   const { data: orders = [],    isLoading: loadingOrders    } = useOrders()
   const { data: inventory = [], isLoading: loadingInventory } = useInventory()
   const { data: stats,          isLoading: loadingStats     } = useLogisticsStats()
+  const dispatch = useDispatchOrder()
 
   const awaitingNf   = stats?.awaitingNf   ?? orders.filter((o) => o.status === 'aguardando_nf').length
   const todayCount   = stats?.todayCount   ?? 0
@@ -70,7 +72,7 @@ function LogisticsPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border text-left">
-                  {['Pedido','Cliente','Canal','Transportadora','NF-e','Status','Valor'].map((h) => (
+                  {['Pedido','Cliente','Canal','Transportadora','NF-e','Status','Valor',''].map((h) => (
                     <th key={h} className={`pb-3 text-[10px] font-medium uppercase tracking-wider text-muted-foreground${h === 'Valor' ? ' text-right' : ''}`}>{h}</th>
                   ))}
                 </tr>
@@ -85,6 +87,27 @@ function LogisticsPage() {
                     <td className="py-3"><StatusPill label={NF_STATUS[o.nf].label} tone={NF_STATUS[o.nf].tone} dot /></td>
                     <td className="py-3"><StatusPill label={ORDER_STATUS[o.status].label} tone={ORDER_STATUS[o.status].tone} /></td>
                     <td className="py-3 text-right font-mono text-sm text-foreground">{formatBRL(o.value)}</td>
+                    <td className="py-3 text-right">
+                      {o.status === 'separacao' && o.nf === 'autorizada' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 gap-1 px-2 text-xs"
+                          disabled={dispatch.isPending}
+                          onClick={() => dispatch.mutate(o.internalId)}
+                        >
+                          {dispatch.isPending ? (
+                            <Loader2 className="size-3 animate-spin" />
+                          ) : (
+                            <Tag className="size-3" />
+                          )}
+                          Gerar etiqueta
+                        </Button>
+                      )}
+                      {o.trackingCode && (
+                        <span className="font-mono text-[10px] text-muted-foreground">{o.trackingCode}</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -115,8 +138,11 @@ function LogisticsPage() {
                 <p className="text-sm font-medium text-foreground">{item.product}</p>
                 <p className="text-[11px] text-muted-foreground">{item.client}</p>
                 <p className="mt-2 font-mono text-lg font-semibold text-foreground">
-                  {item.units}
-                  <span className="ml-1 text-[11px] font-normal text-muted-foreground">un.</span>
+                  {item.available}
+                  <span className="ml-1 text-[11px] font-normal text-muted-foreground">disp.</span>
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  {item.units} total · {item.reserved} reservado
                 </p>
               </div>
             ))}

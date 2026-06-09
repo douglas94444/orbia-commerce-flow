@@ -22,6 +22,28 @@ export function getServerConfig() {
       clientId: process.env.SHOPIFY_CLIENT_ID,
       clientSecret: process.env.SHOPIFY_CLIENT_SECRET,
     },
+    mercadoLivre: {
+      clientId: process.env.ML_CLIENT_ID,
+      clientSecret: process.env.ML_CLIENT_SECRET,
+    },
+    shopee: {
+      partnerId: process.env.SHOPEE_PARTNER_ID,
+      partnerKey: process.env.SHOPEE_PARTNER_KEY,
+    },
+    melhorEnvio: {
+      clientId: process.env.MELHOR_ENVIO_CLIENT_ID,
+      clientSecret: process.env.MELHOR_ENVIO_CLIENT_SECRET,
+      token: process.env.MELHOR_ENVIO_TOKEN,
+      fromPostalCode: process.env.MELHOR_ENVIO_FROM_POSTAL,
+    },
+    meta: {
+      appId: process.env.META_APP_ID,
+      appSecret: process.env.META_APP_SECRET,
+    },
+    resend: {
+      apiKey: process.env.RESEND_API_KEY,
+      fromEmail: process.env.RESEND_FROM_EMAIL,
+    },
     focusNfe: {
       token: process.env.FOCUS_NFE_TOKEN,
       env: (process.env.FOCUS_NFE_ENV ?? "homologacao") as "homologacao" | "producao",

@@ -1,7 +1,20 @@
-// Unified order ingestion from Nuvemshop / Shopify webhooks.
+// Unified order ingestion from marketplace webhooks.
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { getOrder as getMlOrder } from "@/integrations/mercado-livre";
 import { emitNfeForOrder } from "@/modules/fiscal/emit-order-nfe.server";
+import { emitDomainEvent } from "@/shared/lib/domain-events.server";
+import {
+  reserveStock,
+  releaseStock,
+  itemsFromOrderMetadata,
+} from "./stock-reservation.server";
+
+export type MarketplaceChannel =
+  | "nuvemshop"
+  | "shopify"
+  | "mercado_livre"
+  | "shopee";
 
 export interface NormalizedOrderItem {
   sku: string;
@@ -13,12 +26,41 @@ export interface NormalizedOrderItem {
 
 export interface NormalizedOrder {
   externalId: string;
-  channel: "nuvemshop" | "shopify";
+  channel: MarketplaceChannel;
   valueCents: number;
   city: string | null;
   paymentStatus: "paid" | "pending" | "refunded" | "cancelled";
   items: NormalizedOrderItem[];
+  customerEmail?: string;
   raw: Record<string, unknown>;
+}
+
+export async function enrichMercadoLivrePayload(payload: unknown): Promise<unknown> {
+  const body = payload as Record<string, unknown>;
+  const data = (body.data ?? body) as Record<string, unknown>;
+  if (data.order_items) return payload;
+
+  const resource = String(body.resource ?? "");
+  const orderId = resource.split("/").pop();
+  const userId = String(body.user_id ?? "");
+  if (!orderId || !userId) return payload;
+
+  const clientId = await resolveClientId("mercado_livre", userId);
+  if (!clientId) return payload;
+
+  const { data: conn } = await supabaseAdmin
+    .from("oauth_connections")
+    .select("access_token")
+    .eq("client_id", clientId)
+    .eq("provider", "mercado_livre")
+    .eq("external_account", userId)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (!conn?.access_token) return payload;
+
+  const order = await getMlOrder(orderId, conn.access_token);
+  return { ...body, data: order, user_id: userId };
 }
 
 export async function resolveClientId(
@@ -39,7 +81,6 @@ export async function resolveClientId(
 export function normalizeNuvemshopOrder(payload: unknown): NormalizedOrder | null {
   const body = payload as Record<string, unknown>;
   const order = (body.data ?? body) as Record<string, unknown>;
-
   const id = order.id ?? body.id;
   if (id == null) return null;
 
@@ -56,15 +97,16 @@ export function normalizeNuvemshopOrder(payload: unknown): NormalizedOrder | nul
   }));
 
   const shipping = order.shipping_address as Record<string, unknown> | undefined;
-  const total = Number(order.total ?? order.total_price ?? 0);
+  const buyer = order.customer as Record<string, unknown> | undefined;
 
   return {
     externalId: String(id),
     channel: "nuvemshop",
-    valueCents: Math.round(total * 100),
+    valueCents: Math.round(Number(order.total ?? order.total_price ?? 0) * 100),
     city: shipping?.city ? String(shipping.city) : null,
     paymentStatus: paid ? "paid" : paymentStatus === "cancelled" ? "cancelled" : "pending",
     items,
+    customerEmail: buyer?.email ? String(buyer.email) : undefined,
     raw: order as Record<string, unknown>,
   };
 }
@@ -86,12 +128,11 @@ export function normalizeShopifyOrder(payload: unknown): NormalizedOrder | null 
   }));
 
   const shipping = order.shipping_address as Record<string, unknown> | undefined;
-  const total = Number(order.total_price ?? 0);
 
   return {
     externalId: String(id),
     channel: "shopify",
-    valueCents: Math.round(total * 100),
+    valueCents: Math.round(Number(order.total_price ?? 0) * 100),
     city: shipping?.city ? String(shipping.city) : null,
     paymentStatus: paid
       ? "paid"
@@ -101,8 +142,89 @@ export function normalizeShopifyOrder(payload: unknown): NormalizedOrder | null 
           ? "cancelled"
           : "pending",
     items,
+    customerEmail: order.email ? String(order.email) : undefined,
     raw: order as Record<string, unknown>,
   };
+}
+
+export function normalizeMercadoLivreOrder(payload: unknown): NormalizedOrder | null {
+  const body = payload as Record<string, unknown>;
+  const order = (body.resource ? body : body) as Record<string, unknown>;
+  const data = (order.data ?? order) as Record<string, unknown>;
+
+  const id = data.id ?? body.id;
+  if (id == null) return null;
+
+  const status = String(data.status ?? "").toLowerCase();
+  const paid = status === "paid" || status === "confirmed";
+
+  const orderItems = (data.order_items ?? []) as Array<Record<string, unknown>>;
+  const items: NormalizedOrderItem[] = orderItems.map((p) => ({
+    sku: String(p.item?.seller_sku ?? p.item?.id ?? "SKU"),
+    name: String(p.item?.title ?? "Produto"),
+    quantity: Number(p.quantity ?? 1),
+    unitPriceCents: Math.round(Number(p.unit_price ?? 0) * 100),
+  }));
+
+  const shipping = data.shipping as Record<string, unknown> | undefined;
+  const receiver = shipping?.receiver_address as Record<string, unknown> | undefined;
+  const buyer = data.buyer as Record<string, unknown> | undefined;
+
+  return {
+    externalId: String(id),
+    channel: "mercado_livre",
+    valueCents: Math.round(Number(data.total_amount ?? data.paid_amount ?? 0) * 100),
+    city: receiver?.city ? String((receiver.city as { name?: string })?.name ?? receiver.city) : null,
+    paymentStatus: paid ? "paid" : status === "cancelled" ? "cancelled" : "pending",
+    items: items.length ? items : [{ sku: "ML-ITEM", name: "Produto ML", quantity: 1, unitPriceCents: Math.round(Number(data.total_amount ?? 0) * 100) }],
+    customerEmail: buyer?.email ? String(buyer.email) : undefined,
+    raw: data as Record<string, unknown>,
+  };
+}
+
+export function normalizeShopeeOrder(payload: unknown): NormalizedOrder | null {
+  const body = payload as Record<string, unknown>;
+  const data = (body.data ?? body) as Record<string, unknown>;
+
+  const id = data.order_sn ?? data.ordersn ?? data.order_id;
+  if (id == null) return null;
+
+  const status = String(data.order_status ?? "").toUpperCase();
+  const paid = ["READY_TO_SHIP", "PROCESSED", "SHIPPED", "COMPLETED", "TO_CONFIRM_RECEIVE"].includes(status);
+
+  const itemList = (data.item_list ?? []) as Array<Record<string, unknown>>;
+  const items: NormalizedOrderItem[] = itemList.map((p) => ({
+    sku: String(p.item_sku ?? p.model_sku ?? p.item_id ?? "SKU"),
+    name: String(p.item_name ?? "Produto"),
+    quantity: Number(p.model_quantity_purchased ?? p.quantity ?? 1),
+    unitPriceCents: Math.round(Number(p.model_discounted_price ?? p.model_original_price ?? 0) * 100),
+  }));
+
+  const recipient = data.recipient_address as Record<string, unknown> | undefined;
+
+  return {
+    externalId: String(id),
+    channel: "shopee",
+    valueCents: Math.round(Number(data.total_amount ?? data.escrow_amount ?? 0) * 100),
+    city: recipient?.city ? String(recipient.city) : null,
+    paymentStatus: paid ? "paid" : status === "CANCELLED" ? "cancelled" : "pending",
+    items: items.length ? items : [{ sku: "SHOPEE-ITEM", name: "Produto Shopee", quantity: 1, unitPriceCents: Math.round(Number(data.total_amount ?? 0) * 100) }],
+    customerEmail: data.buyer_username ? undefined : undefined,
+    raw: data as Record<string, unknown>,
+  };
+}
+
+function normalizeByProvider(provider: MarketplaceChannel, payload: unknown): NormalizedOrder | null {
+  switch (provider) {
+    case "nuvemshop":
+      return normalizeNuvemshopOrder(payload);
+    case "shopify":
+      return normalizeShopifyOrder(payload);
+    case "mercado_livre":
+      return normalizeMercadoLivreOrder(payload);
+    case "shopee":
+      return normalizeShopeeOrder(payload);
+  }
 }
 
 export async function upsertOrderFromWebhook(
@@ -113,6 +235,13 @@ export async function upsertOrderFromWebhook(
     order.paymentStatus === "cancelled" || order.paymentStatus === "refunded"
       ? "cancelado"
       : "aguardando_nf";
+
+  const metadata: Record<string, unknown> = {
+    items: order.items,
+    payment_status: order.paymentStatus,
+    raw_id: order.externalId,
+  };
+  if (order.customerEmail) metadata.customer_email = order.customerEmail;
 
   const { data, error } = await supabaseAdmin
     .from("orders")
@@ -125,11 +254,7 @@ export async function upsertOrderFromWebhook(
         nf_status: "pendente",
         value_cents: order.valueCents,
         city: order.city,
-        metadata: {
-          items: order.items,
-          payment_status: order.paymentStatus,
-          raw_id: order.externalId,
-        },
+        metadata,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "client_id,channel,external_id" },
@@ -154,35 +279,40 @@ export async function triggerNfeForOrder(orderId: string): Promise<void> {
 }
 
 export async function ingestStoreWebhook(
-  provider: "nuvemshop" | "shopify",
+  provider: MarketplaceChannel,
   eventType: string,
   payload: unknown,
   clientId: string | null,
 ): Promise<void> {
-  const paidEvents = new Set([
+  const relevantEvents = new Set([
     "order/paid",
     "orders/paid",
     "order/updated",
     "orders/updated",
     "orders/create",
     "order/created",
+    "orders_v2",
+    "payment",
+    "order_status_push",
+    "created_orders",
   ]);
 
-  if (!paidEvents.has(eventType)) return;
+  if (!relevantEvents.has(eventType)) return;
 
-  const normalized =
-    provider === "nuvemshop" ? normalizeNuvemshopOrder(payload) : normalizeShopifyOrder(payload);
-
+  const normalized = normalizeByProvider(provider, payload);
   if (!normalized) throw new Error(`Could not normalize ${provider} order payload`);
 
   let resolvedClientId = clientId;
   if (!resolvedClientId) {
+    const p = payload as Record<string, unknown>;
     const storeId =
       provider === "nuvemshop"
-        ? String((payload as Record<string, unknown>).store_id ?? normalized.raw.store_id ?? "")
-        : String(
-            (payload as Record<string, unknown>).shop_domain ?? normalized.raw.shop_domain ?? "",
-          );
+        ? String(p.store_id ?? normalized.raw.store_id ?? "")
+        : provider === "shopify"
+          ? String(p.shop_domain ?? normalized.raw.shop_domain ?? "")
+          : provider === "mercado_livre"
+            ? String(p.user_id ?? normalized.raw.seller?.id ?? "")
+            : String(p.shop_id ?? normalized.raw.shop_id ?? "");
 
     if (storeId) resolvedClientId = await resolveClientId(provider, storeId);
   }
@@ -191,9 +321,21 @@ export async function ingestStoreWebhook(
     throw new Error(`No client_id for ${provider} webhook — connect OAuth first`);
   }
 
+  const stockItems = itemsFromOrderMetadata(normalized.items);
+
+  if (normalized.paymentStatus === "cancelled" || normalized.paymentStatus === "refunded") {
+    try {
+      await releaseStock(resolvedClientId, stockItems);
+    } catch {
+      // May not have been reserved yet
+    }
+  }
+
   const orderId = await upsertOrderFromWebhook(resolvedClientId, normalized);
 
   if (normalized.paymentStatus === "paid") {
+    await reserveStock(resolvedClientId, stockItems);
+    await emitDomainEvent("order.paid", { orderId, clientId: resolvedClientId });
     await triggerNfeForOrder(orderId);
   }
 }

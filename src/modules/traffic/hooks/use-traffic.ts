@@ -1,5 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
-import { listCampaigns, getTrafficStats } from "../actions.functions";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { listCampaigns, getTrafficStats, syncAllMetaCampaigns } from "../actions.functions";
 
 export const CAMPAIGNS_KEY = ["campaigns"] as const;
 export const TRAFFIC_STATS_KEY = ["traffic-stats"] as const;
@@ -13,5 +14,18 @@ export function useTrafficStats() {
     queryKey: TRAFFIC_STATS_KEY,
     queryFn: () => getTrafficStats(),
     staleTime: 30_000,
+  });
+}
+
+export function useSyncMetaCampaigns() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => syncAllMetaCampaigns(),
+    onSuccess: (result) => {
+      toast.success(`${result.synced} campanha(s) em ${result.clients} conta(s)`);
+      void qc.invalidateQueries({ queryKey: CAMPAIGNS_KEY });
+      void qc.invalidateQueries({ queryKey: TRAFFIC_STATS_KEY });
+    },
+    onError: (err: Error) => toast.error(err.message),
   });
 }

@@ -1,7 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { buildMercadoLivreAuthUrl } from "@/integrations/mercado-livre";
+import { buildMetaAuthUrl } from "@/integrations/meta";
 import { buildNuvemshopAuthUrl } from "@/integrations/nuvemshop";
+import { buildShopeeAuthUrl } from "@/integrations/shopee";
 import { buildShopifyAuthUrl } from "@/integrations/shopify";
 import { createOAuthState } from "./oauth.server";
 
@@ -45,4 +48,38 @@ export const startShopifyOAuth = createServerFn({ method: "POST" })
     const shop = data.shop.replace(/^https?:\/\//, "").replace(/\/$/, "");
     const state = await createOAuthState(context.userId, data.clientId, "shopify", { shop });
     return { url: buildShopifyAuthUrl(shop, state) };
+  });
+
+const shopeeStartSchema = z.object({
+  clientId: z.string().uuid(),
+  shopId: z.string().min(1).max(50),
+});
+
+export const startMercadoLivreOAuth = createServerFn({ method: "POST" })
+  .inputValidator(clientIdSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await requireStaff(context.userId, context.supabase);
+    const state = await createOAuthState(context.userId, data.clientId, "mercado_livre");
+    return { url: buildMercadoLivreAuthUrl(state) };
+  });
+
+export const startShopeeOAuth = createServerFn({ method: "POST" })
+  .inputValidator(shopeeStartSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await requireStaff(context.userId, context.supabase);
+    const state = await createOAuthState(context.userId, data.clientId, "shopee", {
+      shop_id: data.shopId,
+    });
+    return { url: buildShopeeAuthUrl(data.shopId, state) };
+  });
+
+export const startMetaOAuth = createServerFn({ method: "POST" })
+  .inputValidator(clientIdSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await requireStaff(context.userId, context.supabase);
+    const state = await createOAuthState(context.userId, data.clientId, "meta");
+    return { url: buildMetaAuthUrl(state) };
   });

@@ -1,6 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Campaign } from "@/shared/types/orbia";
+import {
+  syncMetaCampaigns as syncMetaCampaignsInternal,
+  syncAllMetaCampaigns as syncAllMetaCampaignsInternal,
+} from "./sync-campaigns.server";
 
 const PLATFORM_LABEL: Record<string, "Meta Ads" | "Google Ads"> = {
   meta: "Meta Ads",
@@ -78,4 +83,39 @@ export const getTrafficStats = createServerFn({ method: "GET" })
     const atRisk = rows.filter((r: { roas: number }) => Number(r.roas) < 4).length;
 
     return { avgRoas, totalSpend, totalRevenue, campaignCount: total, atRisk };
+  });
+
+// ─── syncMetaCampaigns ────────────────────────────────────────
+
+async function requireStaffTraffic(
+  userId: string,
+  supabase: {
+    from: (table: string) => ReturnType<import("@supabase/supabase-js").SupabaseClient["from"]>;
+  },
+) {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", userId)
+    .single();
+  if (!profile || !["orbia_admin", "orbia_staff"].includes(profile.role as string)) {
+    throw new Error("Apenas equipe Orbia pode sincronizar campanhas.");
+  }
+}
+
+const syncMetaSchema = z.object({ clientId: z.string().uuid() });
+
+export const syncMetaCampaigns = createServerFn({ method: "POST" })
+  .inputValidator(syncMetaSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await requireStaffTraffic(context.userId, context.supabase);
+    return syncMetaCampaignsInternal(data.clientId);
+  });
+
+export const syncAllMetaCampaigns = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await requireStaffTraffic(context.userId, context.supabase);
+    return syncAllMetaCampaignsInternal();
   });

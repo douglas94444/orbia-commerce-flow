@@ -24,3 +24,19 @@ console.log('buckets:', buckets?.map((b) => b.id).join(', ') || 'none')
 const { count: orders } = await sb.from('orders').select('id', { count: 'exact', head: true })
 const { count: clients } = await sb.from('clients').select('id', { count: 'exact', head: true })
 console.log('clients:', clients, 'orders:', orders)
+
+const { error: rpcErr } = await sb.rpc('reserve_inventory', {
+  p_client_id: '00000000-0000-0000-0000-000000000000',
+  p_sku: 'test',
+  p_qty: 0,
+})
+console.log('migration 014 (reserve_inventory):', rpcErr?.message?.includes('not found') ? 'MISSING' : 'ok')
+
+const { error: trackErr } = await sb.from('orders').select('tracking_code, shipment_external_id').limit(1)
+console.log('migration 015 (tracking columns):', trackErr ? `MISSING (${trackErr.message})` : 'ok')
+
+const { count: flows } = await sb
+  .from('automation_flows')
+  .select('id', { count: 'exact', head: true })
+  .eq('trigger', 'pedido_entregue')
+console.log('automation_flows pedido_entregue:', flows ?? 0)

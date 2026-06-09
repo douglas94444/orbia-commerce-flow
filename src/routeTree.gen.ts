@@ -22,11 +22,17 @@ import { Route as DashboardFiscalRouteImport } from './routes/_dashboard.fiscal'
 import { Route as DashboardClientsRouteImport } from './routes/_dashboard.clients'
 import { Route as DashboardAnalyticsRouteImport } from './routes/_dashboard.analytics'
 import { Route as ApiWebhooksShopifyRouteImport } from './routes/api/webhooks/shopify'
+import { Route as ApiWebhooksShopeeRouteImport } from './routes/api/webhooks/shopee'
 import { Route as ApiWebhooksNuvemshopRouteImport } from './routes/api/webhooks/nuvemshop'
+import { Route as ApiWebhooksMercadoLivreRouteImport } from './routes/api/webhooks/mercado-livre'
+import { Route as ApiWebhooksMelhorEnvioRouteImport } from './routes/api/webhooks/melhor-envio'
 import { Route as DashboardFiscalConfigRouteImport } from './routes/_dashboard.fiscal.config'
 import { Route as DashboardClientsIdRouteImport } from './routes/_dashboard.clients.$id'
 import { Route as ApiOauthShopifyCallbackRouteImport } from './routes/api/oauth/shopify/callback'
+import { Route as ApiOauthShopeeCallbackRouteImport } from './routes/api/oauth/shopee/callback'
 import { Route as ApiOauthNuvemshopCallbackRouteImport } from './routes/api/oauth/nuvemshop/callback'
+import { Route as ApiOauthMetaCallbackRouteImport } from './routes/api/oauth/meta/callback'
+import { Route as ApiOauthMercadoLivreCallbackRouteImport } from './routes/api/oauth/mercado-livre/callback'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -92,9 +98,24 @@ const ApiWebhooksShopifyRoute = ApiWebhooksShopifyRouteImport.update({
   path: '/api/webhooks/shopify',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiWebhooksShopeeRoute = ApiWebhooksShopeeRouteImport.update({
+  id: '/api/webhooks/shopee',
+  path: '/api/webhooks/shopee',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiWebhooksNuvemshopRoute = ApiWebhooksNuvemshopRouteImport.update({
   id: '/api/webhooks/nuvemshop',
   path: '/api/webhooks/nuvemshop',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWebhooksMercadoLivreRoute = ApiWebhooksMercadoLivreRouteImport.update({
+  id: '/api/webhooks/mercado-livre',
+  path: '/api/webhooks/mercado-livre',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWebhooksMelhorEnvioRoute = ApiWebhooksMelhorEnvioRouteImport.update({
+  id: '/api/webhooks/melhor-envio',
+  path: '/api/webhooks/melhor-envio',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardFiscalConfigRoute = DashboardFiscalConfigRouteImport.update({
@@ -112,10 +133,26 @@ const ApiOauthShopifyCallbackRoute = ApiOauthShopifyCallbackRouteImport.update({
   path: '/api/oauth/shopify/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiOauthShopeeCallbackRoute = ApiOauthShopeeCallbackRouteImport.update({
+  id: '/api/oauth/shopee/callback',
+  path: '/api/oauth/shopee/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiOauthNuvemshopCallbackRoute =
   ApiOauthNuvemshopCallbackRouteImport.update({
     id: '/api/oauth/nuvemshop/callback',
     path: '/api/oauth/nuvemshop/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiOauthMetaCallbackRoute = ApiOauthMetaCallbackRouteImport.update({
+  id: '/api/oauth/meta/callback',
+  path: '/api/oauth/meta/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiOauthMercadoLivreCallbackRoute =
+  ApiOauthMercadoLivreCallbackRouteImport.update({
+    id: '/api/oauth/mercado-livre/callback',
+    path: '/api/oauth/mercado-livre/callback',
     getParentRoute: () => rootRouteImport,
   } as any)
 
@@ -133,9 +170,15 @@ export interface FileRoutesByFullPath {
   '/traffic': typeof DashboardTrafficRoute
   '/clients/$id': typeof DashboardClientsIdRoute
   '/fiscal/config': typeof DashboardFiscalConfigRoute
+  '/api/webhooks/melhor-envio': typeof ApiWebhooksMelhorEnvioRoute
+  '/api/webhooks/mercado-livre': typeof ApiWebhooksMercadoLivreRoute
   '/api/webhooks/nuvemshop': typeof ApiWebhooksNuvemshopRoute
+  '/api/webhooks/shopee': typeof ApiWebhooksShopeeRoute
   '/api/webhooks/shopify': typeof ApiWebhooksShopifyRoute
+  '/api/oauth/mercado-livre/callback': typeof ApiOauthMercadoLivreCallbackRoute
+  '/api/oauth/meta/callback': typeof ApiOauthMetaCallbackRoute
   '/api/oauth/nuvemshop/callback': typeof ApiOauthNuvemshopCallbackRoute
+  '/api/oauth/shopee/callback': typeof ApiOauthShopeeCallbackRoute
   '/api/oauth/shopify/callback': typeof ApiOauthShopifyCallbackRoute
 }
 export interface FileRoutesByTo {
@@ -152,9 +195,15 @@ export interface FileRoutesByTo {
   '/traffic': typeof DashboardTrafficRoute
   '/clients/$id': typeof DashboardClientsIdRoute
   '/fiscal/config': typeof DashboardFiscalConfigRoute
+  '/api/webhooks/melhor-envio': typeof ApiWebhooksMelhorEnvioRoute
+  '/api/webhooks/mercado-livre': typeof ApiWebhooksMercadoLivreRoute
   '/api/webhooks/nuvemshop': typeof ApiWebhooksNuvemshopRoute
+  '/api/webhooks/shopee': typeof ApiWebhooksShopeeRoute
   '/api/webhooks/shopify': typeof ApiWebhooksShopifyRoute
+  '/api/oauth/mercado-livre/callback': typeof ApiOauthMercadoLivreCallbackRoute
+  '/api/oauth/meta/callback': typeof ApiOauthMetaCallbackRoute
   '/api/oauth/nuvemshop/callback': typeof ApiOauthNuvemshopCallbackRoute
+  '/api/oauth/shopee/callback': typeof ApiOauthShopeeCallbackRoute
   '/api/oauth/shopify/callback': typeof ApiOauthShopifyCallbackRoute
 }
 export interface FileRoutesById {
@@ -173,9 +222,15 @@ export interface FileRoutesById {
   '/_dashboard/traffic': typeof DashboardTrafficRoute
   '/_dashboard/clients/$id': typeof DashboardClientsIdRoute
   '/_dashboard/fiscal/config': typeof DashboardFiscalConfigRoute
+  '/api/webhooks/melhor-envio': typeof ApiWebhooksMelhorEnvioRoute
+  '/api/webhooks/mercado-livre': typeof ApiWebhooksMercadoLivreRoute
   '/api/webhooks/nuvemshop': typeof ApiWebhooksNuvemshopRoute
+  '/api/webhooks/shopee': typeof ApiWebhooksShopeeRoute
   '/api/webhooks/shopify': typeof ApiWebhooksShopifyRoute
+  '/api/oauth/mercado-livre/callback': typeof ApiOauthMercadoLivreCallbackRoute
+  '/api/oauth/meta/callback': typeof ApiOauthMetaCallbackRoute
   '/api/oauth/nuvemshop/callback': typeof ApiOauthNuvemshopCallbackRoute
+  '/api/oauth/shopee/callback': typeof ApiOauthShopeeCallbackRoute
   '/api/oauth/shopify/callback': typeof ApiOauthShopifyCallbackRoute
 }
 export interface FileRouteTypes {
@@ -194,9 +249,15 @@ export interface FileRouteTypes {
     | '/traffic'
     | '/clients/$id'
     | '/fiscal/config'
+    | '/api/webhooks/melhor-envio'
+    | '/api/webhooks/mercado-livre'
     | '/api/webhooks/nuvemshop'
+    | '/api/webhooks/shopee'
     | '/api/webhooks/shopify'
+    | '/api/oauth/mercado-livre/callback'
+    | '/api/oauth/meta/callback'
     | '/api/oauth/nuvemshop/callback'
+    | '/api/oauth/shopee/callback'
     | '/api/oauth/shopify/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -213,9 +274,15 @@ export interface FileRouteTypes {
     | '/traffic'
     | '/clients/$id'
     | '/fiscal/config'
+    | '/api/webhooks/melhor-envio'
+    | '/api/webhooks/mercado-livre'
     | '/api/webhooks/nuvemshop'
+    | '/api/webhooks/shopee'
     | '/api/webhooks/shopify'
+    | '/api/oauth/mercado-livre/callback'
+    | '/api/oauth/meta/callback'
     | '/api/oauth/nuvemshop/callback'
+    | '/api/oauth/shopee/callback'
     | '/api/oauth/shopify/callback'
   id:
     | '__root__'
@@ -233,9 +300,15 @@ export interface FileRouteTypes {
     | '/_dashboard/traffic'
     | '/_dashboard/clients/$id'
     | '/_dashboard/fiscal/config'
+    | '/api/webhooks/melhor-envio'
+    | '/api/webhooks/mercado-livre'
     | '/api/webhooks/nuvemshop'
+    | '/api/webhooks/shopee'
     | '/api/webhooks/shopify'
+    | '/api/oauth/mercado-livre/callback'
+    | '/api/oauth/meta/callback'
     | '/api/oauth/nuvemshop/callback'
+    | '/api/oauth/shopee/callback'
     | '/api/oauth/shopify/callback'
   fileRoutesById: FileRoutesById
 }
@@ -243,9 +316,15 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRouteWithChildren
   LoginRoute: typeof LoginRoute
+  ApiWebhooksMelhorEnvioRoute: typeof ApiWebhooksMelhorEnvioRoute
+  ApiWebhooksMercadoLivreRoute: typeof ApiWebhooksMercadoLivreRoute
   ApiWebhooksNuvemshopRoute: typeof ApiWebhooksNuvemshopRoute
+  ApiWebhooksShopeeRoute: typeof ApiWebhooksShopeeRoute
   ApiWebhooksShopifyRoute: typeof ApiWebhooksShopifyRoute
+  ApiOauthMercadoLivreCallbackRoute: typeof ApiOauthMercadoLivreCallbackRoute
+  ApiOauthMetaCallbackRoute: typeof ApiOauthMetaCallbackRoute
   ApiOauthNuvemshopCallbackRoute: typeof ApiOauthNuvemshopCallbackRoute
+  ApiOauthShopeeCallbackRoute: typeof ApiOauthShopeeCallbackRoute
   ApiOauthShopifyCallbackRoute: typeof ApiOauthShopifyCallbackRoute
 }
 
@@ -342,11 +421,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiWebhooksShopifyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/webhooks/shopee': {
+      id: '/api/webhooks/shopee'
+      path: '/api/webhooks/shopee'
+      fullPath: '/api/webhooks/shopee'
+      preLoaderRoute: typeof ApiWebhooksShopeeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/webhooks/nuvemshop': {
       id: '/api/webhooks/nuvemshop'
       path: '/api/webhooks/nuvemshop'
       fullPath: '/api/webhooks/nuvemshop'
       preLoaderRoute: typeof ApiWebhooksNuvemshopRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/webhooks/mercado-livre': {
+      id: '/api/webhooks/mercado-livre'
+      path: '/api/webhooks/mercado-livre'
+      fullPath: '/api/webhooks/mercado-livre'
+      preLoaderRoute: typeof ApiWebhooksMercadoLivreRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/webhooks/melhor-envio': {
+      id: '/api/webhooks/melhor-envio'
+      path: '/api/webhooks/melhor-envio'
+      fullPath: '/api/webhooks/melhor-envio'
+      preLoaderRoute: typeof ApiWebhooksMelhorEnvioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_dashboard/fiscal/config': {
@@ -370,11 +470,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiOauthShopifyCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/oauth/shopee/callback': {
+      id: '/api/oauth/shopee/callback'
+      path: '/api/oauth/shopee/callback'
+      fullPath: '/api/oauth/shopee/callback'
+      preLoaderRoute: typeof ApiOauthShopeeCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/oauth/nuvemshop/callback': {
       id: '/api/oauth/nuvemshop/callback'
       path: '/api/oauth/nuvemshop/callback'
       fullPath: '/api/oauth/nuvemshop/callback'
       preLoaderRoute: typeof ApiOauthNuvemshopCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/oauth/meta/callback': {
+      id: '/api/oauth/meta/callback'
+      path: '/api/oauth/meta/callback'
+      fullPath: '/api/oauth/meta/callback'
+      preLoaderRoute: typeof ApiOauthMetaCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/oauth/mercado-livre/callback': {
+      id: '/api/oauth/mercado-livre/callback'
+      path: '/api/oauth/mercado-livre/callback'
+      fullPath: '/api/oauth/mercado-livre/callback'
+      preLoaderRoute: typeof ApiOauthMercadoLivreCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -435,9 +556,15 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRouteWithChildren,
   LoginRoute: LoginRoute,
+  ApiWebhooksMelhorEnvioRoute: ApiWebhooksMelhorEnvioRoute,
+  ApiWebhooksMercadoLivreRoute: ApiWebhooksMercadoLivreRoute,
   ApiWebhooksNuvemshopRoute: ApiWebhooksNuvemshopRoute,
+  ApiWebhooksShopeeRoute: ApiWebhooksShopeeRoute,
   ApiWebhooksShopifyRoute: ApiWebhooksShopifyRoute,
+  ApiOauthMercadoLivreCallbackRoute: ApiOauthMercadoLivreCallbackRoute,
+  ApiOauthMetaCallbackRoute: ApiOauthMetaCallbackRoute,
   ApiOauthNuvemshopCallbackRoute: ApiOauthNuvemshopCallbackRoute,
+  ApiOauthShopeeCallbackRoute: ApiOauthShopeeCallbackRoute,
   ApiOauthShopifyCallbackRoute: ApiOauthShopifyCallbackRoute,
 }
 export const routeTree = rootRouteImport

@@ -100,9 +100,30 @@ async function main() {
   for (const item of skus) {
     await supabase
       .from("inventory")
-      .upsert({ client_id: clientId, ...item }, { onConflict: "client_id,sku" });
+      .upsert({ client_id: clientId, ...item, reserved: 0 }, { onConflict: "client_id,sku" });
   }
-  console.log("  + inventory (3 SKUs)");
+  console.log("  + inventory (3 SKUs, reserved=0)");
+
+  const { data: existingFlow } = await supabase
+    .from("automation_flows")
+    .select("id")
+    .eq("client_id", clientId)
+    .eq("trigger", "pedido_entregue")
+    .eq("channel", "email")
+    .maybeSingle();
+
+  if (!existingFlow) {
+    await supabase.from("automation_flows").insert({
+      client_id: clientId,
+      name: "Email pós-entrega",
+      trigger: "pedido_entregue",
+      channel: "email",
+      is_active: true,
+      sent_30d: 0,
+      recovered: 0,
+    });
+  }
+  console.log("  + automation_flow (pedido_entregue / email)");
 
   const campaigns = [
     {

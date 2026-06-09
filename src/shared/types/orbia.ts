@@ -50,6 +50,7 @@ export type NfStatus = 'autorizada' | 'pendente' | 'rejeitada'
 
 export interface Order {
   id: string
+  internalId: string
   client: string
   channel: SalesChannel
   carrier: string
@@ -57,6 +58,7 @@ export interface Order {
   nf: NfStatus
   value: number
   city: string
+  trackingCode?: string | null
 }
 
 export interface Campaign {
@@ -95,5 +97,7 @@ export interface InventoryItem {
   product: string
   client: string
   units: number
+  reserved: number
+  available: number
   level: 'ok' | 'atencao' | 'critico'
 }

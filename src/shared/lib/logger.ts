@@ -40,6 +40,7 @@ export type IntegrationProvider =
   | 'jt_express'
   | 'total_express'
   | 'melhor_envio'
+  | 'resend'
 
 export type IntegrationStatus = 'success' | 'error' | 'timeout' | 'retrying'
 export type JobStatus = 'started' | 'completed' | 'failed' | 'retrying'

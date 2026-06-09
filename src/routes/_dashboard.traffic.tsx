@@ -1,11 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { Gauge, Target, TrendingUp, Wallet } from 'lucide-react'
+import { Gauge, RefreshCw, Target, TrendingUp, Wallet } from 'lucide-react'
 import { PageIntro, Panel } from '@/components/dashboard/panel'
 import { KpiCard } from '@/components/dashboard/kpi-card'
 import { ChannelRoasChart } from '@/components/dashboard/charts'
 import { StatusPill } from '@/components/dashboard/status-pill'
+import { Button } from '@/components/ui/button'
 import { formatBRL } from '@/lib/format'
-import { useCampaigns, useTrafficStats } from '@/modules/traffic/hooks/use-traffic'
+import { useCampaigns, useTrafficStats, useSyncMetaCampaigns } from '@/modules/traffic/hooks/use-traffic'
 
 export const Route = createFileRoute('/_dashboard/traffic')({
   head: () => ({ meta: [{ title: 'Tráfego — Orbia' }] }),
@@ -18,6 +19,7 @@ const CAMPAIGN_LABEL = { ativa: 'Ativa', atencao: 'Atenção', pausada: 'Pausada
 function TrafficPage() {
   const { data: campaigns = [], isLoading: loadingCampaigns } = useCampaigns()
   const { data: stats,          isLoading: loadingStats     } = useTrafficStats()
+  const syncMeta = useSyncMetaCampaigns()
 
   const loading = loadingCampaigns || loadingStats
 
@@ -61,7 +63,22 @@ function TrafficPage() {
         <ChannelRoasChart />
       </Panel>
 
-      <Panel title="Campanhas em execução" subtitle="Diagnóstico assistido por IA">
+      <Panel
+        title="Campanhas em execução"
+        subtitle="Diagnóstico assistido por IA"
+        action={
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 text-xs"
+            disabled={syncMeta.isPending}
+            onClick={() => syncMeta.mutate()}
+          >
+            <RefreshCw className={`size-3.5 ${syncMeta.isPending ? 'animate-spin' : ''}`} />
+            Sincronizar Meta
+          </Button>
+        }
+      >
         {loadingCampaigns ? (
           <div className="space-y-3 py-2">
             {Array.from({ length: 4 }).map((_, i) => (

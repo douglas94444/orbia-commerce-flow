@@ -35,13 +35,13 @@ export const alerts: OperationAlert[] = [
 ];
 
 export const orders: Order[] = [
-  { id: "ORD-9021", client: "Lumina Fashion", channel: "Shopify", carrier: "Jadlog", status: "separacao", nf: "autorizada", value: 450, city: "São Paulo/SP" },
-  { id: "ORD-9020", client: "TechStore BR", channel: "Mercado Livre", carrier: "Correios", status: "aguardando_nf", nf: "pendente", value: 1289, city: "Curitiba/PR" },
-  { id: "ORD-9019", client: "Livraria Aurora", channel: "Nuvemshop", carrier: "Total Express", status: "em_transito", nf: "autorizada", value: 219, city: "Belo Horizonte/MG" },
-  { id: "ORD-9018", client: "Gourmet Express", channel: "Shopee", carrier: "J&T Express", status: "aguardando_nf", nf: "rejeitada", value: 98, city: "Recife/PE" },
-  { id: "ORD-9017", client: "VeloBike", channel: "Amazon BR", carrier: "Melhor Envio", status: "entregue", nf: "autorizada", value: 2100, city: "Porto Alegre/RS" },
-  { id: "ORD-9016", client: "Naturae Life", channel: "TikTok Shop", carrier: "Correios", status: "despachado", nf: "autorizada", value: 167, city: "Salvador/BA" },
-  { id: "ORD-9015", client: "Casa & Perfil", channel: "Instagram", carrier: "Jadlog", status: "separacao", nf: "autorizada", value: 540, city: "Campinas/SP" },
+  { id: "ORD-9021", internalId: "00000000-0000-0000-0000-000000000001", client: "Lumina Fashion", channel: "Shopify", carrier: "Jadlog", status: "separacao", nf: "autorizada", value: 450, city: "São Paulo/SP" },
+  { id: "ORD-9020", internalId: "00000000-0000-0000-0000-000000000002", client: "TechStore BR", channel: "Mercado Livre", carrier: "Correios", status: "aguardando_nf", nf: "pendente", value: 1289, city: "Curitiba/PR" },
+  { id: "ORD-9019", internalId: "00000000-0000-0000-0000-000000000003", client: "Livraria Aurora", channel: "Nuvemshop", carrier: "Total Express", status: "em_transito", nf: "autorizada", value: 219, city: "Belo Horizonte/MG" },
+  { id: "ORD-9018", internalId: "00000000-0000-0000-0000-000000000004", client: "Gourmet Express", channel: "Shopee", carrier: "J&T Express", status: "aguardando_nf", nf: "rejeitada", value: 98, city: "Recife/PE" },
+  { id: "ORD-9017", internalId: "00000000-0000-0000-0000-000000000005", client: "VeloBike", channel: "Amazon BR", carrier: "Melhor Envio", status: "entregue", nf: "autorizada", value: 2100, city: "Porto Alegre/RS" },
+  { id: "ORD-9016", internalId: "00000000-0000-0000-0000-000000000006", client: "Naturae Life", channel: "TikTok Shop", carrier: "Correios", status: "despachado", nf: "autorizada", value: 167, city: "Salvador/BA" },
+  { id: "ORD-9015", internalId: "00000000-0000-0000-0000-000000000007", client: "Casa & Perfil", channel: "Instagram", carrier: "Jadlog", status: "separacao", nf: "autorizada", value: 540, city: "Campinas/SP" },
 ];
 
 export const campaigns: Campaign[] = [

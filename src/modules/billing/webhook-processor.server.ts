@@ -4,6 +4,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { logJob } from "@/shared/lib/logger";
 import { ingestStoreWebhook } from "@/modules/logistics/order-ingestion.server";
+import { handleMelhorEnvioWebhook } from "@/modules/logistics/shipping.server";
 
 export interface WebhookEventRow {
   id: string;
@@ -138,14 +139,13 @@ async function routeWebhookEvent(event: WebhookEventRow) {
 
   switch (provider) {
     case "mercado_livre":
-      console.warn(`[webhook] mercado_livre handler not implemented: ${event_type}`);
-      break;
     case "shopee":
-      console.warn(`[webhook] shopee handler not implemented: ${event_type}`);
-      break;
     case "nuvemshop":
     case "shopify":
       await ingestStoreWebhook(provider, event_type, payload, client_id);
+      break;
+    case "melhor_envio":
+      await handleMelhorEnvioWebhook(payload);
       break;
     default:
       console.warn(`[webhook] Unhandled provider: ${provider}`);

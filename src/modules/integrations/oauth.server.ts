@@ -1,11 +1,24 @@
 import { randomBytes } from "node:crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import {
+  exchangeMercadoLivreCode,
+  registerMercadoLivreWebhooks,
+  getMe as getMlMe,
+} from "@/integrations/mercado-livre";
 import { exchangeNuvemshopCode, registerNuvemshopWebhooks } from "@/integrations/nuvemshop";
 import { getStore } from "@/integrations/nuvemshop/client";
+import { exchangeShopeeCode, registerShopeeWebhooks } from "@/integrations/shopee";
 import { exchangeShopifyCode, registerShopifyWebhooks } from "@/integrations/shopify";
+import { exchangeMetaCode, getMetaAdAccounts } from "@/integrations/meta";
 import { logAudit, logIntegration } from "@/shared/lib/logger";
 
-export type OAuthProvider = "nuvemshop" | "shopify";
+export type OAuthProvider =
+  | "nuvemshop"
+  | "shopify"
+  | "mercado_livre"
+  | "shopee"
+  | "meta"
+  | "melhor_envio";
 
 export async function createOAuthState(
   userId: string,
@@ -167,6 +180,133 @@ export async function completeShopifyOAuth(
       error_message: (err as Error).message,
     });
   }
+
+  return oauthState.redirect_to ?? `/clients/${oauthState.client_id}`;
+}
+
+export async function completeMercadoLivreOAuth(code: string, state: string): Promise<string> {
+  const oauthState = await consumeOAuthState(state);
+  if (oauthState.provider !== "mercado_livre" || !oauthState.client_id) {
+    throw new Error("Invalid OAuth state for Mercado Livre");
+  }
+
+  const token = await exchangeMercadoLivreCode(code);
+  const sellerId = String(token.user_id);
+  const me = await getMlMe(token.access_token);
+  const expiresAt = new Date(Date.now() + token.expires_in * 1000).toISOString();
+
+  await storeOAuthConnection({
+    clientId: oauthState.client_id,
+    provider: "mercado_livre",
+    externalAccount: sellerId,
+    accessToken: token.access_token,
+    refreshToken: token.refresh_token,
+    tokenExpiresAt: expiresAt,
+    scopes: token.scope?.split(" ") ?? [],
+    metadata: { nickname: me.nickname },
+    userId: oauthState.user_id,
+  });
+
+  try {
+    await registerMercadoLivreWebhooks(sellerId, token.access_token);
+    await logIntegration({
+      client_id: oauthState.client_id,
+      provider: "mercado_livre",
+      operation: "register_webhooks",
+      status: "success",
+    });
+  } catch (err) {
+    await logIntegration({
+      client_id: oauthState.client_id,
+      provider: "mercado_livre",
+      operation: "register_webhooks",
+      status: "error",
+      error_message: (err as Error).message,
+    });
+  }
+
+  return oauthState.redirect_to ?? `/clients/${oauthState.client_id}`;
+}
+
+export async function completeShopeeOAuth(
+  code: string,
+  state: string,
+  shopId: string,
+): Promise<string> {
+  const oauthState = await consumeOAuthState(state);
+  if (oauthState.provider !== "shopee" || !oauthState.client_id) {
+    throw new Error("Invalid OAuth state for Shopee");
+  }
+
+  const token = await exchangeShopeeCode(shopId, code);
+  const expiresAt = new Date(Date.now() + token.expire_in * 1000).toISOString();
+
+  await storeOAuthConnection({
+    clientId: oauthState.client_id,
+    provider: "shopee",
+    externalAccount: shopId,
+    accessToken: token.access_token,
+    refreshToken: token.refresh_token,
+    tokenExpiresAt: expiresAt,
+    metadata: { shop_id: shopId },
+    userId: oauthState.user_id,
+  });
+
+  try {
+    await registerShopeeWebhooks(shopId, token.access_token);
+    await logIntegration({
+      client_id: oauthState.client_id,
+      provider: "shopee",
+      operation: "register_webhooks",
+      status: "success",
+    });
+  } catch (err) {
+    await logIntegration({
+      client_id: oauthState.client_id,
+      provider: "shopee",
+      operation: "register_webhooks",
+      status: "error",
+      error_message: (err as Error).message,
+    });
+  }
+
+  return oauthState.redirect_to ?? `/clients/${oauthState.client_id}`;
+}
+
+export async function completeMetaOAuth(code: string, state: string): Promise<string> {
+  const oauthState = await consumeOAuthState(state);
+  if (oauthState.provider !== "meta" || !oauthState.client_id) {
+    throw new Error("Invalid OAuth state for Meta");
+  }
+
+  const token = await exchangeMetaCode(code);
+  const accounts = await getMetaAdAccounts(token.access_token);
+  const primary = accounts[0];
+  const externalAccount = primary?.id ?? "meta-default";
+  const expiresAt = token.expires_in
+    ? new Date(Date.now() + token.expires_in * 1000).toISOString()
+    : null;
+
+  await storeOAuthConnection({
+    clientId: oauthState.client_id,
+    provider: "meta",
+    externalAccount,
+    accessToken: token.access_token,
+    tokenExpiresAt: expiresAt,
+    scopes: ["ads_read", "ads_management"],
+    metadata: {
+      ad_accounts: accounts.map((a) => ({ id: a.id, name: a.name })),
+    },
+    userId: oauthState.user_id,
+  });
+
+  await logIntegration({
+    client_id: oauthState.client_id,
+    provider: "meta",
+    operation: "oauth_connect",
+    status: "success",
+    metadata: { ad_account_count: accounts.length },
+  });
 
   return oauthState.redirect_to ?? `/clients/${oauthState.client_id}`;
 }

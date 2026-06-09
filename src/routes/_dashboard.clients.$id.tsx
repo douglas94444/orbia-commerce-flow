@@ -9,7 +9,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useClientDetail } from '@/modules/clients/hooks/use-clients'
 import { useProfile } from '@/modules/auth/hooks/use-profile'
-import { useStartNuvemshopOAuth, useStartShopifyOAuth } from '@/modules/integrations/hooks/use-oauth'
+import {
+  useStartNuvemshopOAuth,
+  useStartShopifyOAuth,
+  useStartMercadoLivreOAuth,
+  useStartShopeeOAuth,
+  useStartMetaOAuth,
+} from '@/modules/integrations/hooks/use-oauth'
 
 export const Route = createFileRoute('/_dashboard/clients/$id')({
   head: () => ({ meta: [{ title: 'Detalhe do cliente — Orbia' }] }),
@@ -33,7 +39,7 @@ const MODULE_PROVIDERS: Array<{ label: string; providers: string[] }> = [
   { label: 'Fiscal',     providers: ['focus_nfe'] },
 ]
 
-const CONNECTABLE = new Set(['nuvemshop', 'shopify'])
+const CONNECTABLE = new Set(['nuvemshop', 'shopify', 'mercado_livre', 'shopee', 'meta'])
 
 function ClientDetailPage() {
   const { id } = Route.useParams()
@@ -41,7 +47,11 @@ function ClientDetailPage() {
   const { data: profile } = useProfile()
   const nuvemshopOAuth = useStartNuvemshopOAuth()
   const shopifyOAuth = useStartShopifyOAuth()
+  const mercadoLivreOAuth = useStartMercadoLivreOAuth()
+  const shopeeOAuth = useStartShopeeOAuth()
+  const metaOAuth = useStartMetaOAuth()
   const [shopDomain, setShopDomain] = useState('')
+  const [shopeeShopId, setShopeeShopId] = useState('')
 
   const isStaff = profile?.role === 'orbia_admin' || profile?.role === 'orbia_staff'
 
@@ -167,15 +177,48 @@ function ClientDetailPage() {
                                 Conectar
                               </Button>
                             </div>
+                          ) : p === 'shopee' ? (
+                            <div className="ml-2 flex items-center gap-1">
+                              <Input
+                                placeholder="shop_id"
+                                className="h-7 w-24 text-xs"
+                                value={shopeeShopId}
+                                onChange={(e) => setShopeeShopId(e.target.value)}
+                              />
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 gap-1 px-2 text-xs"
+                                disabled={!shopeeShopId || shopeeOAuth.isPending}
+                                onClick={() => shopeeOAuth.mutate({ clientId: id, shopId: shopeeShopId })}
+                              >
+                                {shopeeOAuth.isPending ? <Loader2 className="size-3 animate-spin" /> : <Link2 className="size-3" />}
+                                Conectar
+                              </Button>
+                            </div>
                           ) : (
                             <Button
                               size="sm"
                               variant="outline"
                               className="ml-2 h-7 gap-1 px-2 text-xs"
-                              disabled={nuvemshopOAuth.isPending}
-                              onClick={() => nuvemshopOAuth.mutate(id)}
+                              disabled={
+                                (p === 'nuvemshop' && nuvemshopOAuth.isPending) ||
+                                (p === 'mercado_livre' && mercadoLivreOAuth.isPending) ||
+                                (p === 'meta' && metaOAuth.isPending)
+                              }
+                              onClick={() => {
+                                if (p === 'nuvemshop') nuvemshopOAuth.mutate(id)
+                                else if (p === 'mercado_livre') mercadoLivreOAuth.mutate(id)
+                                else if (p === 'meta') metaOAuth.mutate(id)
+                              }}
                             >
-                              {nuvemshopOAuth.isPending ? <Loader2 className="size-3 animate-spin" /> : <Link2 className="size-3" />}
+                              {(p === 'nuvemshop' && nuvemshopOAuth.isPending) ||
+                              (p === 'mercado_livre' && mercadoLivreOAuth.isPending) ||
+                              (p === 'meta' && metaOAuth.isPending) ? (
+                                <Loader2 className="size-3 animate-spin" />
+                              ) : (
+                                <Link2 className="size-3" />
+                              )}
                               Conectar
                             </Button>
                           )
