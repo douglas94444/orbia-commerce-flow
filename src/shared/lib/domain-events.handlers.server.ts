@@ -4,6 +4,7 @@
 import { onDomainEvent } from "./domain-events.server";
 import { commitStock, itemsFromOrderMetadata } from "@/modules/logistics/stock-reservation.server";
 import type { StockItem } from "@/modules/logistics/stock-reservation.server";
+import { recalculateClientMetrics } from "@/modules/analytics/health-score.server";
 import { onOrderDelivered } from "@/modules/retention/automation-engine.server";
 
 onDomainEvent("order.dispatched", async (payload) => {
@@ -15,8 +16,10 @@ onDomainEvent("order.dispatched", async (payload) => {
 
 onDomainEvent("order.delivered", async (payload) => {
   const orderId = String(payload.orderId ?? "");
+  const clientId = String(payload.clientId ?? "");
   if (!orderId) return;
   await onOrderDelivered(orderId);
+  if (clientId) await recalculateClientMetrics(clientId);
 });
 
 // Re-export helper for typed item conversion from metadata payloads

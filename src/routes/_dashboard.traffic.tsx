@@ -6,7 +6,7 @@ import { ChannelRoasChart } from '@/components/dashboard/charts'
 import { StatusPill } from '@/components/dashboard/status-pill'
 import { Button } from '@/components/ui/button'
 import { formatBRL } from '@/lib/format'
-import { useCampaigns, useTrafficStats, useSyncMetaCampaigns } from '@/modules/traffic/hooks/use-traffic'
+import { useCampaigns, useTrafficStats, useSyncMetaCampaigns, useSyncGoogleCampaigns } from '@/modules/traffic/hooks/use-traffic'
 
 export const Route = createFileRoute('/_dashboard/traffic')({
   head: () => ({ meta: [{ title: 'Tráfego — Orbia' }] }),
@@ -20,6 +20,7 @@ function TrafficPage() {
   const { data: campaigns = [], isLoading: loadingCampaigns } = useCampaigns()
   const { data: stats,          isLoading: loadingStats     } = useTrafficStats()
   const syncMeta = useSyncMetaCampaigns()
+  const syncGoogle = useSyncGoogleCampaigns()
 
   const loading = loadingCampaigns || loadingStats
 
@@ -67,16 +68,28 @@ function TrafficPage() {
         title="Campanhas em execução"
         subtitle="Diagnóstico assistido por IA"
         action={
-          <Button
-            size="sm"
-            variant="outline"
-            className="gap-1.5 text-xs"
-            disabled={syncMeta.isPending}
-            onClick={() => syncMeta.mutate()}
-          >
-            <RefreshCw className={`size-3.5 ${syncMeta.isPending ? 'animate-spin' : ''}`} />
-            Sincronizar Meta
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5 text-xs"
+              disabled={syncMeta.isPending}
+              onClick={() => syncMeta.mutate()}
+            >
+              <RefreshCw className={`size-3.5 ${syncMeta.isPending ? 'animate-spin' : ''}`} />
+              Sincronizar Meta
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5 text-xs"
+              disabled={syncGoogle.isPending}
+              onClick={() => syncGoogle.mutate()}
+            >
+              <RefreshCw className={`size-3.5 ${syncGoogle.isPending ? 'animate-spin' : ''}`} />
+              Sincronizar Google
+            </Button>
+          </div>
         }
       >
         {loadingCampaigns ? (

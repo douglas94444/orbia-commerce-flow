@@ -5,6 +5,8 @@ import { AppSidebar } from '@/components/dashboard/app-sidebar'
 import { TopBar } from '@/components/dashboard/top-bar'
 import { AlertsPanel } from '@/components/dashboard/alerts-panel'
 import { useSession } from '@/modules/auth/hooks/use-session'
+import { useProfile } from '@/modules/auth/hooks/use-profile'
+import { isStaffRole } from '@/modules/auth/resolve-home'
 
 export const Route = createFileRoute('/_dashboard')({
   component: DashboardLayout,
@@ -26,13 +28,19 @@ function DashboardLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const navigate = useNavigate()
   const { session, user, loading } = useSession()
+  const { data: profile, isLoading: loadingProfile } = useProfile()
 
-  // Client-side auth gate
   useEffect(() => {
     if (!loading && !session) {
       navigate({ to: '/login', replace: true })
     }
   }, [loading, session, navigate])
+
+  useEffect(() => {
+    if (!loadingProfile && profile && !isStaffRole(profile.role)) {
+      navigate({ to: '/portal/overview', replace: true })
+    }
+  }, [loadingProfile, profile, navigate])
 
   const meta =
     Object.entries(titles).find(([k]) => pathname.startsWith(k))?.[1] ?? {
@@ -41,7 +49,7 @@ function DashboardLayout() {
     }
 
   // Show nothing while checking auth to avoid flash of unauthenticated content
-  if (loading || !session) {
+  if (loading || !session || loadingProfile) {
     return (
       <div className="grid min-h-screen place-items-center bg-background">
         <span className="relative grid size-12 place-items-center">

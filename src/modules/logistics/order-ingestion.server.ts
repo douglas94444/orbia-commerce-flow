@@ -3,6 +3,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getOrder as getMlOrder } from "@/integrations/mercado-livre";
 import { emitNfeForOrder } from "@/modules/fiscal/emit-order-nfe.server";
+import { recalculateClientMetrics } from "@/modules/analytics/health-score.server";
 import { emitDomainEvent } from "@/shared/lib/domain-events.server";
 import {
   reserveStock,
@@ -337,5 +338,6 @@ export async function ingestStoreWebhook(
     await reserveStock(resolvedClientId, stockItems);
     await emitDomainEvent("order.paid", { orderId, clientId: resolvedClientId });
     await triggerNfeForOrder(orderId);
+    await recalculateClientMetrics(resolvedClientId);
   }
 }

@@ -9,9 +9,15 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as PortalRouteImport } from './routes/portal'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/_dashboard'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PortalTrafficRouteImport } from './routes/portal.traffic'
+import { Route as PortalSettingsRouteImport } from './routes/portal.settings'
+import { Route as PortalRetentionRouteImport } from './routes/portal.retention'
+import { Route as PortalOverviewRouteImport } from './routes/portal.overview'
+import { Route as PortalLogisticsRouteImport } from './routes/portal.logistics'
 import { Route as DashboardTrafficRouteImport } from './routes/_dashboard.traffic'
 import { Route as DashboardSuccessRouteImport } from './routes/_dashboard.success'
 import { Route as DashboardSettingsRouteImport } from './routes/_dashboard.settings'
@@ -34,7 +40,13 @@ import { Route as ApiOauthNuvemshopCallbackRouteImport } from './routes/api/oaut
 import { Route as ApiOauthMetaCallbackRouteImport } from './routes/api/oauth/meta/callback'
 import { Route as ApiOauthMercadoLivreCallbackRouteImport } from './routes/api/oauth/mercado-livre/callback'
 import { Route as ApiOauthMelhorEnvioCallbackRouteImport } from './routes/api/oauth/melhor-envio/callback'
+import { Route as ApiOauthGoogleCallbackRouteImport } from './routes/api/oauth/google/callback'
 
+const PortalRoute = PortalRouteImport.update({
+  id: '/portal',
+  path: '/portal',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -48,6 +60,31 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const PortalTrafficRoute = PortalTrafficRouteImport.update({
+  id: '/traffic',
+  path: '/traffic',
+  getParentRoute: () => PortalRoute,
+} as any)
+const PortalSettingsRoute = PortalSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => PortalRoute,
+} as any)
+const PortalRetentionRoute = PortalRetentionRouteImport.update({
+  id: '/retention',
+  path: '/retention',
+  getParentRoute: () => PortalRoute,
+} as any)
+const PortalOverviewRoute = PortalOverviewRouteImport.update({
+  id: '/overview',
+  path: '/overview',
+  getParentRoute: () => PortalRoute,
+} as any)
+const PortalLogisticsRoute = PortalLogisticsRouteImport.update({
+  id: '/logistics',
+  path: '/logistics',
+  getParentRoute: () => PortalRoute,
 } as any)
 const DashboardTrafficRoute = DashboardTrafficRouteImport.update({
   id: '/traffic',
@@ -162,10 +199,16 @@ const ApiOauthMelhorEnvioCallbackRoute =
     path: '/api/oauth/melhor-envio/callback',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiOauthGoogleCallbackRoute = ApiOauthGoogleCallbackRouteImport.update({
+  id: '/api/oauth/google/callback',
+  path: '/api/oauth/google/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/portal': typeof PortalRouteWithChildren
   '/analytics': typeof DashboardAnalyticsRoute
   '/clients': typeof DashboardClientsRouteWithChildren
   '/fiscal': typeof DashboardFiscalRouteWithChildren
@@ -175,6 +218,11 @@ export interface FileRoutesByFullPath {
   '/settings': typeof DashboardSettingsRoute
   '/success': typeof DashboardSuccessRoute
   '/traffic': typeof DashboardTrafficRoute
+  '/portal/logistics': typeof PortalLogisticsRoute
+  '/portal/overview': typeof PortalOverviewRoute
+  '/portal/retention': typeof PortalRetentionRoute
+  '/portal/settings': typeof PortalSettingsRoute
+  '/portal/traffic': typeof PortalTrafficRoute
   '/clients/$id': typeof DashboardClientsIdRoute
   '/fiscal/config': typeof DashboardFiscalConfigRoute
   '/api/webhooks/melhor-envio': typeof ApiWebhooksMelhorEnvioRoute
@@ -182,6 +230,7 @@ export interface FileRoutesByFullPath {
   '/api/webhooks/nuvemshop': typeof ApiWebhooksNuvemshopRoute
   '/api/webhooks/shopee': typeof ApiWebhooksShopeeRoute
   '/api/webhooks/shopify': typeof ApiWebhooksShopifyRoute
+  '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
   '/api/oauth/melhor-envio/callback': typeof ApiOauthMelhorEnvioCallbackRoute
   '/api/oauth/mercado-livre/callback': typeof ApiOauthMercadoLivreCallbackRoute
   '/api/oauth/meta/callback': typeof ApiOauthMetaCallbackRoute
@@ -192,6 +241,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/portal': typeof PortalRouteWithChildren
   '/analytics': typeof DashboardAnalyticsRoute
   '/clients': typeof DashboardClientsRouteWithChildren
   '/fiscal': typeof DashboardFiscalRouteWithChildren
@@ -201,6 +251,11 @@ export interface FileRoutesByTo {
   '/settings': typeof DashboardSettingsRoute
   '/success': typeof DashboardSuccessRoute
   '/traffic': typeof DashboardTrafficRoute
+  '/portal/logistics': typeof PortalLogisticsRoute
+  '/portal/overview': typeof PortalOverviewRoute
+  '/portal/retention': typeof PortalRetentionRoute
+  '/portal/settings': typeof PortalSettingsRoute
+  '/portal/traffic': typeof PortalTrafficRoute
   '/clients/$id': typeof DashboardClientsIdRoute
   '/fiscal/config': typeof DashboardFiscalConfigRoute
   '/api/webhooks/melhor-envio': typeof ApiWebhooksMelhorEnvioRoute
@@ -208,6 +263,7 @@ export interface FileRoutesByTo {
   '/api/webhooks/nuvemshop': typeof ApiWebhooksNuvemshopRoute
   '/api/webhooks/shopee': typeof ApiWebhooksShopeeRoute
   '/api/webhooks/shopify': typeof ApiWebhooksShopifyRoute
+  '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
   '/api/oauth/melhor-envio/callback': typeof ApiOauthMelhorEnvioCallbackRoute
   '/api/oauth/mercado-livre/callback': typeof ApiOauthMercadoLivreCallbackRoute
   '/api/oauth/meta/callback': typeof ApiOauthMetaCallbackRoute
@@ -220,6 +276,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_dashboard': typeof DashboardRouteWithChildren
   '/login': typeof LoginRoute
+  '/portal': typeof PortalRouteWithChildren
   '/_dashboard/analytics': typeof DashboardAnalyticsRoute
   '/_dashboard/clients': typeof DashboardClientsRouteWithChildren
   '/_dashboard/fiscal': typeof DashboardFiscalRouteWithChildren
@@ -229,6 +286,11 @@ export interface FileRoutesById {
   '/_dashboard/settings': typeof DashboardSettingsRoute
   '/_dashboard/success': typeof DashboardSuccessRoute
   '/_dashboard/traffic': typeof DashboardTrafficRoute
+  '/portal/logistics': typeof PortalLogisticsRoute
+  '/portal/overview': typeof PortalOverviewRoute
+  '/portal/retention': typeof PortalRetentionRoute
+  '/portal/settings': typeof PortalSettingsRoute
+  '/portal/traffic': typeof PortalTrafficRoute
   '/_dashboard/clients/$id': typeof DashboardClientsIdRoute
   '/_dashboard/fiscal/config': typeof DashboardFiscalConfigRoute
   '/api/webhooks/melhor-envio': typeof ApiWebhooksMelhorEnvioRoute
@@ -236,6 +298,7 @@ export interface FileRoutesById {
   '/api/webhooks/nuvemshop': typeof ApiWebhooksNuvemshopRoute
   '/api/webhooks/shopee': typeof ApiWebhooksShopeeRoute
   '/api/webhooks/shopify': typeof ApiWebhooksShopifyRoute
+  '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
   '/api/oauth/melhor-envio/callback': typeof ApiOauthMelhorEnvioCallbackRoute
   '/api/oauth/mercado-livre/callback': typeof ApiOauthMercadoLivreCallbackRoute
   '/api/oauth/meta/callback': typeof ApiOauthMetaCallbackRoute
@@ -248,6 +311,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/portal'
     | '/analytics'
     | '/clients'
     | '/fiscal'
@@ -257,6 +321,11 @@ export interface FileRouteTypes {
     | '/settings'
     | '/success'
     | '/traffic'
+    | '/portal/logistics'
+    | '/portal/overview'
+    | '/portal/retention'
+    | '/portal/settings'
+    | '/portal/traffic'
     | '/clients/$id'
     | '/fiscal/config'
     | '/api/webhooks/melhor-envio'
@@ -264,6 +333,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/nuvemshop'
     | '/api/webhooks/shopee'
     | '/api/webhooks/shopify'
+    | '/api/oauth/google/callback'
     | '/api/oauth/melhor-envio/callback'
     | '/api/oauth/mercado-livre/callback'
     | '/api/oauth/meta/callback'
@@ -274,6 +344,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/portal'
     | '/analytics'
     | '/clients'
     | '/fiscal'
@@ -283,6 +354,11 @@ export interface FileRouteTypes {
     | '/settings'
     | '/success'
     | '/traffic'
+    | '/portal/logistics'
+    | '/portal/overview'
+    | '/portal/retention'
+    | '/portal/settings'
+    | '/portal/traffic'
     | '/clients/$id'
     | '/fiscal/config'
     | '/api/webhooks/melhor-envio'
@@ -290,6 +366,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/nuvemshop'
     | '/api/webhooks/shopee'
     | '/api/webhooks/shopify'
+    | '/api/oauth/google/callback'
     | '/api/oauth/melhor-envio/callback'
     | '/api/oauth/mercado-livre/callback'
     | '/api/oauth/meta/callback'
@@ -301,6 +378,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_dashboard'
     | '/login'
+    | '/portal'
     | '/_dashboard/analytics'
     | '/_dashboard/clients'
     | '/_dashboard/fiscal'
@@ -310,6 +388,11 @@ export interface FileRouteTypes {
     | '/_dashboard/settings'
     | '/_dashboard/success'
     | '/_dashboard/traffic'
+    | '/portal/logistics'
+    | '/portal/overview'
+    | '/portal/retention'
+    | '/portal/settings'
+    | '/portal/traffic'
     | '/_dashboard/clients/$id'
     | '/_dashboard/fiscal/config'
     | '/api/webhooks/melhor-envio'
@@ -317,6 +400,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/nuvemshop'
     | '/api/webhooks/shopee'
     | '/api/webhooks/shopify'
+    | '/api/oauth/google/callback'
     | '/api/oauth/melhor-envio/callback'
     | '/api/oauth/mercado-livre/callback'
     | '/api/oauth/meta/callback'
@@ -329,11 +413,13 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRouteWithChildren
   LoginRoute: typeof LoginRoute
+  PortalRoute: typeof PortalRouteWithChildren
   ApiWebhooksMelhorEnvioRoute: typeof ApiWebhooksMelhorEnvioRoute
   ApiWebhooksMercadoLivreRoute: typeof ApiWebhooksMercadoLivreRoute
   ApiWebhooksNuvemshopRoute: typeof ApiWebhooksNuvemshopRoute
   ApiWebhooksShopeeRoute: typeof ApiWebhooksShopeeRoute
   ApiWebhooksShopifyRoute: typeof ApiWebhooksShopifyRoute
+  ApiOauthGoogleCallbackRoute: typeof ApiOauthGoogleCallbackRoute
   ApiOauthMelhorEnvioCallbackRoute: typeof ApiOauthMelhorEnvioCallbackRoute
   ApiOauthMercadoLivreCallbackRoute: typeof ApiOauthMercadoLivreCallbackRoute
   ApiOauthMetaCallbackRoute: typeof ApiOauthMetaCallbackRoute
@@ -344,6 +430,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/portal': {
+      id: '/portal'
+      path: '/portal'
+      fullPath: '/portal'
+      preLoaderRoute: typeof PortalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -364,6 +457,41 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/portal/traffic': {
+      id: '/portal/traffic'
+      path: '/traffic'
+      fullPath: '/portal/traffic'
+      preLoaderRoute: typeof PortalTrafficRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/portal/settings': {
+      id: '/portal/settings'
+      path: '/settings'
+      fullPath: '/portal/settings'
+      preLoaderRoute: typeof PortalSettingsRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/portal/retention': {
+      id: '/portal/retention'
+      path: '/retention'
+      fullPath: '/portal/retention'
+      preLoaderRoute: typeof PortalRetentionRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/portal/overview': {
+      id: '/portal/overview'
+      path: '/overview'
+      fullPath: '/portal/overview'
+      preLoaderRoute: typeof PortalOverviewRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/portal/logistics': {
+      id: '/portal/logistics'
+      path: '/logistics'
+      fullPath: '/portal/logistics'
+      preLoaderRoute: typeof PortalLogisticsRouteImport
+      parentRoute: typeof PortalRoute
     }
     '/_dashboard/traffic': {
       id: '/_dashboard/traffic'
@@ -519,6 +647,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiOauthMelhorEnvioCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/oauth/google/callback': {
+      id: '/api/oauth/google/callback'
+      path: '/api/oauth/google/callback'
+      fullPath: '/api/oauth/google/callback'
+      preLoaderRoute: typeof ApiOauthGoogleCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -573,15 +708,36 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
   DashboardRouteChildren,
 )
 
+interface PortalRouteChildren {
+  PortalLogisticsRoute: typeof PortalLogisticsRoute
+  PortalOverviewRoute: typeof PortalOverviewRoute
+  PortalRetentionRoute: typeof PortalRetentionRoute
+  PortalSettingsRoute: typeof PortalSettingsRoute
+  PortalTrafficRoute: typeof PortalTrafficRoute
+}
+
+const PortalRouteChildren: PortalRouteChildren = {
+  PortalLogisticsRoute: PortalLogisticsRoute,
+  PortalOverviewRoute: PortalOverviewRoute,
+  PortalRetentionRoute: PortalRetentionRoute,
+  PortalSettingsRoute: PortalSettingsRoute,
+  PortalTrafficRoute: PortalTrafficRoute,
+}
+
+const PortalRouteWithChildren =
+  PortalRoute._addFileChildren(PortalRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRouteWithChildren,
   LoginRoute: LoginRoute,
+  PortalRoute: PortalRouteWithChildren,
   ApiWebhooksMelhorEnvioRoute: ApiWebhooksMelhorEnvioRoute,
   ApiWebhooksMercadoLivreRoute: ApiWebhooksMercadoLivreRoute,
   ApiWebhooksNuvemshopRoute: ApiWebhooksNuvemshopRoute,
   ApiWebhooksShopeeRoute: ApiWebhooksShopeeRoute,
   ApiWebhooksShopifyRoute: ApiWebhooksShopifyRoute,
+  ApiOauthGoogleCallbackRoute: ApiOauthGoogleCallbackRoute,
   ApiOauthMelhorEnvioCallbackRoute: ApiOauthMelhorEnvioCallbackRoute,
   ApiOauthMercadoLivreCallbackRoute: ApiOauthMercadoLivreCallbackRoute,
   ApiOauthMetaCallbackRoute: ApiOauthMetaCallbackRoute,

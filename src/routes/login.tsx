@@ -6,7 +6,19 @@ import { z } from 'zod'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/integrations/supabase/client'
+import { resolveHomePath } from '@/modules/auth/resolve-home'
 import { cn } from '@/lib/utils'
+
+async function navigateAfterAuth(navigate: ReturnType<typeof useNavigate>) {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+  navigate({ to: resolveHomePath(profile?.role), replace: true })
+}
 
 export const Route = createFileRoute('/login')({
   component: LoginPage,
@@ -41,7 +53,7 @@ function LoginPage() {
   // Redirect already-authenticated users
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) navigate({ to: '/overview', replace: true })
+      if (session) void navigateAfterAuth(navigate)
     })
   }, [navigate])
 
@@ -130,7 +142,7 @@ function SignInForm() {
       return
     }
 
-    navigate({ to: '/overview', replace: true })
+    await navigateAfterAuth(navigate)
   }
 
   return (

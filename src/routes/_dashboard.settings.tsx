@@ -24,8 +24,7 @@ type FormValues = z.infer<typeof schema>
 const ROLE_LABEL: Record<string, string> = {
   orbia_admin: 'Admin Orbia',
   orbia_staff: 'Equipe Orbia',
-  client_admin: 'Admin do cliente',
-  client_member: 'Membro do cliente',
+  member: 'Lojista',
 }
 
 function SettingsPage() {

@@ -5,6 +5,7 @@ import type { Campaign } from "@/shared/types/orbia";
 import {
   syncMetaCampaigns as syncMetaCampaignsInternal,
   syncAllMetaCampaigns as syncAllMetaCampaignsInternal,
+  syncAllGoogleCampaigns as syncAllGoogleCampaignsInternal,
 } from "./sync-campaigns.server";
 
 const PLATFORM_LABEL: Record<string, "Meta Ads" | "Google Ads"> = {
@@ -118,4 +119,11 @@ export const syncAllMetaCampaigns = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     await requireStaffTraffic(context.userId, context.supabase);
     return syncAllMetaCampaignsInternal();
+  });
+
+export const syncAllGoogleCampaigns = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await requireStaffTraffic(context.userId, context.supabase);
+    return syncAllGoogleCampaignsInternal();
   });

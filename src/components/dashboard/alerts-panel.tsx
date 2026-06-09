@@ -8,7 +8,7 @@ import {
   Timer,
   type LucideIcon,
 } from "lucide-react";
-import { alerts } from "@/lib/mock/data";
+import { useOperationAlerts } from "@/modules/analytics/hooks/use-analytics";
 import type { AlertKind, AlertSeverity, OperationAlert } from "@/types/orbia";
 import { cn } from "@/lib/utils";
 
@@ -69,6 +69,7 @@ function AlertRow({ alert, index }: { alert: OperationAlert; index: number }) {
 }
 
 export function AlertsPanel() {
+  const { data: alerts = [], isLoading } = useOperationAlerts();
   const critical = alerts.filter((a) => a.severity === "critical").length;
   return (
     <aside className="hidden w-80 shrink-0 flex-col border-l border-border bg-sidebar/40 xl:flex">
@@ -84,11 +85,17 @@ export function AlertsPanel() {
       </div>
 
       <div className="flex-1 space-y-3 overflow-y-auto p-4">
-        <AnimatePresence initial={false}>
-          {alerts.map((alert, i) => (
-            <AlertRow key={alert.id} alert={alert} index={i} />
-          ))}
-        </AnimatePresence>
+        {isLoading ? (
+          <div className="h-24 animate-pulse rounded-xl bg-muted/40" />
+        ) : alerts.length === 0 ? (
+          <p className="py-8 text-center text-xs text-muted-foreground">Nenhum alerta ativo.</p>
+        ) : (
+          <AnimatePresence initial={false}>
+            {alerts.map((alert, i) => (
+              <AlertRow key={alert.id} alert={alert} index={i} />
+            ))}
+          </AnimatePresence>
+        )}
       </div>
 
       <div className="border-t border-border p-4">

@@ -40,3 +40,12 @@ const { count: flows } = await sb
   .select('id', { count: 'exact', head: true })
   .eq('trigger', 'pedido_entregue')
 console.log('automation_flows pedido_entregue:', flows ?? 0)
+
+const { error: alertsErr } = await sb.from('operation_alerts').select('id').limit(1)
+console.log('migration 016 (operation_alerts):', alertsErr ? `MISSING (${alertsErr.message})` : 'ok')
+
+const { count: googleOAuth } = await sb
+  .from('oauth_connections')
+  .select('id', { count: 'exact', head: true })
+  .eq('provider', 'google')
+console.log('google oauth_connections:', googleOAuth ?? 0)

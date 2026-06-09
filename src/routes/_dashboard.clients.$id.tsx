@@ -16,6 +16,7 @@ import {
   useStartShopeeOAuth,
   useStartMetaOAuth,
   useStartMelhorEnvioOAuth,
+  useStartGoogleOAuth,
 } from '@/modules/integrations/hooks/use-oauth'
 
 export const Route = createFileRoute('/_dashboard/clients/$id')({
@@ -41,7 +42,7 @@ const MODULE_PROVIDERS: Array<{ label: string; providers: string[] }> = [
   { label: 'Fiscal',     providers: ['focus_nfe'] },
 ]
 
-const CONNECTABLE = new Set(['nuvemshop', 'shopify', 'mercado_livre', 'shopee', 'meta', 'melhor_envio'])
+const CONNECTABLE = new Set(['nuvemshop', 'shopify', 'mercado_livre', 'shopee', 'meta', 'google', 'melhor_envio'])
 
 function ClientDetailPage() {
   const { id } = Route.useParams()
@@ -53,6 +54,7 @@ function ClientDetailPage() {
   const shopeeOAuth = useStartShopeeOAuth()
   const metaOAuth = useStartMetaOAuth()
   const melhorEnvioOAuth = useStartMelhorEnvioOAuth()
+  const googleOAuth = useStartGoogleOAuth()
   const [shopDomain, setShopDomain] = useState('')
   const [shopeeShopId, setShopeeShopId] = useState('')
 
@@ -208,19 +210,22 @@ function ClientDetailPage() {
                                 (p === 'nuvemshop' && nuvemshopOAuth.isPending) ||
                                 (p === 'mercado_livre' && mercadoLivreOAuth.isPending) ||
                                 (p === 'meta' && metaOAuth.isPending) ||
-                                (p === 'melhor_envio' && melhorEnvioOAuth.isPending)
+                                (p === 'melhor_envio' && melhorEnvioOAuth.isPending) ||
+                                (p === 'google' && googleOAuth.isPending)
                               }
                               onClick={() => {
                                 if (p === 'nuvemshop') nuvemshopOAuth.mutate(id)
                                 else if (p === 'mercado_livre') mercadoLivreOAuth.mutate(id)
                                 else if (p === 'meta') metaOAuth.mutate(id)
+                                else if (p === 'google') googleOAuth.mutate(id)
                                 else if (p === 'melhor_envio') melhorEnvioOAuth.mutate(id)
                               }}
                             >
                               {(p === 'nuvemshop' && nuvemshopOAuth.isPending) ||
                               (p === 'mercado_livre' && mercadoLivreOAuth.isPending) ||
                               (p === 'meta' && metaOAuth.isPending) ||
-                              (p === 'melhor_envio' && melhorEnvioOAuth.isPending) ? (
+                              (p === 'melhor_envio' && melhorEnvioOAuth.isPending) ||
+                              (p === 'google' && googleOAuth.isPending) ? (
                                 <Loader2 className="size-3 animate-spin" />
                               ) : (
                                 <Link2 className="size-3" />

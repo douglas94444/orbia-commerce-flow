@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { OperationAlert } from "@/shared/types/orbia";
 
 export interface PortfolioAnalytics {
   gmv30d: number;
@@ -110,4 +111,40 @@ export const getNfeCount30d = createServerFn({ method: "GET" })
       .eq("status", "autorizada")
       .gte("created_at", thirtyDaysAgo);
     return count ?? 0;
+  });
+
+export const listOperationAlerts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<OperationAlert[]> => {
+    const { data, error } = await context.supabase
+      .from("operation_alerts")
+      .select("id, kind, severity, title, message, created_at, clients(name)")
+      .eq("is_resolved", false)
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    if (error) throw new Error(error.message);
+
+    return (data ?? []).map(
+      (row: {
+        id: string;
+        kind: string;
+        severity: string;
+        title: string;
+        message: string;
+        created_at: string;
+        clients: { name: string } | null;
+      }): OperationAlert => ({
+        id: row.id,
+        kind: row.kind as OperationAlert["kind"],
+        severity: row.severity as OperationAlert["severity"],
+        title: row.title,
+        message: row.message,
+        client: row.clients?.name ?? "—",
+        time: new Date(row.created_at).toLocaleTimeString("pt-BR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      }),
+    );
   });

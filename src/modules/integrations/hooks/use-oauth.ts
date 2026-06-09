@@ -7,6 +7,7 @@ import {
   startShopeeOAuth,
   startMetaOAuth,
   startMelhorEnvioOAuth,
+  startGoogleOAuth,
 } from "../oauth.functions";
 
 export function useStartNuvemshopOAuth() {
@@ -54,6 +55,16 @@ export function useStartShopeeOAuth() {
 export function useStartMetaOAuth() {
   return useMutation({
     mutationFn: (clientId: string) => startMetaOAuth({ data: { clientId } }),
+    onSuccess: (result) => {
+      if (result.url) window.location.href = result.url;
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useStartGoogleOAuth() {
+  return useMutation({
+    mutationFn: (clientId: string) => startGoogleOAuth({ data: { clientId } }),
     onSuccess: (result) => {
       if (result.url) window.location.href = result.url;
     },

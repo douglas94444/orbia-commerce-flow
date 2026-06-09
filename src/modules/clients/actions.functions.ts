@@ -205,3 +205,150 @@ export const createClient = createServerFn({ method: "POST" })
 
     return toUiClient(client);
   });
+
+// ─── getCurrentClient ─────────────────────────────────────────
+
+export interface CurrentClientContext {
+  clientId: string;
+  clientName: string;
+  memberRole: string;
+  plan: Client["plan"];
+  healthScore: number;
+  gmv30d: number;
+  roas: number;
+  connections: Array<{ provider: string; isActive: boolean }>;
+}
+
+export const getCurrentClient = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<CurrentClientContext> => {
+    const { data: membership, error: memErr } = await context.supabase
+      .from("client_members")
+      .select("client_id, role, clients(id, name, plan, health_score, gmv_30d, roas_avg)")
+      .eq("user_id", context.userId)
+      .eq("status", "active")
+      .maybeSingle();
+
+    if (memErr) throw new Error(memErr.message);
+    if (!membership?.clients) {
+      throw new Error("Nenhum cliente vinculado a este usuário.");
+    }
+
+    const client = membership.clients as {
+      id: string;
+      name: string;
+      plan: Client["plan"];
+      health_score: number;
+      gmv_30d: number;
+      roas_avg: number;
+    };
+
+    const { data: connections } = await context.supabase
+      .from("oauth_connections")
+      .select("provider, is_active")
+      .eq("client_id", client.id);
+
+    return {
+      clientId: client.id,
+      clientName: client.name,
+      memberRole: membership.role,
+      plan: client.plan,
+      healthScore: client.health_score,
+      gmv30d: Math.round(client.gmv_30d / 100),
+      roas: Number(client.roas_avg),
+      connections: (connections ?? []).map((c) => ({
+        provider: c.provider,
+        isActive: c.is_active,
+      })),
+    };
+  });
+
+// ─── inviteClientMember ─────────────────────────────────────────
+
+const inviteSchema = z.object({
+  email: z.string().email(),
+  role: z.enum(["admin", "manager", "viewer"]).default("viewer"),
+  clientId: z.string().uuid().optional(),
+});
+
+export const inviteClientMember = createServerFn({ method: "POST" })
+  .inputValidator(inviteSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { data: profile } = await context.supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", context.userId)
+      .single();
+
+    const isStaff = profile && ["orbia_admin", "orbia_staff"].includes(profile.role);
+
+    let clientId = data.clientId;
+
+    if (isStaff && clientId) {
+      // staff inviting to explicit client
+    } else if (!clientId) {
+      const { data: membership } = await context.supabase
+        .from("client_members")
+        .select("client_id, role")
+        .eq("user_id", context.userId)
+        .eq("status", "active")
+        .maybeSingle();
+
+      if (!membership || !["owner", "admin"].includes(membership.role)) {
+        throw new Error("Sem permissão para convidar membros.");
+      }
+      clientId = membership.client_id;
+    } else {
+      const { data: membership } = await context.supabase
+        .from("client_members")
+        .select("role")
+        .eq("user_id", context.userId)
+        .eq("client_id", clientId)
+        .eq("status", "active")
+        .maybeSingle();
+
+      if (!membership || !["owner", "admin"].includes(membership.role)) {
+        throw new Error("Sem permissão para convidar membros deste cliente.");
+      }
+    }
+
+    if (!clientId) throw new Error("clientId obrigatório");
+
+    const { data: invited, error: inviteErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+      data.email,
+      { data: { invited_to_client: clientId } },
+    );
+
+    if (inviteErr) throw new Error(inviteErr.message);
+
+    const userId = invited.user?.id;
+    if (userId) {
+      await supabaseAdmin.from("profiles").upsert({
+        id: userId,
+        role: "member",
+        full_name: data.email.split("@")[0],
+      });
+
+      await supabaseAdmin.from("client_members").upsert(
+        {
+          client_id: clientId,
+          user_id: userId,
+          role: data.role,
+          status: "active",
+          invited_by: context.userId,
+        },
+        { onConflict: "client_id,user_id" },
+      );
+    }
+
+    await logAudit({
+      user_id: context.userId,
+      client_id: clientId,
+      action: "member_invite",
+      resource: "client_member",
+      new_data: { email: data.email, role: data.role },
+    });
+
+    return { invited: true };
+  });

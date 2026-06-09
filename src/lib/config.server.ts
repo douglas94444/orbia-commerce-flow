@@ -40,6 +40,12 @@ export function getServerConfig() {
       appId: process.env.META_APP_ID,
       appSecret: process.env.META_APP_SECRET,
     },
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      developerToken: process.env.GOOGLE_ADS_DEVELOPER_TOKEN,
+      loginCustomerId: process.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID,
+    },
     resend: {
       apiKey: process.env.RESEND_API_KEY,
       fromEmail: process.env.RESEND_FROM_EMAIL,

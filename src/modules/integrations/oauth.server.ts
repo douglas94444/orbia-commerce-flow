@@ -10,6 +10,7 @@ import { getStore } from "@/integrations/nuvemshop/client";
 import { exchangeShopeeCode, registerShopeeWebhooks } from "@/integrations/shopee";
 import { exchangeShopifyCode, registerShopifyWebhooks } from "@/integrations/shopify";
 import { exchangeMelhorEnvioCode } from "@/integrations/melhor-envio";
+import { exchangeGoogleCode, listAccessibleCustomers } from "@/integrations/google";
 import { exchangeMetaCode, getMetaAdAccounts } from "@/integrations/meta";
 import { logAudit, logIntegration } from "@/shared/lib/logger";
 
@@ -19,6 +20,7 @@ export type OAuthProvider =
   | "mercado_livre"
   | "shopee"
   | "meta"
+  | "google"
   | "melhor_envio";
 
 export async function createOAuthState(
@@ -336,6 +338,41 @@ export async function completeMelhorEnvioOAuth(code: string, state: string): Pro
     provider: "melhor_envio",
     operation: "oauth_connect",
     status: "success",
+  });
+
+  return oauthState.redirect_to ?? `/clients/${oauthState.client_id}`;
+}
+
+export async function completeGoogleOAuth(code: string, state: string): Promise<string> {
+  const oauthState = await consumeOAuthState(state);
+  if (oauthState.provider !== "google" || !oauthState.client_id) {
+    throw new Error("Invalid OAuth state for Google Ads");
+  }
+
+  const token = await exchangeGoogleCode(code);
+  const customers = await listAccessibleCustomers(token.access_token);
+  const primary = customers[0];
+  const externalAccount = primary?.id ?? "google-default";
+  const expiresAt = new Date(Date.now() + token.expires_in * 1000).toISOString();
+
+  await storeOAuthConnection({
+    clientId: oauthState.client_id,
+    provider: "google",
+    externalAccount,
+    accessToken: token.access_token,
+    refreshToken: token.refresh_token ?? null,
+    tokenExpiresAt: expiresAt,
+    scopes: token.scope?.split(" ") ?? [],
+    metadata: { customers },
+    userId: oauthState.user_id,
+  });
+
+  await logIntegration({
+    client_id: oauthState.client_id,
+    provider: "google",
+    operation: "oauth_connect",
+    status: "success",
+    metadata: { customer_count: customers.length },
   });
 
   return oauthState.redirect_to ?? `/clients/${oauthState.client_id}`;
