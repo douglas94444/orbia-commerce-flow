@@ -12,6 +12,7 @@ import { exchangeShopifyCode, registerShopifyWebhooks } from "@/integrations/sho
 import { exchangeMelhorEnvioCode } from "@/integrations/melhor-envio";
 import { exchangeGoogleCode, listAccessibleCustomers } from "@/integrations/google";
 import { exchangeMetaCode, getMetaAdAccounts } from "@/integrations/meta";
+import { exchangeMetaCode as exchangeWhatsAppCode } from "@/integrations/meta/whatsapp-oauth";
 import { logAudit, logIntegration } from "@/shared/lib/logger";
 
 export type OAuthProvider =
@@ -21,7 +22,8 @@ export type OAuthProvider =
   | "shopee"
   | "meta"
   | "google"
-  | "melhor_envio";
+  | "melhor_envio"
+  | "whatsapp";
 
 export async function createOAuthState(
   userId: string,
@@ -373,6 +375,81 @@ export async function completeGoogleOAuth(code: string, state: string): Promise<
     operation: "oauth_connect",
     status: "success",
     metadata: { customer_count: customers.length },
+  });
+
+  return oauthState.redirect_to ?? `/clients/${oauthState.client_id}`;
+}
+
+async function fetchWhatsAppPhone(accessToken: string): Promise<{
+  wabaId: string;
+  phoneNumberId: string;
+  displayPhone: string;
+} | null> {
+  const bizRes = await fetch(
+    `https://graph.facebook.com/v21.0/me/businesses?access_token=${accessToken}`,
+  );
+  const bizBody = (await bizRes.json()) as { data?: Array<{ id: string }> };
+  const businessId = bizBody.data?.[0]?.id;
+  if (!businessId) return null;
+
+  const wabaRes = await fetch(
+    `https://graph.facebook.com/v21.0/${businessId}/owned_whatsapp_business_accounts?access_token=${accessToken}`,
+  );
+  const wabaBody = (await wabaRes.json()) as { data?: Array<{ id: string }> };
+  const wabaId = wabaBody.data?.[0]?.id;
+  if (!wabaId) return null;
+
+  const phoneRes = await fetch(
+    `https://graph.facebook.com/v21.0/${wabaId}/phone_numbers?access_token=${accessToken}`,
+  );
+  const phoneBody = (await phoneRes.json()) as {
+    data?: Array<{ id: string; display_phone_number: string }>;
+  };
+  const phone = phoneBody.data?.[0];
+  if (!phone) return null;
+
+  return {
+    wabaId,
+    phoneNumberId: phone.id,
+    displayPhone: phone.display_phone_number,
+  };
+}
+
+export async function completeMetaWhatsAppOAuth(code: string, state: string): Promise<string> {
+  const oauthState = await consumeOAuthState(state);
+  if (oauthState.provider !== "whatsapp" || !oauthState.client_id) {
+    throw new Error("Invalid OAuth state for WhatsApp");
+  }
+
+  const token = await exchangeWhatsAppCode(code);
+  const wa = await fetchWhatsAppPhone(token.access_token);
+  if (!wa) throw new Error("Nenhum número WhatsApp Business encontrado na conta Meta");
+
+  const expiresAt = token.expires_in
+    ? new Date(Date.now() + token.expires_in * 1000).toISOString()
+    : null;
+
+  await storeOAuthConnection({
+    clientId: oauthState.client_id,
+    provider: "whatsapp",
+    externalAccount: wa.phoneNumberId,
+    accessToken: token.access_token,
+    tokenExpiresAt: expiresAt,
+    scopes: ["whatsapp_business_messaging", "whatsapp_business_management"],
+    metadata: {
+      waba_id: wa.wabaId,
+      phone_number_id: wa.phoneNumberId,
+      display_phone: wa.displayPhone,
+    },
+    userId: oauthState.user_id,
+  });
+
+  await logIntegration({
+    client_id: oauthState.client_id,
+    provider: "meta",
+    operation: "whatsapp_oauth_connect",
+    status: "success",
+    metadata: { phone_number_id: wa.phoneNumberId },
   });
 
   return oauthState.redirect_to ?? `/clients/${oauthState.client_id}`;

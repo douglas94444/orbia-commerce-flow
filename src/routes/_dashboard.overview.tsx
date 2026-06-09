@@ -7,6 +7,7 @@ import { GmvRoasChart } from '@/components/dashboard/charts'
 import { ClientsTable } from '@/components/dashboard/clients-table'
 import { useClients, usePortfolioStats } from '@/modules/clients/hooks/use-clients'
 import { usePortfolioAnalytics, useNfeCount30d } from '@/modules/analytics/hooks/use-analytics'
+import { useMrrStats } from '@/modules/billing/hooks/use-billing'
 import { formatBRL } from '@/lib/format'
 
 export const Route = createFileRoute('/_dashboard/overview')({
@@ -19,12 +20,11 @@ function OverviewPage() {
   const { data: stats, isLoading: loadingStats } = usePortfolioStats()
   const { data: analytics, isLoading: loadingAnalytics } = usePortfolioAnalytics()
   const { data: nfeCount, isLoading: loadingNfe } = useNfeCount30d()
+  const { data: mrrStats, isLoading: loadingMrr } = useMrrStats()
 
   const loading = loadingClients || loadingStats
 
-  // Aggregate MRR from client plans
-  const planMrr: Record<string, number> = { launch: 3500, growth: 9000, scale: 18000 }
-  const mrr = clients.reduce((sum, c) => sum + (planMrr[c.plan] ?? 0), 0)
+  const mrr = (mrrStats?.totalMrrCents ?? 0) / 100
 
   const totalGmv = clients.reduce((sum, c) => sum + c.gmv30d, 0)
   const avgRoas  = stats?.avgRoas ?? 0
@@ -37,7 +37,7 @@ function OverviewPage() {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         <KpiCard
           label="MRR atual"
-          value={loading ? '—' : formatBRL(mrr, true)}
+          value={loading || loadingMrr ? '—' : formatBRL(mrr, true)}
           hint="Meta ano 1: R$ 150k/mês"
           icon={Banknote}
           accent="primary"

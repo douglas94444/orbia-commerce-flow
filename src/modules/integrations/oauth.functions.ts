@@ -5,6 +5,7 @@ import { buildMercadoLivreAuthUrl } from "@/integrations/mercado-livre";
 import { buildMelhorEnvioAuthUrl } from "@/integrations/melhor-envio";
 import { buildGoogleAuthUrl } from "@/integrations/google";
 import { buildMetaAuthUrl } from "@/integrations/meta";
+import { buildMetaWhatsAppAuthUrl } from "@/integrations/meta/whatsapp-oauth";
 import { buildNuvemshopAuthUrl } from "@/integrations/nuvemshop";
 import { buildShopeeAuthUrl } from "@/integrations/shopee";
 import { buildShopifyAuthUrl } from "@/integrations/shopify";
@@ -102,4 +103,13 @@ export const startMelhorEnvioOAuth = createServerFn({ method: "POST" })
     await requireStaff(context.userId, context.supabase);
     const state = await createOAuthState(context.userId, data.clientId, "melhor_envio");
     return { url: buildMelhorEnvioAuthUrl(state) };
+  });
+
+export const startWhatsAppOAuth = createServerFn({ method: "POST" })
+  .inputValidator(clientIdSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await requireStaff(context.userId, context.supabase);
+    const state = await createOAuthState(context.userId, data.clientId, "whatsapp");
+    return { url: buildMetaWhatsAppAuthUrl(state) };
   });

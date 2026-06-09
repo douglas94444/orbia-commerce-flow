@@ -49,3 +49,18 @@ const { count: googleOAuth } = await sb
   .select('id', { count: 'exact', head: true })
   .eq('provider', 'google')
 console.log('google oauth_connections:', googleOAuth ?? 0)
+
+const { error: productsErr } = await sb.from('products').select('id').limit(1)
+console.log('migration 018 (products):', productsErr ? `MISSING (${productsErr.message})` : 'ok')
+
+const { error: listingsErr } = await sb.from('channel_listings').select('id').limit(1)
+console.log('migration 018 (channel_listings):', listingsErr ? `MISSING (${listingsErr.message})` : 'ok')
+
+const { data: subSample } = await sb.from('subscriptions').select('provider').limit(1)
+console.log('migration 017 (mercado_pago provider):', subSample !== null ? 'ok' : 'check')
+
+const { count: whatsappConn } = await sb
+  .from('oauth_connections')
+  .select('id', { count: 'exact', head: true })
+  .eq('provider', 'whatsapp')
+console.log('whatsapp oauth_connections:', whatsappConn ?? 0)

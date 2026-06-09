@@ -12,6 +12,8 @@ import { Label } from '@/components/ui/label'
 import { useProfile, useUpdateProfile } from '@/modules/auth/hooks/use-profile'
 import { useCurrentClient } from '@/modules/clients/hooks/use-current-client'
 import { inviteClientMember } from '@/modules/clients/actions.functions'
+import { useClientSubscription, useStartMercadoPagoCheckout } from '@/modules/billing/hooks/use-billing'
+import { formatBRL } from '@/lib/format'
 import { toast } from 'sonner'
 
 export const Route = createFileRoute('/portal/settings')({
@@ -50,6 +52,9 @@ function PortalSettingsPage() {
   }, [profile, reset])
 
   const canInvite = currentClient && ['owner', 'admin'].includes(currentClient.memberRole)
+  const canBilling = canInvite
+  const { data: subscription } = useClientSubscription()
+  const mpCheckout = useStartMercadoPagoCheckout()
 
   async function handleInvite() {
     if (!inviteEmail) return
@@ -94,6 +99,36 @@ function PortalSettingsPage() {
             <Button type="submit" className="mt-4" disabled={isPending}>Salvar</Button>
           </Panel>
         </form>
+      )}
+
+      {canBilling && (
+        <Panel title="Plano e pagamento" subtitle="Assinatura Orbia via Mercado Pago">
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            <span className="text-sm">
+              Plano atual: <strong>{subscription?.plan ?? currentClient?.plan ?? '—'}</strong>
+            </span>
+            <span className="font-mono text-xs text-muted-foreground">
+              Status: {subscription?.status ?? '—'}
+            </span>
+            {subscription?.amount_cents ? (
+              <span className="font-mono text-sm">{formatBRL(subscription.amount_cents / 100)}/mês</span>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(['launch', 'growth', 'scale'] as const).map((plan) => (
+              <Button
+                key={plan}
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={mpCheckout.isPending}
+                onClick={() => mpCheckout.mutate(plan)}
+              >
+                Assinar {plan}
+              </Button>
+            ))}
+          </div>
+        </Panel>
       )}
 
       <Panel title="Integrações" subtitle="Conectadas pela equipe Orbia (somente leitura)">

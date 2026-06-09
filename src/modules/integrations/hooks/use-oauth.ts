@@ -8,6 +8,7 @@ import {
   startMetaOAuth,
   startMelhorEnvioOAuth,
   startGoogleOAuth,
+  startWhatsAppOAuth,
 } from "../oauth.functions";
 
 export function useStartNuvemshopOAuth() {
@@ -75,6 +76,16 @@ export function useStartGoogleOAuth() {
 export function useStartMelhorEnvioOAuth() {
   return useMutation({
     mutationFn: (clientId: string) => startMelhorEnvioOAuth({ data: { clientId } }),
+    onSuccess: (result) => {
+      if (result.url) window.location.href = result.url;
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useStartWhatsAppOAuth() {
+  return useMutation({
+    mutationFn: (clientId: string) => startWhatsAppOAuth({ data: { clientId } }),
     onSuccess: (result) => {
       if (result.url) window.location.href = result.url;
     },

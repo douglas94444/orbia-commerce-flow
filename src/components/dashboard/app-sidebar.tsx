@@ -2,8 +2,10 @@ import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import type { User } from '@supabase/supabase-js'
 import {
   BarChart3,
+  Banknote,
   ChevronLeft,
   FileText,
+  Package,
   LayoutDashboard,
   LifeBuoy,
   LogOut,
@@ -29,7 +31,9 @@ const nav: NavItem[] = [
   { label: 'Clientes',        to: '/clients',   icon: Users           },
   { label: 'Tráfego',         to: '/traffic',   icon: TrendingUp      },
   { label: 'Logística',       to: '/logistics', icon: Truck           },
+  { label: 'Catálogo',        to: '/catalog',   icon: Package         },
   { label: 'Retenção',        to: '/retention', icon: Repeat          },
+  { label: 'Billing',         to: '/billing',   icon: Banknote        },
   { label: 'Fiscal',          to: '/fiscal',    icon: FileText        },
   { label: 'Analytics',       to: '/analytics', icon: BarChart3       },
   { label: 'Customer Success',to: '/success',   icon: LifeBuoy        },

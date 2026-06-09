@@ -35,6 +35,7 @@ export type IntegrationProvider =
   | 'claude'
   | 'stripe'
   | 'pagar_me'
+  | 'mercado_pago'
   | 'correios'
   | 'jadlog'
   | 'jt_express'

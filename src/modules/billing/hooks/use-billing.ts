@@ -5,6 +5,8 @@ import {
   getMrrStats,
   listTransactions,
   createSubscription,
+  startMercadoPagoCheckout,
+  getClientSubscription,
 } from "../actions.functions";
 
 export const SUBSCRIPTIONS_KEY = ["subscriptions"] as const;
@@ -36,6 +38,27 @@ export function useTransactions() {
     queryKey: TRANSACTIONS_KEY,
     queryFn: () => listTransactions(),
     staleTime: 30_000,
+  });
+}
+
+export const CLIENT_SUB_KEY = ["client-subscription"] as const;
+
+export function useClientSubscription() {
+  return useQuery({
+    queryKey: CLIENT_SUB_KEY,
+    queryFn: () => getClientSubscription(),
+    staleTime: 60_000,
+  });
+}
+
+export function useStartMercadoPagoCheckout() {
+  return useMutation({
+    mutationFn: (plan: "launch" | "growth" | "scale") =>
+      startMercadoPagoCheckout({ data: { plan } }),
+    onSuccess: (result) => {
+      if (result.initPoint) window.location.href = result.initPoint;
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 }
 

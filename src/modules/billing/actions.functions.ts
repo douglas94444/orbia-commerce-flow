@@ -3,6 +3,8 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { logAudit } from "@/shared/lib/logger";
+import { cancelPreapproval } from "@/integrations/mercado-pago";
+import { startMercadoPagoSubscription } from "./mercado-pago.server";
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -146,7 +148,7 @@ const PLAN_PRICES: Record<string, number> = {
 const createSubSchema = z.object({
   clientId: z.string().uuid(),
   plan: z.enum(["launch", "growth", "scale"]),
-  provider: z.enum(["stripe", "pagar_me", "manual"]).default("manual"),
+  provider: z.enum(["stripe", "pagar_me", "manual", "mercado_pago"]).default("manual"),
   providerSubId: z.string().optional(),
 });
 
@@ -237,3 +239,95 @@ export const createSubscription = createServerFn({ method: "POST" })
 
     return sub;
   });
+
+const mpCheckoutSchema = z.object({
+  plan: z.enum(["launch", "growth", "scale"]),
+});
+
+export const startMercadoPagoCheckout = createServerFn({ method: "POST" })
+  .inputValidator(mpCheckoutSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { data: membership } = await context.supabase
+      .from("client_members")
+      .select("client_id, role")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+
+    if (!membership || !["owner", "admin"].includes(membership.role as string)) {
+      throw new Error("Apenas owner/admin pode gerenciar assinatura.");
+    }
+
+    let email = String((context.claims as { email?: string }).email ?? "");
+    if (!email) {
+      const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(context.userId);
+      email = authUser.user?.email ?? "";
+    }
+    if (!email) throw new Error("E-mail do usuário não encontrado.");
+
+    return startMercadoPagoSubscription(membership.client_id, data.plan, email);
+  });
+
+export const getClientSubscription = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: membership } = await context.supabase
+      .from("client_members")
+      .select("client_id")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+
+    if (!membership) return null;
+
+    const { data } = await context.supabase
+      .from("subscriptions")
+      .select("plan, status, amount_cents, provider, current_period_end")
+      .eq("client_id", membership.client_id)
+      .maybeSingle();
+
+    return data;
+  });
+
+export const cancelSubscription = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: profile } = await context.supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", context.userId)
+      .single();
+
+    const isStaff = profile && ["orbia_admin", "orbia_staff"].includes(profile.role as string);
+
+    const { data: membership } = await context.supabase
+      .from("client_members")
+      .select("client_id, role")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+
+    if (!isStaff && (!membership || !["owner", "admin"].includes(membership.role as string))) {
+      throw new Error("Sem permissão para cancelar assinatura.");
+    }
+
+    const clientId = membership?.client_id;
+    if (!clientId && !isStaff) throw new Error("Cliente não encontrado.");
+
+    const targetClientId = clientId!;
+    const { data: sub } = await supabaseAdmin
+      .from("subscriptions")
+      .select("provider_sub_id, provider")
+      .eq("client_id", targetClientId)
+      .maybeSingle();
+
+    if (sub?.provider === "mercado_pago" && sub.provider_sub_id) {
+      await cancelPreapproval(sub.provider_sub_id);
+    }
+
+    await supabaseAdmin
+      .from("subscriptions")
+      .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
+      .eq("client_id", targetClientId);
+
+    return { ok: true };
+  });
+

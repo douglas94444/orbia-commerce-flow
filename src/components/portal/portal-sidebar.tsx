@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   LayoutDashboard,
   LogOut,
+  Package,
   Repeat,
   Settings,
   TrendingUp,
@@ -22,6 +23,7 @@ interface NavItem {
 
 const nav: NavItem[] = [
   { label: 'Visão Geral', to: '/portal/overview', icon: LayoutDashboard },
+  { label: 'Catálogo',    to: '/portal/catalog', icon: Package },
   { label: 'Logística',   to: '/portal/logistics', icon: Truck },
   { label: 'Tráfego',     to: '/portal/traffic', icon: TrendingUp },
   { label: 'Retenção',    to: '/portal/retention', icon: Repeat },

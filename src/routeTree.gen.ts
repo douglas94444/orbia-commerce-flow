@@ -18,6 +18,7 @@ import { Route as PortalSettingsRouteImport } from './routes/portal.settings'
 import { Route as PortalRetentionRouteImport } from './routes/portal.retention'
 import { Route as PortalOverviewRouteImport } from './routes/portal.overview'
 import { Route as PortalLogisticsRouteImport } from './routes/portal.logistics'
+import { Route as PortalCatalogRouteImport } from './routes/portal.catalog'
 import { Route as DashboardTrafficRouteImport } from './routes/_dashboard.traffic'
 import { Route as DashboardSuccessRouteImport } from './routes/_dashboard.success'
 import { Route as DashboardSettingsRouteImport } from './routes/_dashboard.settings'
@@ -26,14 +27,19 @@ import { Route as DashboardOverviewRouteImport } from './routes/_dashboard.overv
 import { Route as DashboardLogisticsRouteImport } from './routes/_dashboard.logistics'
 import { Route as DashboardFiscalRouteImport } from './routes/_dashboard.fiscal'
 import { Route as DashboardClientsRouteImport } from './routes/_dashboard.clients'
+import { Route as DashboardCatalogRouteImport } from './routes/_dashboard.catalog'
+import { Route as DashboardBillingRouteImport } from './routes/_dashboard.billing'
 import { Route as DashboardAnalyticsRouteImport } from './routes/_dashboard.analytics'
+import { Route as ApiWebhooksWhatsappRouteImport } from './routes/api/webhooks/whatsapp'
 import { Route as ApiWebhooksShopifyRouteImport } from './routes/api/webhooks/shopify'
 import { Route as ApiWebhooksShopeeRouteImport } from './routes/api/webhooks/shopee'
 import { Route as ApiWebhooksNuvemshopRouteImport } from './routes/api/webhooks/nuvemshop'
+import { Route as ApiWebhooksMercadoPagoRouteImport } from './routes/api/webhooks/mercado-pago'
 import { Route as ApiWebhooksMercadoLivreRouteImport } from './routes/api/webhooks/mercado-livre'
 import { Route as ApiWebhooksMelhorEnvioRouteImport } from './routes/api/webhooks/melhor-envio'
 import { Route as DashboardFiscalConfigRouteImport } from './routes/_dashboard.fiscal.config'
 import { Route as DashboardClientsIdRouteImport } from './routes/_dashboard.clients.$id'
+import { Route as ApiOauthWhatsappCallbackRouteImport } from './routes/api/oauth/whatsapp/callback'
 import { Route as ApiOauthShopifyCallbackRouteImport } from './routes/api/oauth/shopify/callback'
 import { Route as ApiOauthShopeeCallbackRouteImport } from './routes/api/oauth/shopee/callback'
 import { Route as ApiOauthNuvemshopCallbackRouteImport } from './routes/api/oauth/nuvemshop/callback'
@@ -86,6 +92,11 @@ const PortalLogisticsRoute = PortalLogisticsRouteImport.update({
   path: '/logistics',
   getParentRoute: () => PortalRoute,
 } as any)
+const PortalCatalogRoute = PortalCatalogRouteImport.update({
+  id: '/catalog',
+  path: '/catalog',
+  getParentRoute: () => PortalRoute,
+} as any)
 const DashboardTrafficRoute = DashboardTrafficRouteImport.update({
   id: '/traffic',
   path: '/traffic',
@@ -126,10 +137,25 @@ const DashboardClientsRoute = DashboardClientsRouteImport.update({
   path: '/clients',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardCatalogRoute = DashboardCatalogRouteImport.update({
+  id: '/catalog',
+  path: '/catalog',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardBillingRoute = DashboardBillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardAnalyticsRoute = DashboardAnalyticsRouteImport.update({
   id: '/analytics',
   path: '/analytics',
   getParentRoute: () => DashboardRoute,
+} as any)
+const ApiWebhooksWhatsappRoute = ApiWebhooksWhatsappRouteImport.update({
+  id: '/api/webhooks/whatsapp',
+  path: '/api/webhooks/whatsapp',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiWebhooksShopifyRoute = ApiWebhooksShopifyRouteImport.update({
   id: '/api/webhooks/shopify',
@@ -144,6 +170,11 @@ const ApiWebhooksShopeeRoute = ApiWebhooksShopeeRouteImport.update({
 const ApiWebhooksNuvemshopRoute = ApiWebhooksNuvemshopRouteImport.update({
   id: '/api/webhooks/nuvemshop',
   path: '/api/webhooks/nuvemshop',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWebhooksMercadoPagoRoute = ApiWebhooksMercadoPagoRouteImport.update({
+  id: '/api/webhooks/mercado-pago',
+  path: '/api/webhooks/mercado-pago',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiWebhooksMercadoLivreRoute = ApiWebhooksMercadoLivreRouteImport.update({
@@ -166,6 +197,12 @@ const DashboardClientsIdRoute = DashboardClientsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => DashboardClientsRoute,
 } as any)
+const ApiOauthWhatsappCallbackRoute =
+  ApiOauthWhatsappCallbackRouteImport.update({
+    id: '/api/oauth/whatsapp/callback',
+    path: '/api/oauth/whatsapp/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiOauthShopifyCallbackRoute = ApiOauthShopifyCallbackRouteImport.update({
   id: '/api/oauth/shopify/callback',
   path: '/api/oauth/shopify/callback',
@@ -210,6 +247,8 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/portal': typeof PortalRouteWithChildren
   '/analytics': typeof DashboardAnalyticsRoute
+  '/billing': typeof DashboardBillingRoute
+  '/catalog': typeof DashboardCatalogRoute
   '/clients': typeof DashboardClientsRouteWithChildren
   '/fiscal': typeof DashboardFiscalRouteWithChildren
   '/logistics': typeof DashboardLogisticsRoute
@@ -218,6 +257,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof DashboardSettingsRoute
   '/success': typeof DashboardSuccessRoute
   '/traffic': typeof DashboardTrafficRoute
+  '/portal/catalog': typeof PortalCatalogRoute
   '/portal/logistics': typeof PortalLogisticsRoute
   '/portal/overview': typeof PortalOverviewRoute
   '/portal/retention': typeof PortalRetentionRoute
@@ -227,9 +267,11 @@ export interface FileRoutesByFullPath {
   '/fiscal/config': typeof DashboardFiscalConfigRoute
   '/api/webhooks/melhor-envio': typeof ApiWebhooksMelhorEnvioRoute
   '/api/webhooks/mercado-livre': typeof ApiWebhooksMercadoLivreRoute
+  '/api/webhooks/mercado-pago': typeof ApiWebhooksMercadoPagoRoute
   '/api/webhooks/nuvemshop': typeof ApiWebhooksNuvemshopRoute
   '/api/webhooks/shopee': typeof ApiWebhooksShopeeRoute
   '/api/webhooks/shopify': typeof ApiWebhooksShopifyRoute
+  '/api/webhooks/whatsapp': typeof ApiWebhooksWhatsappRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
   '/api/oauth/melhor-envio/callback': typeof ApiOauthMelhorEnvioCallbackRoute
   '/api/oauth/mercado-livre/callback': typeof ApiOauthMercadoLivreCallbackRoute
@@ -237,12 +279,15 @@ export interface FileRoutesByFullPath {
   '/api/oauth/nuvemshop/callback': typeof ApiOauthNuvemshopCallbackRoute
   '/api/oauth/shopee/callback': typeof ApiOauthShopeeCallbackRoute
   '/api/oauth/shopify/callback': typeof ApiOauthShopifyCallbackRoute
+  '/api/oauth/whatsapp/callback': typeof ApiOauthWhatsappCallbackRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/portal': typeof PortalRouteWithChildren
   '/analytics': typeof DashboardAnalyticsRoute
+  '/billing': typeof DashboardBillingRoute
+  '/catalog': typeof DashboardCatalogRoute
   '/clients': typeof DashboardClientsRouteWithChildren
   '/fiscal': typeof DashboardFiscalRouteWithChildren
   '/logistics': typeof DashboardLogisticsRoute
@@ -251,6 +296,7 @@ export interface FileRoutesByTo {
   '/settings': typeof DashboardSettingsRoute
   '/success': typeof DashboardSuccessRoute
   '/traffic': typeof DashboardTrafficRoute
+  '/portal/catalog': typeof PortalCatalogRoute
   '/portal/logistics': typeof PortalLogisticsRoute
   '/portal/overview': typeof PortalOverviewRoute
   '/portal/retention': typeof PortalRetentionRoute
@@ -260,9 +306,11 @@ export interface FileRoutesByTo {
   '/fiscal/config': typeof DashboardFiscalConfigRoute
   '/api/webhooks/melhor-envio': typeof ApiWebhooksMelhorEnvioRoute
   '/api/webhooks/mercado-livre': typeof ApiWebhooksMercadoLivreRoute
+  '/api/webhooks/mercado-pago': typeof ApiWebhooksMercadoPagoRoute
   '/api/webhooks/nuvemshop': typeof ApiWebhooksNuvemshopRoute
   '/api/webhooks/shopee': typeof ApiWebhooksShopeeRoute
   '/api/webhooks/shopify': typeof ApiWebhooksShopifyRoute
+  '/api/webhooks/whatsapp': typeof ApiWebhooksWhatsappRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
   '/api/oauth/melhor-envio/callback': typeof ApiOauthMelhorEnvioCallbackRoute
   '/api/oauth/mercado-livre/callback': typeof ApiOauthMercadoLivreCallbackRoute
@@ -270,6 +318,7 @@ export interface FileRoutesByTo {
   '/api/oauth/nuvemshop/callback': typeof ApiOauthNuvemshopCallbackRoute
   '/api/oauth/shopee/callback': typeof ApiOauthShopeeCallbackRoute
   '/api/oauth/shopify/callback': typeof ApiOauthShopifyCallbackRoute
+  '/api/oauth/whatsapp/callback': typeof ApiOauthWhatsappCallbackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -278,6 +327,8 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/portal': typeof PortalRouteWithChildren
   '/_dashboard/analytics': typeof DashboardAnalyticsRoute
+  '/_dashboard/billing': typeof DashboardBillingRoute
+  '/_dashboard/catalog': typeof DashboardCatalogRoute
   '/_dashboard/clients': typeof DashboardClientsRouteWithChildren
   '/_dashboard/fiscal': typeof DashboardFiscalRouteWithChildren
   '/_dashboard/logistics': typeof DashboardLogisticsRoute
@@ -286,6 +337,7 @@ export interface FileRoutesById {
   '/_dashboard/settings': typeof DashboardSettingsRoute
   '/_dashboard/success': typeof DashboardSuccessRoute
   '/_dashboard/traffic': typeof DashboardTrafficRoute
+  '/portal/catalog': typeof PortalCatalogRoute
   '/portal/logistics': typeof PortalLogisticsRoute
   '/portal/overview': typeof PortalOverviewRoute
   '/portal/retention': typeof PortalRetentionRoute
@@ -295,9 +347,11 @@ export interface FileRoutesById {
   '/_dashboard/fiscal/config': typeof DashboardFiscalConfigRoute
   '/api/webhooks/melhor-envio': typeof ApiWebhooksMelhorEnvioRoute
   '/api/webhooks/mercado-livre': typeof ApiWebhooksMercadoLivreRoute
+  '/api/webhooks/mercado-pago': typeof ApiWebhooksMercadoPagoRoute
   '/api/webhooks/nuvemshop': typeof ApiWebhooksNuvemshopRoute
   '/api/webhooks/shopee': typeof ApiWebhooksShopeeRoute
   '/api/webhooks/shopify': typeof ApiWebhooksShopifyRoute
+  '/api/webhooks/whatsapp': typeof ApiWebhooksWhatsappRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
   '/api/oauth/melhor-envio/callback': typeof ApiOauthMelhorEnvioCallbackRoute
   '/api/oauth/mercado-livre/callback': typeof ApiOauthMercadoLivreCallbackRoute
@@ -305,6 +359,7 @@ export interface FileRoutesById {
   '/api/oauth/nuvemshop/callback': typeof ApiOauthNuvemshopCallbackRoute
   '/api/oauth/shopee/callback': typeof ApiOauthShopeeCallbackRoute
   '/api/oauth/shopify/callback': typeof ApiOauthShopifyCallbackRoute
+  '/api/oauth/whatsapp/callback': typeof ApiOauthWhatsappCallbackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -313,6 +368,8 @@ export interface FileRouteTypes {
     | '/login'
     | '/portal'
     | '/analytics'
+    | '/billing'
+    | '/catalog'
     | '/clients'
     | '/fiscal'
     | '/logistics'
@@ -321,6 +378,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/success'
     | '/traffic'
+    | '/portal/catalog'
     | '/portal/logistics'
     | '/portal/overview'
     | '/portal/retention'
@@ -330,9 +388,11 @@ export interface FileRouteTypes {
     | '/fiscal/config'
     | '/api/webhooks/melhor-envio'
     | '/api/webhooks/mercado-livre'
+    | '/api/webhooks/mercado-pago'
     | '/api/webhooks/nuvemshop'
     | '/api/webhooks/shopee'
     | '/api/webhooks/shopify'
+    | '/api/webhooks/whatsapp'
     | '/api/oauth/google/callback'
     | '/api/oauth/melhor-envio/callback'
     | '/api/oauth/mercado-livre/callback'
@@ -340,12 +400,15 @@ export interface FileRouteTypes {
     | '/api/oauth/nuvemshop/callback'
     | '/api/oauth/shopee/callback'
     | '/api/oauth/shopify/callback'
+    | '/api/oauth/whatsapp/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
     | '/portal'
     | '/analytics'
+    | '/billing'
+    | '/catalog'
     | '/clients'
     | '/fiscal'
     | '/logistics'
@@ -354,6 +417,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/success'
     | '/traffic'
+    | '/portal/catalog'
     | '/portal/logistics'
     | '/portal/overview'
     | '/portal/retention'
@@ -363,9 +427,11 @@ export interface FileRouteTypes {
     | '/fiscal/config'
     | '/api/webhooks/melhor-envio'
     | '/api/webhooks/mercado-livre'
+    | '/api/webhooks/mercado-pago'
     | '/api/webhooks/nuvemshop'
     | '/api/webhooks/shopee'
     | '/api/webhooks/shopify'
+    | '/api/webhooks/whatsapp'
     | '/api/oauth/google/callback'
     | '/api/oauth/melhor-envio/callback'
     | '/api/oauth/mercado-livre/callback'
@@ -373,6 +439,7 @@ export interface FileRouteTypes {
     | '/api/oauth/nuvemshop/callback'
     | '/api/oauth/shopee/callback'
     | '/api/oauth/shopify/callback'
+    | '/api/oauth/whatsapp/callback'
   id:
     | '__root__'
     | '/'
@@ -380,6 +447,8 @@ export interface FileRouteTypes {
     | '/login'
     | '/portal'
     | '/_dashboard/analytics'
+    | '/_dashboard/billing'
+    | '/_dashboard/catalog'
     | '/_dashboard/clients'
     | '/_dashboard/fiscal'
     | '/_dashboard/logistics'
@@ -388,6 +457,7 @@ export interface FileRouteTypes {
     | '/_dashboard/settings'
     | '/_dashboard/success'
     | '/_dashboard/traffic'
+    | '/portal/catalog'
     | '/portal/logistics'
     | '/portal/overview'
     | '/portal/retention'
@@ -397,9 +467,11 @@ export interface FileRouteTypes {
     | '/_dashboard/fiscal/config'
     | '/api/webhooks/melhor-envio'
     | '/api/webhooks/mercado-livre'
+    | '/api/webhooks/mercado-pago'
     | '/api/webhooks/nuvemshop'
     | '/api/webhooks/shopee'
     | '/api/webhooks/shopify'
+    | '/api/webhooks/whatsapp'
     | '/api/oauth/google/callback'
     | '/api/oauth/melhor-envio/callback'
     | '/api/oauth/mercado-livre/callback'
@@ -407,6 +479,7 @@ export interface FileRouteTypes {
     | '/api/oauth/nuvemshop/callback'
     | '/api/oauth/shopee/callback'
     | '/api/oauth/shopify/callback'
+    | '/api/oauth/whatsapp/callback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -416,9 +489,11 @@ export interface RootRouteChildren {
   PortalRoute: typeof PortalRouteWithChildren
   ApiWebhooksMelhorEnvioRoute: typeof ApiWebhooksMelhorEnvioRoute
   ApiWebhooksMercadoLivreRoute: typeof ApiWebhooksMercadoLivreRoute
+  ApiWebhooksMercadoPagoRoute: typeof ApiWebhooksMercadoPagoRoute
   ApiWebhooksNuvemshopRoute: typeof ApiWebhooksNuvemshopRoute
   ApiWebhooksShopeeRoute: typeof ApiWebhooksShopeeRoute
   ApiWebhooksShopifyRoute: typeof ApiWebhooksShopifyRoute
+  ApiWebhooksWhatsappRoute: typeof ApiWebhooksWhatsappRoute
   ApiOauthGoogleCallbackRoute: typeof ApiOauthGoogleCallbackRoute
   ApiOauthMelhorEnvioCallbackRoute: typeof ApiOauthMelhorEnvioCallbackRoute
   ApiOauthMercadoLivreCallbackRoute: typeof ApiOauthMercadoLivreCallbackRoute
@@ -426,6 +501,7 @@ export interface RootRouteChildren {
   ApiOauthNuvemshopCallbackRoute: typeof ApiOauthNuvemshopCallbackRoute
   ApiOauthShopeeCallbackRoute: typeof ApiOauthShopeeCallbackRoute
   ApiOauthShopifyCallbackRoute: typeof ApiOauthShopifyCallbackRoute
+  ApiOauthWhatsappCallbackRoute: typeof ApiOauthWhatsappCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -493,6 +569,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PortalLogisticsRouteImport
       parentRoute: typeof PortalRoute
     }
+    '/portal/catalog': {
+      id: '/portal/catalog'
+      path: '/catalog'
+      fullPath: '/portal/catalog'
+      preLoaderRoute: typeof PortalCatalogRouteImport
+      parentRoute: typeof PortalRoute
+    }
     '/_dashboard/traffic': {
       id: '/_dashboard/traffic'
       path: '/traffic'
@@ -549,12 +632,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardClientsRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/_dashboard/catalog': {
+      id: '/_dashboard/catalog'
+      path: '/catalog'
+      fullPath: '/catalog'
+      preLoaderRoute: typeof DashboardCatalogRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/billing': {
+      id: '/_dashboard/billing'
+      path: '/billing'
+      fullPath: '/billing'
+      preLoaderRoute: typeof DashboardBillingRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/_dashboard/analytics': {
       id: '/_dashboard/analytics'
       path: '/analytics'
       fullPath: '/analytics'
       preLoaderRoute: typeof DashboardAnalyticsRouteImport
       parentRoute: typeof DashboardRoute
+    }
+    '/api/webhooks/whatsapp': {
+      id: '/api/webhooks/whatsapp'
+      path: '/api/webhooks/whatsapp'
+      fullPath: '/api/webhooks/whatsapp'
+      preLoaderRoute: typeof ApiWebhooksWhatsappRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/webhooks/shopify': {
       id: '/api/webhooks/shopify'
@@ -575,6 +679,13 @@ declare module '@tanstack/react-router' {
       path: '/api/webhooks/nuvemshop'
       fullPath: '/api/webhooks/nuvemshop'
       preLoaderRoute: typeof ApiWebhooksNuvemshopRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/webhooks/mercado-pago': {
+      id: '/api/webhooks/mercado-pago'
+      path: '/api/webhooks/mercado-pago'
+      fullPath: '/api/webhooks/mercado-pago'
+      preLoaderRoute: typeof ApiWebhooksMercadoPagoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/webhooks/mercado-livre': {
@@ -604,6 +715,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/clients/$id'
       preLoaderRoute: typeof DashboardClientsIdRouteImport
       parentRoute: typeof DashboardClientsRoute
+    }
+    '/api/oauth/whatsapp/callback': {
+      id: '/api/oauth/whatsapp/callback'
+      path: '/api/oauth/whatsapp/callback'
+      fullPath: '/api/oauth/whatsapp/callback'
+      preLoaderRoute: typeof ApiOauthWhatsappCallbackRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/oauth/shopify/callback': {
       id: '/api/oauth/shopify/callback'
@@ -682,6 +800,8 @@ const DashboardFiscalRouteWithChildren = DashboardFiscalRoute._addFileChildren(
 
 interface DashboardRouteChildren {
   DashboardAnalyticsRoute: typeof DashboardAnalyticsRoute
+  DashboardBillingRoute: typeof DashboardBillingRoute
+  DashboardCatalogRoute: typeof DashboardCatalogRoute
   DashboardClientsRoute: typeof DashboardClientsRouteWithChildren
   DashboardFiscalRoute: typeof DashboardFiscalRouteWithChildren
   DashboardLogisticsRoute: typeof DashboardLogisticsRoute
@@ -694,6 +814,8 @@ interface DashboardRouteChildren {
 
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardAnalyticsRoute: DashboardAnalyticsRoute,
+  DashboardBillingRoute: DashboardBillingRoute,
+  DashboardCatalogRoute: DashboardCatalogRoute,
   DashboardClientsRoute: DashboardClientsRouteWithChildren,
   DashboardFiscalRoute: DashboardFiscalRouteWithChildren,
   DashboardLogisticsRoute: DashboardLogisticsRoute,
@@ -709,6 +831,7 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
 )
 
 interface PortalRouteChildren {
+  PortalCatalogRoute: typeof PortalCatalogRoute
   PortalLogisticsRoute: typeof PortalLogisticsRoute
   PortalOverviewRoute: typeof PortalOverviewRoute
   PortalRetentionRoute: typeof PortalRetentionRoute
@@ -717,6 +840,7 @@ interface PortalRouteChildren {
 }
 
 const PortalRouteChildren: PortalRouteChildren = {
+  PortalCatalogRoute: PortalCatalogRoute,
   PortalLogisticsRoute: PortalLogisticsRoute,
   PortalOverviewRoute: PortalOverviewRoute,
   PortalRetentionRoute: PortalRetentionRoute,
@@ -734,9 +858,11 @@ const rootRouteChildren: RootRouteChildren = {
   PortalRoute: PortalRouteWithChildren,
   ApiWebhooksMelhorEnvioRoute: ApiWebhooksMelhorEnvioRoute,
   ApiWebhooksMercadoLivreRoute: ApiWebhooksMercadoLivreRoute,
+  ApiWebhooksMercadoPagoRoute: ApiWebhooksMercadoPagoRoute,
   ApiWebhooksNuvemshopRoute: ApiWebhooksNuvemshopRoute,
   ApiWebhooksShopeeRoute: ApiWebhooksShopeeRoute,
   ApiWebhooksShopifyRoute: ApiWebhooksShopifyRoute,
+  ApiWebhooksWhatsappRoute: ApiWebhooksWhatsappRoute,
   ApiOauthGoogleCallbackRoute: ApiOauthGoogleCallbackRoute,
   ApiOauthMelhorEnvioCallbackRoute: ApiOauthMelhorEnvioCallbackRoute,
   ApiOauthMercadoLivreCallbackRoute: ApiOauthMercadoLivreCallbackRoute,
@@ -744,6 +870,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiOauthNuvemshopCallbackRoute: ApiOauthNuvemshopCallbackRoute,
   ApiOauthShopeeCallbackRoute: ApiOauthShopeeCallbackRoute,
   ApiOauthShopifyCallbackRoute: ApiOauthShopifyCallbackRoute,
+  ApiOauthWhatsappCallbackRoute: ApiOauthWhatsappCallbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

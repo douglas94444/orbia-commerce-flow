@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getOrder as getMlOrder } from "@/integrations/mercado-livre";
 import { emitNfeForOrder } from "@/modules/fiscal/emit-order-nfe.server";
 import { recalculateClientMetrics } from "@/modules/analytics/health-score.server";
+import { resolveOrderItemsSkus } from "@/modules/catalog/sku-resolution.server";
 import { emitDomainEvent } from "@/shared/lib/domain-events.server";
 import {
   reserveStock,
@@ -23,6 +24,8 @@ export interface NormalizedOrderItem {
   quantity: number;
   unitPriceCents: number;
   ncm?: string;
+  externalProductId?: string;
+  externalVariantId?: string;
 }
 
 export interface NormalizedOrder {
@@ -33,6 +36,7 @@ export interface NormalizedOrder {
   paymentStatus: "paid" | "pending" | "refunded" | "cancelled";
   items: NormalizedOrderItem[];
   customerEmail?: string;
+  customerPhone?: string;
   raw: Record<string, unknown>;
 }
 
@@ -95,6 +99,8 @@ export function normalizeNuvemshopOrder(payload: unknown): NormalizedOrder | nul
     quantity: Number(p.quantity ?? 1),
     unitPriceCents: Math.round(Number(p.price ?? p.unit_price ?? 0) * 100),
     ncm: p.ncm ? String(p.ncm) : undefined,
+    externalProductId: String(p.product_id ?? p.id ?? ""),
+    externalVariantId: String(p.variant_id ?? p.id ?? ""),
   }));
 
   const shipping = order.shipping_address as Record<string, unknown> | undefined;
@@ -108,6 +114,7 @@ export function normalizeNuvemshopOrder(payload: unknown): NormalizedOrder | nul
     paymentStatus: paid ? "paid" : paymentStatus === "cancelled" ? "cancelled" : "pending",
     items,
     customerEmail: buyer?.email ? String(buyer.email) : undefined,
+    customerPhone: buyer?.phone ? String(buyer.phone) : undefined,
     raw: order as Record<string, unknown>,
   };
 }
@@ -126,6 +133,8 @@ export function normalizeShopifyOrder(payload: unknown): NormalizedOrder | null 
     name: String(p.name ?? p.title ?? "Produto"),
     quantity: Number(p.quantity ?? 1),
     unitPriceCents: Math.round(Number(p.price ?? 0) * 100),
+    externalProductId: String(p.product_id ?? ""),
+    externalVariantId: String(p.variant_id ?? ""),
   }));
 
   const shipping = order.shipping_address as Record<string, unknown> | undefined;
@@ -144,6 +153,7 @@ export function normalizeShopifyOrder(payload: unknown): NormalizedOrder | null 
           : "pending",
     items,
     customerEmail: order.email ? String(order.email) : undefined,
+    customerPhone: order.phone ? String(order.phone) : undefined,
     raw: order as Record<string, unknown>,
   };
 }
@@ -165,6 +175,8 @@ export function normalizeMercadoLivreOrder(payload: unknown): NormalizedOrder | 
     name: String(p.item?.title ?? "Produto"),
     quantity: Number(p.quantity ?? 1),
     unitPriceCents: Math.round(Number(p.unit_price ?? 0) * 100),
+    externalProductId: String(p.item?.id ?? ""),
+    externalVariantId: String(p.item?.id ?? ""),
   }));
 
   const shipping = data.shipping as Record<string, unknown> | undefined;
@@ -179,6 +191,7 @@ export function normalizeMercadoLivreOrder(payload: unknown): NormalizedOrder | 
     paymentStatus: paid ? "paid" : status === "cancelled" ? "cancelled" : "pending",
     items: items.length ? items : [{ sku: "ML-ITEM", name: "Produto ML", quantity: 1, unitPriceCents: Math.round(Number(data.total_amount ?? 0) * 100) }],
     customerEmail: buyer?.email ? String(buyer.email) : undefined,
+    customerPhone: buyer?.phone ? String((buyer.phone as { number?: string })?.number ?? buyer.phone) : undefined,
     raw: data as Record<string, unknown>,
   };
 }
@@ -199,6 +212,8 @@ export function normalizeShopeeOrder(payload: unknown): NormalizedOrder | null {
     name: String(p.item_name ?? "Produto"),
     quantity: Number(p.model_quantity_purchased ?? p.quantity ?? 1),
     unitPriceCents: Math.round(Number(p.model_discounted_price ?? p.model_original_price ?? 0) * 100),
+    externalProductId: String(p.item_id ?? ""),
+    externalVariantId: String(p.model_id ?? p.item_id ?? ""),
   }));
 
   const recipient = data.recipient_address as Record<string, unknown> | undefined;
@@ -210,7 +225,7 @@ export function normalizeShopeeOrder(payload: unknown): NormalizedOrder | null {
     city: recipient?.city ? String(recipient.city) : null,
     paymentStatus: paid ? "paid" : status === "CANCELLED" ? "cancelled" : "pending",
     items: items.length ? items : [{ sku: "SHOPEE-ITEM", name: "Produto Shopee", quantity: 1, unitPriceCents: Math.round(Number(data.total_amount ?? 0) * 100) }],
-    customerEmail: data.buyer_username ? undefined : undefined,
+    customerPhone: recipient?.phone ? String(recipient.phone) : undefined,
     raw: data as Record<string, unknown>,
   };
 }
@@ -243,6 +258,7 @@ export async function upsertOrderFromWebhook(
     raw_id: order.externalId,
   };
   if (order.customerEmail) metadata.customer_email = order.customerEmail;
+  if (order.customerPhone) metadata.customer_phone = order.customerPhone;
 
   const { data, error } = await supabaseAdmin
     .from("orders")
@@ -321,6 +337,8 @@ export async function ingestStoreWebhook(
   if (!resolvedClientId) {
     throw new Error(`No client_id for ${provider} webhook — connect OAuth first`);
   }
+
+  normalized.items = await resolveOrderItemsSkus(resolvedClientId, provider, normalized.items);
 
   const stockItems = itemsFromOrderMetadata(normalized.items);
 

@@ -57,6 +57,14 @@ export function getServerConfig() {
     cloudflare: {
       apiToken: process.env.CLOUDFLARE_API_TOKEN,
     },
+    mercadoPago: {
+      accessToken: process.env.MP_ACCESS_TOKEN,
+      webhookSecret: process.env.MP_WEBHOOK_SECRET,
+      publicKey: process.env.MP_PUBLIC_KEY,
+    },
+    whatsapp: {
+      verifyToken: process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN,
+    },
   };
 }
 

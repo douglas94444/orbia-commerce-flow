@@ -5,6 +5,7 @@ import { onDomainEvent } from "./domain-events.server";
 import { commitStock, itemsFromOrderMetadata } from "@/modules/logistics/stock-reservation.server";
 import type { StockItem } from "@/modules/logistics/stock-reservation.server";
 import { recalculateClientMetrics } from "@/modules/analytics/health-score.server";
+import { pushStockToAllChannels } from "@/modules/catalog/catalog-push.server";
 import { onOrderDelivered } from "@/modules/retention/automation-engine.server";
 
 onDomainEvent("order.dispatched", async (payload) => {
@@ -12,6 +13,9 @@ onDomainEvent("order.dispatched", async (payload) => {
   const items = (payload.items as StockItem[] | undefined) ?? [];
   if (!clientId || !items.length) return;
   await commitStock(clientId, items);
+  for (const item of items) {
+    await pushStockToAllChannels(clientId, item.sku);
+  }
 });
 
 onDomainEvent("order.delivered", async (payload) => {

@@ -17,6 +17,7 @@ import {
   useStartMetaOAuth,
   useStartMelhorEnvioOAuth,
   useStartGoogleOAuth,
+  useStartWhatsAppOAuth,
 } from '@/modules/integrations/hooks/use-oauth'
 
 export const Route = createFileRoute('/_dashboard/clients/$id')({
@@ -34,15 +35,17 @@ const PROVIDER_LABEL: Record<string, string> = {
   tiktok:       'TikTok Shop',
   nuvemshop:    'Nuvemshop',
   melhor_envio: 'Melhor Envio',
+  whatsapp:     'WhatsApp Business',
 }
 
 const MODULE_PROVIDERS: Array<{ label: string; providers: string[] }> = [
   { label: 'Tráfego',    providers: ['meta', 'google'] },
+  { label: 'Retenção',   providers: ['whatsapp'] },
   { label: 'Logística',  providers: ['mercado_livre', 'shopify', 'shopee', 'amazon', 'tiktok', 'nuvemshop', 'melhor_envio'] },
   { label: 'Fiscal',     providers: ['focus_nfe'] },
 ]
 
-const CONNECTABLE = new Set(['nuvemshop', 'shopify', 'mercado_livre', 'shopee', 'meta', 'google', 'melhor_envio'])
+const CONNECTABLE = new Set(['nuvemshop', 'shopify', 'mercado_livre', 'shopee', 'meta', 'google', 'melhor_envio', 'whatsapp'])
 
 function ClientDetailPage() {
   const { id } = Route.useParams()
@@ -55,6 +58,7 @@ function ClientDetailPage() {
   const metaOAuth = useStartMetaOAuth()
   const melhorEnvioOAuth = useStartMelhorEnvioOAuth()
   const googleOAuth = useStartGoogleOAuth()
+  const whatsappOAuth = useStartWhatsAppOAuth()
   const [shopDomain, setShopDomain] = useState('')
   const [shopeeShopId, setShopeeShopId] = useState('')
 
@@ -211,13 +215,15 @@ function ClientDetailPage() {
                                 (p === 'mercado_livre' && mercadoLivreOAuth.isPending) ||
                                 (p === 'meta' && metaOAuth.isPending) ||
                                 (p === 'melhor_envio' && melhorEnvioOAuth.isPending) ||
-                                (p === 'google' && googleOAuth.isPending)
+                                (p === 'google' && googleOAuth.isPending) ||
+                                (p === 'whatsapp' && whatsappOAuth.isPending)
                               }
                               onClick={() => {
                                 if (p === 'nuvemshop') nuvemshopOAuth.mutate(id)
                                 else if (p === 'mercado_livre') mercadoLivreOAuth.mutate(id)
                                 else if (p === 'meta') metaOAuth.mutate(id)
                                 else if (p === 'google') googleOAuth.mutate(id)
+                                else if (p === 'whatsapp') whatsappOAuth.mutate(id)
                                 else if (p === 'melhor_envio') melhorEnvioOAuth.mutate(id)
                               }}
                             >
@@ -225,7 +231,8 @@ function ClientDetailPage() {
                               (p === 'mercado_livre' && mercadoLivreOAuth.isPending) ||
                               (p === 'meta' && metaOAuth.isPending) ||
                               (p === 'melhor_envio' && melhorEnvioOAuth.isPending) ||
-                              (p === 'google' && googleOAuth.isPending) ? (
+                              (p === 'google' && googleOAuth.isPending) ||
+                              (p === 'whatsapp' && whatsappOAuth.isPending) ? (
                                 <Loader2 className="size-3 animate-spin" />
                               ) : (
                                 <Link2 className="size-3" />

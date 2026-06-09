@@ -101,8 +101,20 @@ async function main() {
     await supabase
       .from("inventory")
       .upsert({ client_id: clientId, ...item, reserved: 0 }, { onConflict: "client_id,sku" });
+
+    await supabase.from("products").upsert(
+      {
+        client_id: clientId,
+        sku: item.sku,
+        name: item.product,
+        ncm: "61091000",
+        price_cents: 9900,
+        is_active: true,
+      },
+      { onConflict: "client_id,sku" },
+    );
   }
-  console.log("  + inventory (3 SKUs, reserved=0)");
+  console.log("  + inventory + products (3 SKUs)");
 
   const { data: existingFlow } = await supabase
     .from("automation_flows")
@@ -124,6 +136,28 @@ async function main() {
     });
   }
   console.log("  + automation_flow (pedido_entregue / email)");
+
+  const { data: existingWa } = await supabase
+    .from("automation_flows")
+    .select("id")
+    .eq("client_id", clientId)
+    .eq("trigger", "pedido_entregue")
+    .eq("channel", "whatsapp")
+    .maybeSingle();
+
+  if (!existingWa) {
+    await supabase.from("automation_flows").insert({
+      client_id: clientId,
+      name: "WhatsApp pós-entrega",
+      trigger: "pedido_entregue",
+      channel: "whatsapp",
+      is_active: false,
+      sent_30d: 0,
+      recovered: 0,
+      metadata: { template_name: "pedido_entregue_obrigado", language: "pt_BR" },
+    });
+  }
+  console.log("  + automation_flow (pedido_entregue / whatsapp, inativo)");
 
   const campaigns = [
     {
