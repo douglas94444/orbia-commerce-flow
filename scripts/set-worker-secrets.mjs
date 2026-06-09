@@ -57,6 +57,8 @@ const SECRETS = [
   'FOCUS_NFE_TOKEN',
   'FOCUS_NFE_ENV',
   'CRON_SECRET',
+  'PAGARME_API_KEY',
+  'PAGARME_WEBHOOK_SECRET',
 ]
 
 const outputDir = join(root, '.output')

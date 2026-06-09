@@ -68,6 +68,13 @@ export function getServerConfig() {
     cron: {
       secret: process.env.CRON_SECRET,
     },
+    pagarMe: {
+      apiKey: process.env.PAGARME_API_KEY,
+      webhookSecret: process.env.PAGARME_WEBHOOK_SECRET,
+    },
+    demo: {
+      enabled: process.env.VITE_DEMO_MODE === "true" || process.env.DEMO_MODE === "true",
+    },
   };
 }
 

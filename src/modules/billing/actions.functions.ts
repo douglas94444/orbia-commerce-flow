@@ -5,6 +5,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { logAudit } from "@/shared/lib/logger";
 import { cancelPreapproval } from "@/integrations/mercado-pago";
 import { startMercadoPagoSubscription } from "./mercado-pago.server";
+import { startPagarMeSubscription } from "./pagar-me.server";
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -243,6 +244,45 @@ export const createSubscription = createServerFn({ method: "POST" })
 const mpCheckoutSchema = z.object({
   plan: z.enum(["launch", "growth", "scale"]),
 });
+
+const pagarMeCheckoutSchema = z.object({
+  plan: z.enum(["launch", "growth", "scale"]),
+});
+
+export const startPagarMeCheckout = createServerFn({ method: "POST" })
+  .inputValidator(pagarMeCheckoutSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { data: membership } = await context.supabase
+      .from("client_members")
+      .select("client_id, role")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+
+    if (!membership || !["owner", "admin"].includes(membership.role as string)) {
+      throw new Error("Apenas owner/admin pode gerenciar assinatura.");
+    }
+
+    let email = String((context.claims as { email?: string }).email ?? "");
+    let name = "";
+    if (!email) {
+      const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(context.userId);
+      email = authUser.user?.email ?? "";
+      name = authUser.user?.user_metadata?.full_name ?? "Lojista";
+    }
+
+    const { data: profile } = await context.supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", context.userId)
+      .maybeSingle();
+
+    if (profile?.full_name) name = profile.full_name;
+
+    if (!email) throw new Error("E-mail do usuário não encontrado.");
+
+    return startPagarMeSubscription(membership.client_id, data.plan, email, name || "Lojista");
+  });
 
 export const startMercadoPagoCheckout = createServerFn({ method: "POST" })
   .inputValidator(mpCheckoutSchema)

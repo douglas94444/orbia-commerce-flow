@@ -53,22 +53,24 @@ export async function dispatchOrder(orderId: string): Promise<{ trackingCode: st
   }
 
   const token = await getMelhorEnvioToken(row.client_id);
-  let trackingCode = `ORB${Date.now()}`;
-  let shipmentId = `mock-${orderId}`;
-  let carrier = "Melhor Envio";
-
-  if (token) {
-    const postal = String(row.metadata.postal_code ?? "01310100");
-    const quotes = await quoteShipment(token, { toPostalCode: postal, weightKg: 0.5 });
-    const selected = quotes[0];
-    if (selected) {
-      carrier = selected.company?.name ?? selected.name ?? carrier;
-      shipmentId = String(selected.id);
-    }
-    const label = await purchaseLabel(token, shipmentId);
-    trackingCode = label.tracking;
-    shipmentId = label.id;
+  if (!token) {
+    throw new Error(
+      "Melhor Envio não configurado — conecte OAuth ou defina MELHOR_ENVIO_TOKEN no ambiente.",
+    );
   }
+
+  const postal = String(row.metadata.postal_code ?? "01310100");
+  const quotes = await quoteShipment(token, { toPostalCode: postal, weightKg: 0.5 });
+  const selected = quotes[0];
+  if (!selected) {
+    throw new Error("Nenhuma cotação Melhor Envio disponível para este CEP.");
+  }
+
+  let carrier = selected.company?.name ?? selected.name ?? "Melhor Envio";
+  let shipmentId = String(selected.id);
+  const label = await purchaseLabel(token, shipmentId);
+  const trackingCode = label.tracking;
+  shipmentId = label.id;
 
   const { error: updateErr } = await supabaseAdmin
     .from("orders")

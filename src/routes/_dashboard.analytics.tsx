@@ -19,7 +19,7 @@ function AnalyticsPage() {
       <PageIntro
         eyebrow="Analytics 360"
         title="Dados cruzados da operação"
-        description="Visão consolidada de GMV, ROAS, SLA e NF — agregados dos módulos conectados."
+        description="Visão consolidada de GMV, ROAS, margem, SLA e retenção por cohort."
       />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
@@ -49,7 +49,12 @@ function AnalyticsPage() {
         />
         <KpiCard
           label="Margem real"
-          value="em breve"
+          value={isLoading ? "—" : data ? `${data.marginPercent}%` : "—"}
+          hint={
+            data?.adSpend30d
+              ? `Ads: ${formatBRL(data.adSpend30d, true)}`
+              : "GMV − investimento em mídia"
+          }
           icon={Percent}
           accent="warning"
         />
@@ -64,10 +69,39 @@ function AnalyticsPage() {
           <ChannelRoasChart data={isLoading ? undefined : data?.channelRoas} />
         </Panel>
 
-        <Panel title="Retenção por cohort" subtitle="Disponível após módulo de retenção">
-          <div className="flex flex-col items-center gap-2 py-16 text-center">
-            <p className="text-sm text-muted-foreground">Cohort e LTV — em breve</p>
-          </div>
+        <Panel title="Retenção por cohort" subtitle="Clientes ativos por mês desde primeira compra">
+          {isLoading ? (
+            <div className="h-32 animate-pulse rounded-xl bg-muted/40" />
+          ) : !data?.cohortRetention?.length ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Dados insuficientes para cohort (mínimo 2 meses de pedidos).
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left text-[10px] uppercase tracking-wider text-muted-foreground">
+                    <th className="pb-2">Cohort</th>
+                    <th className="pb-2">M0</th>
+                    <th className="pb-2">M1</th>
+                    <th className="pb-2">M2</th>
+                    <th className="pb-2">M3</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border font-mono">
+                  {data.cohortRetention.map((row) => (
+                    <tr key={row.cohort}>
+                      <td className="py-2 text-foreground">{row.cohort}</td>
+                      <td className="py-2">{row.month0}%</td>
+                      <td className="py-2">{row.month1}%</td>
+                      <td className="py-2">{row.month2}%</td>
+                      <td className="py-2">{row.month3}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </Panel>
       </div>
     </div>

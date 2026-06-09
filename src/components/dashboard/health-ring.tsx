@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { healthStatus } from "@/lib/mock/data";
+import { healthStatus } from "@/lib/health";
 
 const colorByStatus = {
   saudavel: "var(--success)",

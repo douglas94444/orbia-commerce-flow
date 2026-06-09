@@ -18,7 +18,7 @@ async function requireStaff(
 }
 
 const jobSchema = z.object({
-  job: z.enum(["health-recalc", "sync-campaigns", "sync-catalog", "cleanup-oauth", "all"]).default("all"),
+  job: z.enum(["health-recalc", "sync-campaigns", "sync-catalog", "cleanup-oauth", "process-outbox", "all"]).default("all"),
 });
 
 export const runScheduledJobs = createServerFn({ method: "POST" })

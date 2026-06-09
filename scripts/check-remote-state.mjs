@@ -78,3 +78,12 @@ console.log(
   'migration 020 (refresh_client_last_contact):',
   refreshErr?.message?.includes('not found') ? 'MISSING' : 'ok',
 )
+
+const { error: outboxErr } = await sb.from('domain_event_outbox').select('id').limit(1)
+console.log('migration 022 (domain_event_outbox):', outboxErr ? `MISSING (${outboxErr.message})` : 'ok')
+
+const { error: recvErr } = await sb.from('receivables').select('id').limit(1)
+console.log('migration 022 (receivables):', recvErr ? `MISSING (${recvErr.message})` : 'ok')
+
+const { error: pricingErr } = await sb.from('pricing_recommendations').select('id').limit(1)
+console.log('migration 022 (pricing_recommendations):', pricingErr ? `MISSING (${pricingErr.message})` : 'ok')

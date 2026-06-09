@@ -28,6 +28,18 @@ export interface NormalizedOrderItem {
   externalVariantId?: string;
 }
 
+export interface OrderShipping {
+  name?: string;
+  cpf?: string;
+  cnpj?: string;
+  street?: string;
+  number?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+}
+
 export interface NormalizedOrder {
   externalId: string;
   channel: MarketplaceChannel;
@@ -37,6 +49,7 @@ export interface NormalizedOrder {
   items: NormalizedOrderItem[];
   customerEmail?: string;
   customerPhone?: string;
+  shipping?: OrderShipping;
   raw: Record<string, unknown>;
 }
 
@@ -115,6 +128,17 @@ export function normalizeNuvemshopOrder(payload: unknown): NormalizedOrder | nul
     items,
     customerEmail: buyer?.email ? String(buyer.email) : undefined,
     customerPhone: buyer?.phone ? String(buyer.phone) : undefined,
+    shipping: shipping
+      ? {
+          name: String(buyer?.name ?? shipping.name ?? "Cliente"),
+          street: String(shipping.address ?? shipping.street ?? ""),
+          number: String(shipping.number ?? "S/N"),
+          neighborhood: String(shipping.locality ?? shipping.neighborhood ?? ""),
+          city: String(shipping.city ?? ""),
+          state: String(shipping.province ?? shipping.state ?? ""),
+          postalCode: String(shipping.zipcode ?? shipping.postal_code ?? ""),
+        }
+      : undefined,
     raw: order as Record<string, unknown>,
   };
 }
@@ -154,6 +178,17 @@ export function normalizeShopifyOrder(payload: unknown): NormalizedOrder | null 
     items,
     customerEmail: order.email ? String(order.email) : undefined,
     customerPhone: order.phone ? String(order.phone) : undefined,
+    shipping: shipping
+      ? {
+          name: String(shipping.name ?? order.customer_name ?? "Cliente"),
+          street: String(shipping.address1 ?? ""),
+          number: String(shipping.address2 ?? "S/N"),
+          neighborhood: String(shipping.city ?? ""),
+          city: String(shipping.city ?? ""),
+          state: String(shipping.province_code ?? shipping.province ?? ""),
+          postalCode: String(shipping.zip ?? ""),
+        }
+      : undefined,
     raw: order as Record<string, unknown>,
   };
 }
@@ -192,6 +227,17 @@ export function normalizeMercadoLivreOrder(payload: unknown): NormalizedOrder | 
     items: items.length ? items : [{ sku: "ML-ITEM", name: "Produto ML", quantity: 1, unitPriceCents: Math.round(Number(data.total_amount ?? 0) * 100) }],
     customerEmail: buyer?.email ? String(buyer.email) : undefined,
     customerPhone: buyer?.phone ? String((buyer.phone as { number?: string })?.number ?? buyer.phone) : undefined,
+    shipping: receiver
+      ? {
+          name: String(receiver.receiver_name ?? buyer?.nickname ?? "Cliente"),
+          street: String(receiver.street_name ?? ""),
+          number: String(receiver.street_number ?? "S/N"),
+          neighborhood: String(receiver.neighborhood ?? ""),
+          city: String((receiver.city as { name?: string })?.name ?? receiver.city ?? ""),
+          state: String((receiver.state as { name?: string })?.name ?? receiver.state ?? ""),
+          postalCode: String(receiver.zip_code ?? ""),
+        }
+      : undefined,
     raw: data as Record<string, unknown>,
   };
 }
@@ -226,6 +272,17 @@ export function normalizeShopeeOrder(payload: unknown): NormalizedOrder | null {
     paymentStatus: paid ? "paid" : status === "CANCELLED" ? "cancelled" : "pending",
     items: items.length ? items : [{ sku: "SHOPEE-ITEM", name: "Produto Shopee", quantity: 1, unitPriceCents: Math.round(Number(data.total_amount ?? 0) * 100) }],
     customerPhone: recipient?.phone ? String(recipient.phone) : undefined,
+    shipping: recipient
+      ? {
+          name: String(recipient.name ?? "Cliente"),
+          street: String(recipient.full_address ?? ""),
+          number: "S/N",
+          neighborhood: String(recipient.town ?? ""),
+          city: String(recipient.city ?? ""),
+          state: String(recipient.state ?? ""),
+          postalCode: String(recipient.zipcode ?? ""),
+        }
+      : undefined,
     raw: data as Record<string, unknown>,
   };
 }
@@ -259,6 +316,10 @@ export async function upsertOrderFromWebhook(
   };
   if (order.customerEmail) metadata.customer_email = order.customerEmail;
   if (order.customerPhone) metadata.customer_phone = order.customerPhone;
+  if (order.shipping) {
+    metadata.shipping = order.shipping;
+    if (order.shipping.postalCode) metadata.postal_code = order.shipping.postalCode;
+  }
 
   const { data, error } = await supabaseAdmin
     .from("orders")

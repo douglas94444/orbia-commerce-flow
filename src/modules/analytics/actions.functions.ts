@@ -2,13 +2,24 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { OperationAlert } from "@/shared/types/orbia";
 
+export interface CohortRow {
+  cohort: string;
+  month0: number;
+  month1: number;
+  month2: number;
+  month3: number;
+}
+
 export interface PortfolioAnalytics {
   gmv30d: number;
   avgRoas: number;
   nfeEmitted: number;
   slaPercent: number;
+  marginPercent: number;
+  adSpend30d: number;
   gmvRoasSeries: Array<{ day: string; gmv: number; roas: number }>;
   channelRoas: Array<{ channel: string; roas: number }>;
+  cohortRetention: CohortRow[];
 }
 
 export const getPortfolioAnalytics = createServerFn({ method: "GET" })
@@ -19,7 +30,7 @@ export const getPortfolioAnalytics = createServerFn({ method: "GET" })
     const [ordersResult, campaignsResult, nfeResult] = await Promise.all([
       context.supabase
         .from("orders")
-        .select("value_cents, created_at, status, channel")
+        .select("client_id, value_cents, created_at, status, channel")
         .gte("created_at", thirtyDaysAgo),
       context.supabase.from("campaigns").select("platform, spend_cents, revenue_cents, roas"),
       context.supabase
@@ -36,7 +47,12 @@ export const getPortfolioAnalytics = createServerFn({ method: "GET" })
     const gmv30d = orders.reduce((sum, o) => sum + (o.value_cents ?? 0), 0) / 100;
 
     const totalSpend = campaigns.reduce((s, c) => s + Number(c.spend_cents ?? 0), 0);
+    const adSpend30d = totalSpend / 100;
     const totalRevenue = campaigns.reduce((s, c) => s + Number(c.revenue_cents ?? 0), 0);
+    const marginPercent =
+      gmv30d > 0
+        ? Math.round(((gmv30d - adSpend30d) / gmv30d) * 1000) / 10
+        : 0;
     const avgRoas =
       totalSpend > 0
         ? Math.round((totalRevenue / totalSpend) * 10) / 10
@@ -98,8 +114,68 @@ export const getPortfolioAnalytics = createServerFn({ method: "GET" })
       }
     }
 
-    return { gmv30d, avgRoas, nfeEmitted, slaPercent, gmvRoasSeries, channelRoas };
+    const cohortRetention = buildCohortRetention(orders);
+
+    return {
+      gmv30d,
+      avgRoas,
+      nfeEmitted,
+      slaPercent,
+      marginPercent,
+      adSpend30d,
+      gmvRoasSeries,
+      channelRoas,
+      cohortRetention,
+    };
   });
+
+function buildCohortRetention(
+  orders: Array<{ client_id?: string; created_at: string; value_cents: number | null }>,
+): CohortRow[] {
+  const byClientMonth = new Map<string, Set<string>>();
+
+  for (const o of orders) {
+    const clientId = (o as { client_id?: string }).client_id;
+    if (!clientId) continue;
+    const month = o.created_at.slice(0, 7);
+    const key = clientId;
+    if (!byClientMonth.has(key)) byClientMonth.set(key, new Set());
+    byClientMonth.get(key)!.add(month);
+  }
+
+  const cohorts = new Map<string, string[]>();
+  for (const [clientId, months] of byClientMonth) {
+    const sorted = [...months].sort();
+    const first = sorted[0];
+    if (!first) continue;
+    const list = cohorts.get(first) ?? [];
+    list.push(clientId);
+    cohorts.set(first, list);
+  }
+
+  const rows: CohortRow[] = [];
+  for (const [cohort, clientIds] of [...cohorts.entries()].slice(-4)) {
+    const base = clientIds.length || 1;
+    const countActive = (offset: number) => {
+      const target = addMonths(cohort, offset);
+      return clientIds.filter((id) => byClientMonth.get(id)?.has(target)).length;
+    };
+    rows.push({
+      cohort,
+      month0: 100,
+      month1: Math.round((countActive(1) / base) * 100),
+      month2: Math.round((countActive(2) / base) * 100),
+      month3: Math.round((countActive(3) / base) * 100),
+    });
+  }
+  return rows;
+}
+
+function addMonths(ym: string, n: number): string {
+  const [y, m] = ym.split("-").map(Number);
+  const d = new Date(y, m - 1 + n, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
 
 export const getNfeCount30d = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

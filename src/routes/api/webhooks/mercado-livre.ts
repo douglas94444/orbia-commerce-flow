@@ -17,10 +17,11 @@ export const Route = createFileRoute("/api/webhooks/mercado-livre")({
         const { mercadoLivre } = getServerConfig();
         const rawBody = await request.text();
         const signature = request.headers.get("x-signature");
+        const requestId = request.headers.get("x-request-id");
 
         if (
           mercadoLivre.clientSecret &&
-          !validateMercadoLivreWebhook(rawBody, signature, mercadoLivre.clientSecret)
+          !validateMercadoLivreWebhook(rawBody, signature, mercadoLivre.clientSecret, requestId)
         ) {
           return new Response("Invalid signature", { status: 401 });
         }

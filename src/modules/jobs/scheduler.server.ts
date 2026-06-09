@@ -6,12 +6,16 @@ import {
   syncAllMetaCampaigns,
 } from "@/modules/traffic/sync-campaigns.server";
 import { logJob, startTimer } from "@/shared/lib/logger";
+import { processOutboxBatch } from "@/shared/lib/domain-events.server";
+import { captureBenchmarkSnapshots } from "@/modules/benchmarks/benchmarks.server";
 
 export type CronJobName =
   | "health-recalc"
   | "sync-campaigns"
   | "sync-catalog"
   | "cleanup-oauth"
+  | "process-outbox"
+  | "capture-benchmarks"
   | "all";
 
 export interface JobResult {
@@ -50,6 +54,14 @@ async function runJob(name: Exclude<CronJobName, "all">): Promise<JobResult> {
         metadata = { deleted: deleted ?? 0 };
         break;
       }
+      case "process-outbox":
+        metadata = await processOutboxBatch();
+        break;
+      case "capture-benchmarks": {
+        const snapshots = await captureBenchmarkSnapshots();
+        metadata = { snapshots };
+        break;
+      }
     }
 
     const durationMs = end();
@@ -77,6 +89,7 @@ async function runJob(name: Exclude<CronJobName, "all">): Promise<JobResult> {
 }
 
 const JOB_SEQUENCE: Array<Exclude<CronJobName, "all">> = [
+  "process-outbox",
   "health-recalc",
   "sync-campaigns",
   "sync-catalog",

@@ -25,7 +25,7 @@
  *
  * Cloudflare Cron Triggers (configure in Dashboard → Triggers):
  *   0 6 * * *   — POST /api/cron/run { "job": "health-recalc" } then { "job": "sync-campaigns" }
- *   0 */6 * * * — POST /api/cron/run { "job": "sync-catalog" }
+ *   0 */6 * * * — POST /api/cron/run { "job": "sync-catalog" } + { "job": "process-outbox" }
  *   0 3 * * *   — POST /api/cron/run { "job": "cleanup-oauth" }
  * Header: Authorization: Bearer {CRON_SECRET}
  */

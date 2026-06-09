@@ -7,6 +7,8 @@ const VALID_JOBS = new Set<CronJobName>([
   "sync-campaigns",
   "sync-catalog",
   "cleanup-oauth",
+  "process-outbox",
+  "capture-benchmarks",
   "all",
 ]);
 

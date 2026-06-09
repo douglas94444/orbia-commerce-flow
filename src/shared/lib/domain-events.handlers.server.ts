@@ -7,6 +7,7 @@ import type { StockItem } from "@/modules/logistics/stock-reservation.server";
 import { recalculateClientMetrics } from "@/modules/analytics/health-score.server";
 import { pushStockToAllChannels } from "@/modules/catalog/catalog-push.server";
 import { onOrderDelivered } from "@/modules/retention/automation-engine.server";
+import { notifyCsOnOrderDelivered } from "@/modules/admin/cs-events.server";
 
 onDomainEvent("order.dispatched", async (payload) => {
   const clientId = String(payload.clientId ?? "");
@@ -23,7 +24,10 @@ onDomainEvent("order.delivered", async (payload) => {
   const clientId = String(payload.clientId ?? "");
   if (!orderId) return;
   await onOrderDelivered(orderId);
-  if (clientId) await recalculateClientMetrics(clientId);
+  if (clientId) {
+    await recalculateClientMetrics(clientId);
+    await notifyCsOnOrderDelivered(orderId, clientId);
+  }
 });
 
 // Re-export helper for typed item conversion from metadata payloads

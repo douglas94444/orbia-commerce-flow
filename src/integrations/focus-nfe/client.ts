@@ -24,8 +24,10 @@ export interface FocusNfePayload {
   consumidor_final: string;
   presenca_comprador: string;
   cnpj_emitente: string;
+  certificado?: string;
   nome_destinatario: string;
   cpf_destinatario?: string;
+  cnpj_destinatario?: string;
   logradouro_destinatario: string;
   numero_destinatario: string;
   bairro_destinatario: string;

@@ -6,7 +6,7 @@ import { ClientsTable } from '@/components/dashboard/clients-table'
 import { KpiCard } from '@/components/dashboard/kpi-card'
 import { useClients, usePortfolioStats } from '@/modules/clients/hooks/use-clients'
 import { CreateClientDialog } from '@/modules/clients/components/create-client-dialog'
-import { healthStatus } from '@/lib/mock/data'
+import { healthStatus } from '@/lib/health'
 
 export const Route = createFileRoute('/_dashboard/clients')({
   head: () => ({ meta: [{ title: 'Clientes — Orbia' }] }),
