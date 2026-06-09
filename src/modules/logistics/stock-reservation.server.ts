@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { logAudit } from "@/shared/lib/logger";
 import type { NormalizedOrderItem } from "./order-ingestion.server";
 
 export interface StockItem {
@@ -15,6 +16,14 @@ export async function reserveStock(clientId: string, items: StockItem[]): Promis
       p_qty: item.quantity,
     });
     if (error) throw new Error(`Reserve failed for ${item.sku}: ${error.message}`);
+    await logAudit({
+      user_id: "system",
+      client_id: clientId,
+      action: "create",
+      resource: "stock_reservation",
+      resource_id: `${clientId}:${item.sku}`,
+      new_data: { operation: "reserve", sku: item.sku, quantity: item.quantity },
+    });
   }
 }
 
@@ -27,6 +36,14 @@ export async function releaseStock(clientId: string, items: StockItem[]): Promis
       p_qty: item.quantity,
     });
     if (error) throw new Error(`Release failed for ${item.sku}: ${error.message}`);
+    await logAudit({
+      user_id: "system",
+      client_id: clientId,
+      action: "update",
+      resource: "stock_reservation",
+      resource_id: `${clientId}:${item.sku}`,
+      new_data: { operation: "release", sku: item.sku, quantity: item.quantity },
+    });
   }
 }
 
@@ -39,6 +56,14 @@ export async function commitStock(clientId: string, items: StockItem[]): Promise
       p_qty: item.quantity,
     });
     if (error) throw new Error(`Commit failed for ${item.sku}: ${error.message}`);
+    await logAudit({
+      user_id: "system",
+      client_id: clientId,
+      action: "update",
+      resource: "stock_reservation",
+      resource_id: `${clientId}:${item.sku}`,
+      new_data: { operation: "commit", sku: item.sku, quantity: item.quantity },
+    });
   }
 }
 

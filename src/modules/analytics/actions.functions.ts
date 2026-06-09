@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { OperationAlert } from "@/shared/types/orbia";
+import { generateClientInsights, generatePortfolioInsights } from "./ai-insights.server";
+import type { AiInsight } from "./ai-insights.server";
 
 export interface CohortRow {
   cohort: string;
@@ -224,3 +226,13 @@ export const listOperationAlerts = createServerFn({ method: "GET" })
       }),
     );
   });
+
+export const getClientAiInsights = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data }): Promise<AiInsight[]> => {
+    const clientId = (data as { clientId?: string } | undefined)?.clientId;
+    if (!clientId) return generatePortfolioInsights();
+    return generateClientInsights(clientId);
+  });
+
+export { type AiInsight };

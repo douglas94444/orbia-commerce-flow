@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { decryptToken } from "@/lib/crypto.server";
 import { sendEmail } from "@/integrations/resend";
 import { sendTemplateMessage } from "@/integrations/whatsapp";
 import { getServerConfig } from "@/lib/config.server";
@@ -35,7 +36,7 @@ async function getWhatsAppConnection(clientId: string) {
   const meta = (data.metadata ?? {}) as Record<string, unknown>;
   const phoneNumberId = String(meta.phone_number_id ?? "");
   if (!phoneNumberId) return null;
-  return { accessToken: data.access_token, phoneNumberId };
+  return { accessToken: decryptToken(data.access_token), phoneNumberId };
 }
 
 async function executeFlow(

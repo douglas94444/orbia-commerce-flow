@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { validateShopeeWebhook } from "@/integrations/shopee";
 import { getServerConfig } from "@/lib/config.server";
+import { rateLimit } from "@/lib/rate-limit.server";
 import {
   saveWebhookEvent,
   processWebhookEventInternal,
@@ -11,6 +12,9 @@ export const Route = createFileRoute("/api/webhooks/shopee")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
+        if (!rateLimit(ip)) return new Response("Too Many Requests", { status: 429 });
+
         const { appUrl } = getServerConfig();
         const rawBody = await request.text();
         const signature = request.headers.get("authorization") ?? request.headers.get("x-shopee-signature");

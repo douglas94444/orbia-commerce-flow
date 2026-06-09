@@ -2,10 +2,12 @@
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getOrder as getMlOrder } from "@/integrations/mercado-livre";
+import { decryptToken } from "@/lib/crypto.server";
 import { emitNfeForOrder } from "@/modules/fiscal/emit-order-nfe.server";
 import { recalculateClientMetrics } from "@/modules/analytics/health-score.server";
 import { resolveOrderItemsSkus } from "@/modules/catalog/sku-resolution.server";
 import { emitDomainEvent } from "@/shared/lib/domain-events.server";
+import { logAudit } from "@/shared/lib/logger";
 import {
   reserveStock,
   releaseStock,
@@ -77,7 +79,7 @@ export async function enrichMercadoLivrePayload(payload: unknown): Promise<unkno
 
   if (!conn?.access_token) return payload;
 
-  const order = await getMlOrder(orderId, conn.access_token);
+  const order = await getMlOrder(orderId, decryptToken(conn.access_token));
   return { ...body, data: order, user_id: userId };
 }
 
@@ -341,6 +343,15 @@ export async function upsertOrderFromWebhook(
     .single();
 
   if (error) throw new Error(`Order upsert failed: ${error.message}`);
+
+  await logAudit({
+    user_id: "system",
+    client_id: clientId,
+    action: "create",
+    resource: "order",
+    resource_id: data.id,
+    new_data: { channel: order.channel, external_id: order.externalId, status },
+  });
 
   await supabaseAdmin.from("order_events").insert({
     order_id: data.id,

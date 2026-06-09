@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getCampaignMetrics, getGoogleCampaigns } from "@/integrations/google";
 import { getCampaignInsights, getMetaCampaigns } from "@/integrations/meta";
 import { recalculateClientMetrics } from "@/modules/analytics/health-score.server";
+import { decryptToken } from "@/lib/crypto.server";
 
 function purchaseRevenueCents(insight: {
   action_values?: Array<{ action_type: string; value: string }>;
@@ -47,11 +48,12 @@ export async function syncMetaCampaigns(clientId: string): Promise<{ synced: num
 
   if (adErr || !adAccount) throw new Error(`Failed to upsert ad account: ${adErr?.message}`);
 
-  const campaigns = await getMetaCampaigns(adAccountId, conn.access_token);
+  const accessToken = decryptToken(conn.access_token);
+  const campaigns = await getMetaCampaigns(adAccountId, accessToken);
   let synced = 0;
 
   for (const camp of campaigns) {
-    const insight = await getCampaignInsights(camp.id, conn.access_token);
+    const insight = await getCampaignInsights(camp.id, accessToken);
     const spendCents = insight ? Math.round(Number(insight.spend) * 100) : 0;
     const revenueCents = insight ? purchaseRevenueCents(insight) : 0;
     const roas = spendCents > 0 ? Number((revenueCents / spendCents).toFixed(2)) : 0;
@@ -117,11 +119,12 @@ export async function syncGoogleCampaigns(clientId: string): Promise<{ synced: n
 
   if (adErr || !adAccount) throw new Error(`Failed to upsert ad account: ${adErr?.message}`);
 
-  const campaigns = await getGoogleCampaigns(customerId, conn.access_token);
+  const googleToken = decryptToken(conn.access_token);
+  const campaigns = await getGoogleCampaigns(customerId, googleToken);
   let synced = 0;
 
   for (const camp of campaigns) {
-    const metrics = await getCampaignMetrics(customerId, camp.id, conn.access_token);
+    const metrics = await getCampaignMetrics(customerId, camp.id, googleToken);
     const roas =
       metrics.spendCents > 0
         ? Number((metrics.revenueCents / metrics.spendCents).toFixed(2))
@@ -164,8 +167,12 @@ export async function syncAllMetaCampaigns(): Promise<{ synced: number; clients:
   const clients = conns?.length ?? 0;
 
   for (const conn of conns ?? []) {
-    const result = await syncMetaCampaigns(conn.client_id);
-    synced += result.synced;
+    try {
+      const result = await syncMetaCampaigns(conn.client_id);
+      synced += result.synced;
+    } catch (err) {
+      console.error(`[sync-campaigns] Meta client ${conn.client_id} failed:`, err);
+    }
   }
 
   return { synced, clients };
@@ -182,8 +189,12 @@ export async function syncAllGoogleCampaigns(): Promise<{ synced: number; client
   const clients = conns?.length ?? 0;
 
   for (const conn of conns ?? []) {
-    const result = await syncGoogleCampaigns(conn.client_id);
-    synced += result.synced;
+    try {
+      const result = await syncGoogleCampaigns(conn.client_id);
+      synced += result.synced;
+    } catch (err) {
+      console.error(`[sync-campaigns] Google client ${conn.client_id} failed:`, err);
+    }
   }
 
   return { synced, clients };

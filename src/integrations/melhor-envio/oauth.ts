@@ -24,6 +24,28 @@ export interface MeTokenResponse {
   expires_in: number;
 }
 
+export async function refreshMelhorEnvioToken(refreshToken: string): Promise<MeTokenResponse> {
+  const { melhorEnvio } = getServerConfig();
+  if (!melhorEnvio.clientId || !melhorEnvio.clientSecret) {
+    throw new Error("Melhor Envio OAuth credentials not configured");
+  }
+
+  const res = await fetch("https://melhorenvio.com.br/oauth/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({
+      grant_type: "refresh_token",
+      client_id: melhorEnvio.clientId,
+      client_secret: melhorEnvio.clientSecret,
+      refresh_token: refreshToken,
+    }),
+  });
+
+  const body = (await res.json()) as MeTokenResponse & { error?: string };
+  if (!res.ok) throw new Error(body.error ?? `Melhor Envio token refresh failed: ${res.status}`);
+  return body;
+}
+
 export async function exchangeMelhorEnvioCode(code: string): Promise<MeTokenResponse> {
   const { melhorEnvio, appUrl } = getServerConfig();
   if (!melhorEnvio.clientId || !melhorEnvio.clientSecret) {

@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { createHash } from "node:crypto";
 import { validateMercadoLivreWebhook } from "@/integrations/mercado-livre";
 import { getServerConfig } from "@/lib/config.server";
+import { rateLimit } from "@/lib/rate-limit.server";
 import {
   saveWebhookEvent,
   processWebhookEventInternal,
@@ -14,15 +16,18 @@ export const Route = createFileRoute("/api/webhooks/mercado-livre")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
+        if (!rateLimit(ip)) return new Response("Too Many Requests", { status: 429 });
+
         const { mercadoLivre } = getServerConfig();
         const rawBody = await request.text();
         const signature = request.headers.get("x-signature");
         const requestId = request.headers.get("x-request-id");
 
-        if (
-          mercadoLivre.clientSecret &&
-          !validateMercadoLivreWebhook(rawBody, signature, mercadoLivre.clientSecret, requestId)
-        ) {
+        if (!mercadoLivre.clientSecret) {
+          return new Response("ML_CLIENT_SECRET not configured", { status: 503 });
+        }
+        if (!validateMercadoLivreWebhook(rawBody, signature, mercadoLivre.clientSecret, requestId)) {
           return new Response("Invalid signature", { status: 401 });
         }
 
@@ -34,7 +39,9 @@ export const Route = createFileRoute("/api/webhooks/mercado-livre")({
         }
 
         const body = payload as Record<string, unknown>;
-        const eventId = String(body._id ?? `ml-${Date.now()}`);
+        const eventId = String(
+          body._id ?? createHash("sha256").update(rawBody).digest("hex").slice(0, 32),
+        );
         const eventType = String(body.topic ?? "orders_v2");
         const userId = String(body.user_id ?? "");
 

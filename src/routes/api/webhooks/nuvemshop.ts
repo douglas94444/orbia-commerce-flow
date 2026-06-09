@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { createHash } from "node:crypto";
 import { getServerConfig } from "@/lib/config.server";
+import { rateLimit } from "@/lib/rate-limit.server";
 import { validateNuvemshopWebhook } from "@/integrations/nuvemshop";
 import {
   saveWebhookEvent,
@@ -11,6 +13,9 @@ export const Route = createFileRoute("/api/webhooks/nuvemshop")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
+        if (!rateLimit(ip)) return new Response("Too Many Requests", { status: 429 });
+
         const { nuvemshop } = getServerConfig();
         if (!nuvemshop.clientSecret) {
           return new Response("Nuvemshop not configured", { status: 503 });
@@ -28,7 +33,7 @@ export const Route = createFileRoute("/api/webhooks/nuvemshop")({
         const eventId =
           request.headers.get("x-linkedstore-webhook-id") ??
           request.headers.get("x-linkedstore-event-id") ??
-          `ns-${Date.now()}`;
+          createHash("sha256").update(rawBody).digest("hex").slice(0, 32);
 
         const eventType =
           request.headers.get("x-linkedstore-topic") ??

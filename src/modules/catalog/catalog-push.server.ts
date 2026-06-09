@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { decryptToken } from "@/lib/crypto.server";
 import { pushMercadoLivreStock } from "@/integrations/mercado-livre/catalog";
 import { pushNuvemshopStock } from "@/integrations/nuvemshop/catalog";
 import { pushShopeeStock } from "@/integrations/shopee/catalog";
@@ -40,7 +41,7 @@ export async function pushStockToChannel(
 
   if (!conn?.data?.access_token) return;
 
-  const accessToken = conn.data.access_token;
+  const accessToken = decryptToken(conn.data.access_token);
   const meta = (listing.metadata ?? {}) as Record<string, unknown>;
   const connMeta = (conn.data.metadata ?? {}) as Record<string, unknown>;
 

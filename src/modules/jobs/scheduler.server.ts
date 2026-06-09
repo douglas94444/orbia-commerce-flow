@@ -8,6 +8,9 @@ import {
 import { logJob, startTimer } from "@/shared/lib/logger";
 import { processOutboxBatch } from "@/shared/lib/domain-events.server";
 import { captureBenchmarkSnapshots } from "@/modules/benchmarks/benchmarks.server";
+import { refreshOperationAlerts } from "@/modules/analytics/alert-engine.server";
+import { computeRfmSegments } from "@/modules/retention/rfm-calculator.server";
+import { refreshExpiredTokens } from "@/modules/integrations/refresh-tokens.server";
 
 export type CronJobName =
   | "health-recalc"
@@ -16,6 +19,9 @@ export type CronJobName =
   | "cleanup-oauth"
   | "process-outbox"
   | "capture-benchmarks"
+  | "check-alerts"
+  | "compute-rfm"
+  | "refresh-tokens"
   | "all";
 
 export interface JobResult {
@@ -62,6 +68,33 @@ async function runJob(name: Exclude<CronJobName, "all">): Promise<JobResult> {
         metadata = { snapshots };
         break;
       }
+      case "check-alerts": {
+        const { data: clients } = await supabaseAdmin
+          .from("clients")
+          .select("id")
+          .eq("status", "active");
+        let checked = 0;
+        for (const c of clients ?? []) {
+          try {
+            await refreshOperationAlerts(c.id);
+            checked += 1;
+          } catch (err) {
+            console.error(`[check-alerts] client ${c.id} failed:`, err);
+          }
+        }
+        metadata = { checked };
+        break;
+      }
+      case "compute-rfm": {
+        const result = await computeRfmSegments();
+        metadata = result;
+        break;
+      }
+      case "refresh-tokens": {
+        const result = await refreshExpiredTokens();
+        metadata = result;
+        break;
+      }
     }
 
     const durationMs = end();
@@ -90,9 +123,12 @@ async function runJob(name: Exclude<CronJobName, "all">): Promise<JobResult> {
 
 const JOB_SEQUENCE: Array<Exclude<CronJobName, "all">> = [
   "process-outbox",
+  "refresh-tokens",
   "health-recalc",
+  "check-alerts",
   "sync-campaigns",
   "sync-catalog",
+  "compute-rfm",
   "cleanup-oauth",
 ];
 

@@ -25,6 +25,28 @@ export interface MlTokenResponse {
   scope: string;
 }
 
+export async function refreshMercadoLivreToken(refreshToken: string): Promise<MlTokenResponse> {
+  const { mercadoLivre } = getServerConfig();
+  if (!mercadoLivre.clientId || !mercadoLivre.clientSecret) {
+    throw new Error("ML OAuth credentials not configured");
+  }
+
+  const res = await fetch("https://api.mercadolibre.com/oauth/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      client_id: mercadoLivre.clientId,
+      client_secret: mercadoLivre.clientSecret,
+      refresh_token: refreshToken,
+    }),
+  });
+
+  const body = (await res.json()) as MlTokenResponse & { error?: string };
+  if (!res.ok) throw new Error(body.error ?? `ML token refresh failed: ${res.status}`);
+  return body;
+}
+
 export async function exchangeMercadoLivreCode(code: string): Promise<MlTokenResponse> {
   const { mercadoLivre, appUrl } = getServerConfig();
   if (!mercadoLivre.clientId || !mercadoLivre.clientSecret) {

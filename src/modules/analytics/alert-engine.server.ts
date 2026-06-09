@@ -87,13 +87,33 @@ export async function refreshOperationAlerts(clientId: string): Promise<void> {
     });
   }
 
-  await supabaseAdmin
+  // NF-e com 3+ tentativas falhas nas últimas 48h
+  const twoDaysAgo = new Date();
+  twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+  const { data: failedNfe } = await supabaseAdmin
+    .from("nfe_emissions")
+    .select("id")
+    .eq("client_id", clientId)
+    .eq("status", "erro")
+    .gte("updated_at", twoDaysAgo.toISOString());
+
+  if ((failedNfe?.length ?? 0) >= 3) {
+    alerts.push({
+      client_id: clientId,
+      kind: "fiscal",
+      severity: "critical",
+      title: "Fiscal bloqueado",
+      message: `${client.name}: ${failedNfe!.length} NF-e(s) com falha nas últimas 48h`,
+    });
+  }
+
+  await (supabaseAdmin as any)
     .from("operation_alerts")
     .update({ is_resolved: true })
     .eq("client_id", clientId)
     .eq("is_resolved", false);
 
   if (alerts.length) {
-    await supabaseAdmin.from("operation_alerts").insert(alerts);
+    await (supabaseAdmin as any).from("operation_alerts").insert(alerts);
   }
 }

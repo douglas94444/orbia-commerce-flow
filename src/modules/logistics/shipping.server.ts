@@ -1,5 +1,6 @@
 import "@/shared/lib/domain-events.handlers.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { decryptToken } from "@/lib/crypto.server";
 import { getTracking, purchaseLabel, quoteShipment } from "@/integrations/melhor-envio";
 import { getServerConfig } from "@/lib/config.server";
 import { emitDomainEvent } from "@/shared/lib/domain-events.server";
@@ -28,7 +29,7 @@ async function getMelhorEnvioToken(clientId: string): Promise<string | null> {
     .eq("is_active", true)
     .maybeSingle();
 
-  return data?.access_token ?? null;
+  return data?.access_token ? decryptToken(data.access_token) : null;
 }
 
 function orderItems(metadata: Record<string, unknown>): NormalizedOrderItem[] {

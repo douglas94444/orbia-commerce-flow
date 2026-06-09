@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { encryptToken } from "@/lib/crypto.server";
 import {
   exchangeMercadoLivreCode,
   registerMercadoLivreWebhooks,
@@ -77,8 +78,8 @@ export async function storeOAuthConnection(input: {
       client_id: input.clientId,
       provider: input.provider,
       external_account: input.externalAccount,
-      access_token: input.accessToken,
-      refresh_token: input.refreshToken ?? null,
+      access_token: encryptToken(input.accessToken),
+      refresh_token: input.refreshToken ? encryptToken(input.refreshToken) : null,
       token_expires_at: input.tokenExpiresAt ?? null,
       scopes: input.scopes ?? [],
       is_active: true,

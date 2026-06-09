@@ -1,11 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { validateMercadoPagoSignature } from "@/integrations/mercado-pago";
 import { handleMercadoPagoWebhook } from "@/modules/billing/mercado-pago.server";
+import { rateLimit } from "@/lib/rate-limit.server";
 
 export const Route = createFileRoute("/api/webhooks/mercado-pago")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
+        if (!rateLimit(ip)) return new Response("Too Many Requests", { status: 429 });
+
         const rawBody = await request.text();
         let payload: Record<string, unknown>;
         try {
@@ -20,7 +24,7 @@ export const Route = createFileRoute("/api/webhooks/mercado-pago")({
         const xRequestId = request.headers.get("x-request-id");
 
         if (!validateMercadoPagoSignature(xSignature, xRequestId, dataId)) {
-          console.warn("[webhook/mercado-pago] invalid signature");
+          return new Response("Invalid signature", { status: 401 });
         }
 
         try {

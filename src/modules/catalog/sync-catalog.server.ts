@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { decryptToken } from "@/lib/crypto.server";
 import { pullMercadoLivreProducts } from "@/integrations/mercado-livre/catalog";
 import { pullNuvemshopProducts } from "@/integrations/nuvemshop/catalog";
 import { pullShopeeProducts } from "@/integrations/shopee/catalog";
@@ -17,6 +18,7 @@ async function getOAuthConnection(clientId: string, provider: CatalogChannel) {
     .eq("provider", provider)
     .eq("is_active", true)
     .maybeSingle();
+  if (data?.access_token) data.access_token = decryptToken(data.access_token);
   return data;
 }
 

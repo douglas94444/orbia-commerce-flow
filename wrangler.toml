@@ -1,0 +1,18 @@
+# Cloudflare Workers configuration.
+# Nitro merges this with the generated .output/wrangler.toml at deploy time.
+
+name = "orbia-commerce-flow"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Cron triggers — POST /api/cron/run with CRON_SECRET Bearer token
+# Schedule:
+#   "0 6 * * *"    — 06:00 UTC daily  (health-recalc, cleanup-oauth)
+#   "0 */6 * * *"  — every 6 hours    (sync-campaigns, sync-catalog)
+#   "*/5 * * * *"  — every 5 minutes  (process-outbox)
+[triggers]
+crons = ["0 6 * * *", "0 */6 * * *", "*/5 * * * *"]
+
+[vars]
+# Non-secret runtime vars (secrets go in Workers dashboard or via wrangler secret put)
+FOCUS_NFE_ENV = "producao"

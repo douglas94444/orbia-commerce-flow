@@ -72,6 +72,18 @@ export function getServerConfig() {
       apiKey: process.env.PAGARME_API_KEY,
       webhookSecret: process.env.PAGARME_WEBHOOK_SECRET,
     },
+    amazon: {
+      clientId: process.env.AMAZON_CLIENT_ID,
+      clientSecret: process.env.AMAZON_CLIENT_SECRET,
+    },
+    tiktok: {
+      appKey: process.env.TIKTOK_APP_KEY,
+      appSecret: process.env.TIKTOK_APP_SECRET,
+    },
+    tokenEncryptionKey: process.env.TOKEN_ENCRYPTION_KEY,
+    anthropic: {
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    },
     demo: {
       enabled: process.env.VITE_DEMO_MODE === "true" || process.env.DEMO_MODE === "true",
     },

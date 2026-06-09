@@ -8,7 +8,8 @@ export function validateMercadoPagoSignature(
 ): boolean {
   const { mercadoPago } = getServerConfig();
   const secret = mercadoPago.webhookSecret;
-  if (!secret || !xSignature) return !secret;
+  if (!secret) throw new Error("MP_WEBHOOK_SECRET not configured");
+  if (!xSignature) return false;
 
   const parts = Object.fromEntries(
     xSignature.split(",").map((p) => {

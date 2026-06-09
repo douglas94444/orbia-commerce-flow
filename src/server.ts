@@ -51,4 +51,29 @@ export default {
       });
     }
   },
+
+  // Cloudflare Workers scheduled handler — fires cron triggers defined in wrangler.toml
+  async scheduled(_event: { cron: string }, env: Record<string, string>, _ctx: unknown) {
+    const secret = env.CRON_SECRET;
+    if (!secret) {
+      console.error("[cron] CRON_SECRET not set — skipping scheduled run");
+      return;
+    }
+    const appUrl = env.APP_URL ?? env.VITE_APP_URL ?? "http://localhost:5173";
+    try {
+      const res = await fetch(`${appUrl}/api/cron/run`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${secret}`,
+        },
+        body: JSON.stringify({ job: "all" }),
+      });
+      if (!res.ok) {
+        console.error(`[cron] Run failed with status ${res.status}`);
+      }
+    } catch (err) {
+      console.error("[cron] Scheduled run error:", err);
+    }
+  },
 };

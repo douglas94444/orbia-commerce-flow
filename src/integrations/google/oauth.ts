@@ -29,6 +29,28 @@ export interface GoogleTokenResponse {
   token_type: string;
 }
 
+export async function refreshGoogleToken(refreshToken: string): Promise<GoogleTokenResponse> {
+  const { google } = getServerConfig();
+  if (!google.clientId || !google.clientSecret) {
+    throw new Error("Google OAuth credentials not configured");
+  }
+
+  const res = await fetch(TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      client_id: google.clientId,
+      client_secret: google.clientSecret,
+      refresh_token: refreshToken,
+    }),
+  });
+
+  const body = (await res.json()) as GoogleTokenResponse & { error?: string };
+  if (!res.ok) throw new Error(body.error ?? `Google token refresh failed: ${res.status}`);
+  return body;
+}
+
 export async function exchangeGoogleCode(code: string): Promise<GoogleTokenResponse> {
   const { google, appUrl } = getServerConfig();
   if (!google.clientId || !google.clientSecret) {

@@ -7,7 +7,7 @@ export function validateShopeeWebhook(
   url: string,
 ): boolean {
   const { shopee } = getServerConfig();
-  if (!shopee.partnerKey) return true;
+  if (!shopee.partnerKey) throw new Error("SHOPEE_PARTNER_KEY not configured");
   if (!signature) return false;
   const base = `${url}|${rawBody}`;
   const expected = createHmac("sha256", shopee.partnerKey ?? "").update(base).digest("hex");
