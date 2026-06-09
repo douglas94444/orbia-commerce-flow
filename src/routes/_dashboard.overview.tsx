@@ -7,6 +7,8 @@ import { GmvRoasChart } from '@/components/dashboard/charts'
 import { ClientsTable } from '@/components/dashboard/clients-table'
 import { useClients, usePortfolioStats } from '@/modules/clients/hooks/use-clients'
 import { usePortfolioAnalytics, useNfeCount30d } from '@/modules/analytics/hooks/use-analytics'
+import { useSuccessPortfolio } from '@/modules/admin/hooks/use-admin'
+import { useProfile } from '@/modules/auth/hooks/use-profile'
 import { useMrrStats } from '@/modules/billing/hooks/use-billing'
 import { formatBRL } from '@/lib/format'
 
@@ -16,11 +18,14 @@ export const Route = createFileRoute('/_dashboard/overview')({
 })
 
 function OverviewPage() {
+  const { data: profile } = useProfile()
+  const isStaff = profile?.role === 'orbia_admin' || profile?.role === 'orbia_staff'
   const { data: clients = [], isLoading: loadingClients } = useClients()
   const { data: stats, isLoading: loadingStats } = usePortfolioStats()
   const { data: analytics, isLoading: loadingAnalytics } = usePortfolioAnalytics()
   const { data: nfeCount, isLoading: loadingNfe } = useNfeCount30d()
   const { data: mrrStats, isLoading: loadingMrr } = useMrrStats()
+  const { data: csPortfolio } = useSuccessPortfolio({ enabled: isStaff })
 
   const loading = loadingClients || loadingStats
 
@@ -71,6 +76,13 @@ function OverviewPage() {
           accent="success"
         />
       </div>
+
+      {isStaff && (csPortfolio?.staleContactClients ?? 0) > 0 && (
+        <div className="rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-foreground">
+          <span className="font-mono font-semibold">{csPortfolio?.staleContactClients}</span>{' '}
+          {csPortfolio?.staleContactClients === 1 ? 'cliente' : 'clientes'} sem contato há mais de 14 dias.
+        </div>
+      )}
 
       <motion.div
         initial={{ opacity: 0, y: 16 }}

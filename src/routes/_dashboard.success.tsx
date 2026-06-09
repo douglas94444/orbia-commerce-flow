@@ -1,131 +1,246 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { CalendarClock, Smile, Target, TrendingUp } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import {
+  AlertTriangle,
+  CalendarClock,
+  CheckCircle2,
+  HeartPulse,
+  Loader2,
+  Smile,
+  Users,
+} from "lucide-react";
 import { PageIntro, Panel } from "@/components/dashboard/panel";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { PlanBadge } from "@/components/dashboard/plan-badge";
-import { StatusPill, type Tone } from "@/components/dashboard/status-pill";
-import { clients } from "@/lib/mock/data";
+import { StatusPill } from "@/components/dashboard/status-pill";
+import { Button } from "@/components/ui/button";
+import {
+  useAtRiskClients,
+  useOnboardingPipeline,
+  useResolveOperationAlert,
+  useSuccessPortfolio,
+} from "@/modules/admin/hooks/use-admin";
+import { useOperationAlerts } from "@/modules/analytics/hooks/use-analytics";
+import type { PlanTier } from "@/types/orbia";
 
 export const Route = createFileRoute("/_dashboard/success")({
   head: () => ({ meta: [{ title: "Customer Success — Orbia" }] }),
   component: SuccessPage,
 });
 
-const pipeline: { stage: string; tone: Tone; deals: { name: string; plan: import("@/types/orbia").PlanTier; value: string }[] }[] = [
-  {
-    stage: "Diagnóstico",
-    tone: "primary",
-    deals: [
-      { name: "Moda Prime", plan: "growth", value: "R$ 9k/mês" },
-      { name: "ZenHome", plan: "launch", value: "R$ 3,5k/mês" },
-    ],
-  },
-  {
-    stage: "Proposta",
-    tone: "accent",
-    deals: [
-      { name: "Atletica Co.", plan: "scale", value: "R$ 18k/mês" },
-      { name: "Doce Lar", plan: "growth", value: "R$ 9k/mês" },
-    ],
-  },
-  {
-    stage: "Onboarding",
-    tone: "warning",
-    deals: [
-      { name: "PetClub", plan: "launch", value: "Semana 2" },
-      { name: "Gourmet Express", plan: "launch", value: "Semana 3" },
-    ],
-  },
-  {
-    stage: "Ativo",
-    tone: "success",
-    deals: [
-      { name: "Livraria Aurora", plan: "scale", value: "QBR em 12d" },
-      { name: "VeloBike", plan: "scale", value: "QBR em 20d" },
-    ],
-  },
-];
-
 function SuccessPage() {
+  const { data: portfolio, isLoading: loadingPortfolio } = useSuccessPortfolio();
+  const { data: pipeline = [], isLoading: loadingPipeline } = useOnboardingPipeline();
+  const { data: atRisk = [], isLoading: loadingAtRisk } = useAtRiskClients();
+  const { data: alerts = [], isLoading: loadingAlerts } = useOperationAlerts();
+  const resolveAlert = useResolveOperationAlert();
+
+  const loading = loadingPortfolio || loadingPipeline;
+
   return (
     <div className="space-y-6">
       <PageIntro
         eyebrow="Customer Success"
         title="Relacionamento & expansão"
-        description="Pipeline de vendas, tracker de onboarding de 30 dias, NPS e QBRs estratégicas da carteira."
+        description="Carteira ativa, onboarding, NPS, QBRs e triagem de alertas operacionais."
       />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard label="NPS" value="64" delta={{ value: "4 pts", positive: true }} hint="Meta: > 60" icon={Smile} accent="success" />
-        <KpiCard label="Churn mensal" value="1,8%" delta={{ value: "0,3%", positive: true }} hint="Meta: < 2%" icon={Target} accent="primary" />
-        <KpiCard label="QBRs este mês" value="6" icon={CalendarClock} accent="accent" />
-        <KpiCard label="Expansão (upsell)" value="R$ 42k" delta={{ value: "18%", positive: true }} icon={TrendingUp} accent="warning" />
+        <KpiCard
+          label="NPS (90d)"
+          value={loadingPortfolio ? "—" : portfolio?.avgNps90d != null ? String(portfolio.avgNps90d) : "—"}
+          hint="Média das avaliações registradas"
+          icon={Smile}
+          accent="success"
+        />
+        <KpiCard
+          label="Health médio"
+          value={loadingPortfolio ? "—" : `${portfolio?.avgHealth ?? 0}/100`}
+          hint="Carteira ativa"
+          icon={HeartPulse}
+          accent="primary"
+        />
+        <KpiCard
+          label="QBRs (14d)"
+          value={loadingPortfolio ? "—" : String(portfolio?.qbrsNext14d ?? 0)}
+          hint="Agendadas nos próximos 14 dias"
+          icon={CalendarClock}
+          accent="accent"
+        />
+        <KpiCard
+          label="Sem contato >14d"
+          value={loadingPortfolio ? "—" : String(portfolio?.staleContactClients ?? 0)}
+          hint={`${portfolio?.criticalAlerts ?? 0} alertas críticos abertos`}
+          icon={Users}
+          accent="warning"
+        />
       </div>
 
-      <Panel title="Pipeline de clientes" subtitle="Da prospecção à conta ativa">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {pipeline.map((col) => (
-            <div key={col.stage} className="rounded-xl border border-border bg-muted/20 p-3">
-              <div className="mb-3 flex items-center justify-between">
-                <StatusPill label={col.stage} tone={col.tone} />
-                <span className="font-mono text-[10px] text-muted-foreground">{col.deals.length}</span>
-              </div>
-              <div className="space-y-2">
-                {col.deals.map((d) => (
-                  <div key={d.name} className="rounded-lg border border-border bg-card/60 p-3">
-                    <div className="mb-1.5 flex items-center justify-between gap-2">
-                      <p className="truncate text-sm font-medium text-foreground">{d.name}</p>
-                      <PlanBadge plan={d.plan} />
+      <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
+        <div className="space-y-6">
+          <Panel title="Pipeline de onboarding" subtitle="Clientes em implantação (semanas 1–3)">
+            {loading ? (
+              <div className="h-32 animate-pulse rounded-xl bg-muted/40" />
+            ) : pipeline.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nenhum cliente em onboarding ativo.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {pipeline.map((item) => (
+                  <div
+                    key={item.clientId}
+                    className="rounded-xl border border-border bg-muted/20 p-4"
+                  >
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <Link
+                          to="/clients/$id"
+                          params={{ id: item.clientId }}
+                          className="text-sm font-medium text-foreground hover:text-primary"
+                        >
+                          {item.clientName}
+                        </Link>
+                        <PlanBadge plan={item.plan as PlanTier} />
+                      </div>
+                      <span className="font-mono text-xs text-muted-foreground">
+                        Semana {item.onboardingWeek}/4 · {item.progressPercent}%
+                      </span>
                     </div>
-                    <p className="text-[11px] text-muted-foreground">{d.value}</p>
+                    <div className="flex gap-2">
+                      {[1, 2, 3, 4].map((w) => (
+                        <div
+                          key={w}
+                          className="h-1.5 flex-1 rounded-full"
+                          style={{
+                            backgroundColor:
+                              w < item.onboardingWeek
+                                ? "var(--primary)"
+                                : w === item.onboardingWeek
+                                  ? "var(--accent)"
+                                  : "var(--border)",
+                            boxShadow:
+                              w <= item.onboardingWeek ? "0 0 8px var(--primary)" : "none",
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      {item.tasksDone}/{item.tasksTotal} tarefas da semana atual concluídas
+                    </p>
                   </div>
                 ))}
               </div>
-            </div>
-          ))}
-        </div>
-      </Panel>
+            )}
+          </Panel>
 
-      <Panel title="Tracker de onboarding (30 dias)" subtitle="Clientes em implantação">
-        <div className="space-y-4">
-          {clients
-            .filter((c) => c.onboardingStage < 4)
-            .map((c) => (
-              <div key={c.id} className="rounded-xl border border-border bg-muted/20 p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="grid size-8 place-items-center rounded-lg border border-border bg-muted/50 font-mono text-[11px] font-semibold">
-                      {c.initials}
-                    </span>
-                    <p className="text-sm font-medium text-foreground">{c.name}</p>
-                  </div>
-                  <span className="font-mono text-xs text-muted-foreground">Semana {c.onboardingStage}/4</span>
-                </div>
-                <div className="flex gap-2">
-                  {[1, 2, 3, 4].map((w) => (
-                    <div
-                      key={w}
-                      className="h-1.5 flex-1 rounded-full"
-                      style={{
-                        backgroundColor:
-                          w <= c.onboardingStage
-                            ? "var(--primary)"
-                            : "var(--border)",
-                        boxShadow: w <= c.onboardingStage ? "0 0 8px var(--primary)" : "none",
-                      }}
-                    />
-                  ))}
-                </div>
-                <div className="mt-2 flex justify-between text-[10px] uppercase tracking-wider text-muted-foreground">
-                  <span>Setup</span>
-                  <span>Tráfego</span>
-                  <span>Logística</span>
-                  <span>Retenção</span>
-                </div>
+          <Panel title="Clientes em risco" subtitle="Health score abaixo de 50">
+            {loadingAtRisk ? (
+              <div className="h-24 animate-pulse rounded-xl bg-muted/40" />
+            ) : atRisk.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhum cliente em risco no momento.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border text-left">
+                      {["Cliente", "Plano", "Health", "Último contato", ""].map((h) => (
+                        <th
+                          key={h}
+                          className="pb-3 text-[10px] font-medium uppercase tracking-wider text-muted-foreground"
+                        >
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {atRisk.map((c) => (
+                      <tr key={c.id} className="transition-colors hover:bg-muted/30">
+                        <td className="py-2.5 text-sm font-medium text-foreground">{c.name}</td>
+                        <td className="py-2.5">
+                          <PlanBadge plan={c.plan as PlanTier} />
+                        </td>
+                        <td className="py-2.5">
+                          <StatusPill
+                            label={`${c.healthScore ?? 0}`}
+                            tone="danger"
+                            dot
+                          />
+                        </td>
+                        <td className="py-2.5 font-mono text-xs text-muted-foreground">
+                          {c.lastContactDays != null ? `${c.lastContactDays}d` : "—"}
+                        </td>
+                        <td className="py-2.5 text-right">
+                          <Link
+                            to="/clients/$id"
+                            params={{ id: c.id }}
+                            className="text-xs text-primary hover:underline"
+                          >
+                            Ver detalhe
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            ))}
+            )}
+          </Panel>
         </div>
-      </Panel>
+
+        <Panel
+          title="Alertas operacionais"
+          subtitle="Triage CS"
+          action={<AlertTriangle className="size-4 text-muted-foreground" />}
+        >
+          {loadingAlerts ? (
+            <div className="h-32 animate-pulse rounded-xl bg-muted/40" />
+          ) : alerts.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum alerta aberto.</p>
+          ) : (
+            <ul className="space-y-3">
+              {alerts.map((alert) => (
+                <li
+                  key={alert.id}
+                  className="rounded-lg border border-border bg-muted/20 p-3"
+                >
+                  <div className="mb-1 flex items-start justify-between gap-2">
+                    <StatusPill
+                      label={alert.severity}
+                      tone={
+                        alert.severity === "critical"
+                          ? "danger"
+                          : alert.severity === "warning"
+                            ? "warning"
+                            : "neutral"
+                      }
+                      dot
+                    />
+                    <span className="font-mono text-[10px] text-muted-foreground">{alert.time}</span>
+                  </div>
+                  <p className="text-sm font-medium text-foreground">{alert.title}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{alert.client}</p>
+                  <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{alert.message}</p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-2 h-7 gap-1 text-xs"
+                    disabled={resolveAlert.isPending}
+                    onClick={() => resolveAlert.mutate(alert.id)}
+                  >
+                    {resolveAlert.isPending ? (
+                      <Loader2 className="size-3 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="size-3" />
+                    )}
+                    Resolver
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+      </div>
     </div>
   );
 }

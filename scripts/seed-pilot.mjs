@@ -187,6 +187,68 @@ async function main() {
   }
   console.log("  + campaigns (2)");
 
+  const ONBOARDING_TASKS = [
+    { week: 1, task_key: "oauth_connect", title: "Conectar canais de venda" },
+    { week: 1, task_key: "fiscal_config", title: "Configurar dados fiscais" },
+    { week: 1, task_key: "team_invite", title: "Convidar equipe do lojista" },
+    { week: 1, task_key: "portal_walkthrough", title: "Tour do portal lojista" },
+    { week: 2, task_key: "catalog_sync", title: "Sincronizar catálogo" },
+    { week: 2, task_key: "meta_connect", title: "Conectar Meta Ads" },
+    { week: 2, task_key: "google_connect", title: "Conectar Google Ads" },
+    { week: 2, task_key: "first_campaign", title: "Primeira campanha ativa" },
+    { week: 3, task_key: "logistics_webhook", title: "Webhooks de pedidos OK" },
+    { week: 3, task_key: "test_order", title: "Pedido teste processado" },
+    { week: 3, task_key: "nfe_test", title: "NF-e de teste autorizada" },
+    { week: 3, task_key: "shipping_connect", title: "Melhor Envio conectado" },
+    { week: 4, task_key: "automation_flow", title: "Fluxo de retenção ativo" },
+    { week: 4, task_key: "whatsapp_connect", title: "WhatsApp Business conectado" },
+    { week: 4, task_key: "billing_setup", title: "Assinatura Orbia ativa" },
+    { week: 4, task_key: "qbr_schedule", title: "QBR inicial agendada" },
+  ];
+
+  for (const task of ONBOARDING_TASKS) {
+    const { data: existing } = await supabase
+      .from("onboarding_tasks")
+      .select("id")
+      .eq("client_id", clientId)
+      .eq("week", task.week)
+      .eq("task_key", task.task_key)
+      .maybeSingle();
+
+    if (!existing) {
+      await supabase.from("onboarding_tasks").insert({
+        client_id: clientId,
+        week: task.week,
+        task_key: task.task_key,
+        title: task.title,
+        is_done: task.week === 1 && task.task_key === "oauth_connect",
+      });
+    }
+  }
+  console.log("  + onboarding_tasks (16)");
+
+  if (pilotUserId) {
+    const { data: existingActivity } = await supabase
+      .from("cs_activities")
+      .select("id")
+      .eq("client_id", clientId)
+      .eq("kind", "contact")
+      .limit(1)
+      .maybeSingle();
+
+    if (!existingActivity) {
+      await supabase.from("cs_activities").insert({
+        client_id: clientId,
+        staff_id: pilotUserId,
+        kind: "contact",
+        channel: "call",
+        notes: "Kickoff onboarding — Loja Piloto",
+      });
+      await supabase.rpc("refresh_client_last_contact", { p_client_id: clientId });
+      console.log("  + cs_activity (contact)");
+    }
+  }
+
   if (pilotUserId) {
     await supabase.from("client_members").upsert(
       {

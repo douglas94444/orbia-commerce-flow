@@ -22,6 +22,12 @@
  *   FOCUS_NFE_TOKEN, FOCUS_NFE_ENV=homologacao
  *
  * After deploy: node scripts/set-worker-secrets.mjs
+ *
+ * Cloudflare Cron Triggers (configure in Dashboard → Triggers):
+ *   0 6 * * *   — POST /api/cron/run { "job": "health-recalc" } then { "job": "sync-campaigns" }
+ *   0 */6 * * * — POST /api/cron/run { "job": "sync-catalog" }
+ *   0 3 * * *   — POST /api/cron/run { "job": "cleanup-oauth" }
+ * Header: Authorization: Bearer {CRON_SECRET}
  */
 
 import { readFileSync } from "node:fs";

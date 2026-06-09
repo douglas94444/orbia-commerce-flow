@@ -56,6 +56,7 @@ const SECRETS = [
   'RESEND_FROM_EMAIL',
   'FOCUS_NFE_TOKEN',
   'FOCUS_NFE_ENV',
+  'CRON_SECRET',
 ]
 
 const outputDir = join(root, '.output')

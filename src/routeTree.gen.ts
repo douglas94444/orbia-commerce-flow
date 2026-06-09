@@ -37,6 +37,7 @@ import { Route as ApiWebhooksNuvemshopRouteImport } from './routes/api/webhooks/
 import { Route as ApiWebhooksMercadoPagoRouteImport } from './routes/api/webhooks/mercado-pago'
 import { Route as ApiWebhooksMercadoLivreRouteImport } from './routes/api/webhooks/mercado-livre'
 import { Route as ApiWebhooksMelhorEnvioRouteImport } from './routes/api/webhooks/melhor-envio'
+import { Route as ApiCronRunRouteImport } from './routes/api/cron/run'
 import { Route as DashboardFiscalConfigRouteImport } from './routes/_dashboard.fiscal.config'
 import { Route as DashboardClientsIdRouteImport } from './routes/_dashboard.clients.$id'
 import { Route as ApiOauthWhatsappCallbackRouteImport } from './routes/api/oauth/whatsapp/callback'
@@ -187,6 +188,11 @@ const ApiWebhooksMelhorEnvioRoute = ApiWebhooksMelhorEnvioRouteImport.update({
   path: '/api/webhooks/melhor-envio',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCronRunRoute = ApiCronRunRouteImport.update({
+  id: '/api/cron/run',
+  path: '/api/cron/run',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardFiscalConfigRoute = DashboardFiscalConfigRouteImport.update({
   id: '/config',
   path: '/config',
@@ -265,6 +271,7 @@ export interface FileRoutesByFullPath {
   '/portal/traffic': typeof PortalTrafficRoute
   '/clients/$id': typeof DashboardClientsIdRoute
   '/fiscal/config': typeof DashboardFiscalConfigRoute
+  '/api/cron/run': typeof ApiCronRunRoute
   '/api/webhooks/melhor-envio': typeof ApiWebhooksMelhorEnvioRoute
   '/api/webhooks/mercado-livre': typeof ApiWebhooksMercadoLivreRoute
   '/api/webhooks/mercado-pago': typeof ApiWebhooksMercadoPagoRoute
@@ -304,6 +311,7 @@ export interface FileRoutesByTo {
   '/portal/traffic': typeof PortalTrafficRoute
   '/clients/$id': typeof DashboardClientsIdRoute
   '/fiscal/config': typeof DashboardFiscalConfigRoute
+  '/api/cron/run': typeof ApiCronRunRoute
   '/api/webhooks/melhor-envio': typeof ApiWebhooksMelhorEnvioRoute
   '/api/webhooks/mercado-livre': typeof ApiWebhooksMercadoLivreRoute
   '/api/webhooks/mercado-pago': typeof ApiWebhooksMercadoPagoRoute
@@ -345,6 +353,7 @@ export interface FileRoutesById {
   '/portal/traffic': typeof PortalTrafficRoute
   '/_dashboard/clients/$id': typeof DashboardClientsIdRoute
   '/_dashboard/fiscal/config': typeof DashboardFiscalConfigRoute
+  '/api/cron/run': typeof ApiCronRunRoute
   '/api/webhooks/melhor-envio': typeof ApiWebhooksMelhorEnvioRoute
   '/api/webhooks/mercado-livre': typeof ApiWebhooksMercadoLivreRoute
   '/api/webhooks/mercado-pago': typeof ApiWebhooksMercadoPagoRoute
@@ -386,6 +395,7 @@ export interface FileRouteTypes {
     | '/portal/traffic'
     | '/clients/$id'
     | '/fiscal/config'
+    | '/api/cron/run'
     | '/api/webhooks/melhor-envio'
     | '/api/webhooks/mercado-livre'
     | '/api/webhooks/mercado-pago'
@@ -425,6 +435,7 @@ export interface FileRouteTypes {
     | '/portal/traffic'
     | '/clients/$id'
     | '/fiscal/config'
+    | '/api/cron/run'
     | '/api/webhooks/melhor-envio'
     | '/api/webhooks/mercado-livre'
     | '/api/webhooks/mercado-pago'
@@ -465,6 +476,7 @@ export interface FileRouteTypes {
     | '/portal/traffic'
     | '/_dashboard/clients/$id'
     | '/_dashboard/fiscal/config'
+    | '/api/cron/run'
     | '/api/webhooks/melhor-envio'
     | '/api/webhooks/mercado-livre'
     | '/api/webhooks/mercado-pago'
@@ -487,6 +499,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRouteWithChildren
   LoginRoute: typeof LoginRoute
   PortalRoute: typeof PortalRouteWithChildren
+  ApiCronRunRoute: typeof ApiCronRunRoute
   ApiWebhooksMelhorEnvioRoute: typeof ApiWebhooksMelhorEnvioRoute
   ApiWebhooksMercadoLivreRoute: typeof ApiWebhooksMercadoLivreRoute
   ApiWebhooksMercadoPagoRoute: typeof ApiWebhooksMercadoPagoRoute
@@ -702,6 +715,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiWebhooksMelhorEnvioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/cron/run': {
+      id: '/api/cron/run'
+      path: '/api/cron/run'
+      fullPath: '/api/cron/run'
+      preLoaderRoute: typeof ApiCronRunRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_dashboard/fiscal/config': {
       id: '/_dashboard/fiscal/config'
       path: '/config'
@@ -856,6 +876,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRouteWithChildren,
   LoginRoute: LoginRoute,
   PortalRoute: PortalRouteWithChildren,
+  ApiCronRunRoute: ApiCronRunRoute,
   ApiWebhooksMelhorEnvioRoute: ApiWebhooksMelhorEnvioRoute,
   ApiWebhooksMercadoLivreRoute: ApiWebhooksMercadoLivreRoute,
   ApiWebhooksMercadoPagoRoute: ApiWebhooksMercadoPagoRoute,

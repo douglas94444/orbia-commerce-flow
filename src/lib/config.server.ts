@@ -65,6 +65,9 @@ export function getServerConfig() {
     whatsapp: {
       verifyToken: process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN,
     },
+    cron: {
+      secret: process.env.CRON_SECRET,
+    },
   };
 }
 

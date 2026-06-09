@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useClientDetail } from '@/modules/clients/hooks/use-clients'
 import { useProfile } from '@/modules/auth/hooks/use-profile'
+import { ClientCsPanel } from '@/components/dashboard/client-cs-panel'
 import {
   useStartNuvemshopOAuth,
   useStartShopifyOAuth,
@@ -250,6 +251,8 @@ function ClientDetailPage() {
           </div>
         </Panel>
       </div>
+
+      {isStaff && <ClientCsPanel clientId={id} />}
 
       {/* Recent activity */}
       <Panel

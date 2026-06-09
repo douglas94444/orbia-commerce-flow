@@ -64,3 +64,17 @@ const { count: whatsappConn } = await sb
   .select('id', { count: 'exact', head: true })
   .eq('provider', 'whatsapp')
 console.log('whatsapp oauth_connections:', whatsappConn ?? 0)
+
+const { error: csActErr } = await sb.from('cs_activities').select('id').limit(1)
+console.log('migration 020 (cs_activities):', csActErr ? `MISSING (${csActErr.message})` : 'ok')
+
+const { error: onboardErr } = await sb.from('onboarding_tasks').select('id').limit(1)
+console.log('migration 020 (onboarding_tasks):', onboardErr ? `MISSING (${onboardErr.message})` : 'ok')
+
+const { error: refreshErr } = await sb.rpc('refresh_client_last_contact', {
+  p_client_id: '00000000-0000-0000-0000-000000000000',
+})
+console.log(
+  'migration 020 (refresh_client_last_contact):',
+  refreshErr?.message?.includes('not found') ? 'MISSING' : 'ok',
+)

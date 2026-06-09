@@ -3,7 +3,10 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useEffect } from 'react'
-import { User, Save } from 'lucide-react'
+import { User, Save, Play, Loader2 } from 'lucide-react'
+import { useMutation } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { runScheduledJobs } from '@/modules/jobs/actions.functions'
 import { PageIntro, Panel } from '@/components/dashboard/panel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -30,6 +33,20 @@ const ROLE_LABEL: Record<string, string> = {
 function SettingsPage() {
   const { data: profile, isLoading } = useProfile()
   const { mutate, isPending } = useUpdateProfile()
+  const isStaff = profile?.role === 'orbia_admin' || profile?.role === 'orbia_staff'
+
+  const runJobs = useMutation({
+    mutationFn: () => runScheduledJobs({ data: { job: 'all' } }),
+    onSuccess: (results) => {
+      const failed = results.filter((r) => r.status === 'failed').length
+      if (failed > 0) {
+        toast.warning(`${results.length - failed}/${results.length} jobs concluídos.`)
+      } else {
+        toast.success('Jobs executados com sucesso.')
+      }
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -78,6 +95,25 @@ function SettingsPage() {
               </div>
             </div>
           </Panel>
+
+          {isStaff && (
+            <Panel title="Jobs agendados" subtitle="Executar sincronizações e recálculos manualmente (dev/staging)">
+              <Button
+                type="button"
+                variant="outline"
+                className="gap-2"
+                disabled={runJobs.isPending}
+                onClick={() => runJobs.mutate()}
+              >
+                {runJobs.isPending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Play className="size-4" />
+                )}
+                Executar jobs agora
+              </Button>
+            </Panel>
+          )}
 
           <div className="flex justify-end">
             <Button type="submit" disabled={isPending} className="gap-2">
