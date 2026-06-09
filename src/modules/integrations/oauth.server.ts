@@ -9,6 +9,7 @@ import { exchangeNuvemshopCode, registerNuvemshopWebhooks } from "@/integrations
 import { getStore } from "@/integrations/nuvemshop/client";
 import { exchangeShopeeCode, registerShopeeWebhooks } from "@/integrations/shopee";
 import { exchangeShopifyCode, registerShopifyWebhooks } from "@/integrations/shopify";
+import { exchangeMelhorEnvioCode } from "@/integrations/melhor-envio";
 import { exchangeMetaCode, getMetaAdAccounts } from "@/integrations/meta";
 import { logAudit, logIntegration } from "@/shared/lib/logger";
 
@@ -306,6 +307,35 @@ export async function completeMetaOAuth(code: string, state: string): Promise<st
     operation: "oauth_connect",
     status: "success",
     metadata: { ad_account_count: accounts.length },
+  });
+
+  return oauthState.redirect_to ?? `/clients/${oauthState.client_id}`;
+}
+
+export async function completeMelhorEnvioOAuth(code: string, state: string): Promise<string> {
+  const oauthState = await consumeOAuthState(state);
+  if (oauthState.provider !== "melhor_envio" || !oauthState.client_id) {
+    throw new Error("Invalid OAuth state for Melhor Envio");
+  }
+
+  const token = await exchangeMelhorEnvioCode(code);
+  const expiresAt = new Date(Date.now() + token.expires_in * 1000).toISOString();
+
+  await storeOAuthConnection({
+    clientId: oauthState.client_id,
+    provider: "melhor_envio",
+    externalAccount: "default",
+    accessToken: token.access_token,
+    refreshToken: token.refresh_token,
+    tokenExpiresAt: expiresAt,
+    userId: oauthState.user_id,
+  });
+
+  await logIntegration({
+    client_id: oauthState.client_id,
+    provider: "melhor_envio",
+    operation: "oauth_connect",
+    status: "success",
   });
 
   return oauthState.redirect_to ?? `/clients/${oauthState.client_id}`;

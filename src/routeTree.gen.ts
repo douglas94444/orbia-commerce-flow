@@ -33,6 +33,7 @@ import { Route as ApiOauthShopeeCallbackRouteImport } from './routes/api/oauth/s
 import { Route as ApiOauthNuvemshopCallbackRouteImport } from './routes/api/oauth/nuvemshop/callback'
 import { Route as ApiOauthMetaCallbackRouteImport } from './routes/api/oauth/meta/callback'
 import { Route as ApiOauthMercadoLivreCallbackRouteImport } from './routes/api/oauth/mercado-livre/callback'
+import { Route as ApiOauthMelhorEnvioCallbackRouteImport } from './routes/api/oauth/melhor-envio/callback'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -155,6 +156,12 @@ const ApiOauthMercadoLivreCallbackRoute =
     path: '/api/oauth/mercado-livre/callback',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiOauthMelhorEnvioCallbackRoute =
+  ApiOauthMelhorEnvioCallbackRouteImport.update({
+    id: '/api/oauth/melhor-envio/callback',
+    path: '/api/oauth/melhor-envio/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -175,6 +182,7 @@ export interface FileRoutesByFullPath {
   '/api/webhooks/nuvemshop': typeof ApiWebhooksNuvemshopRoute
   '/api/webhooks/shopee': typeof ApiWebhooksShopeeRoute
   '/api/webhooks/shopify': typeof ApiWebhooksShopifyRoute
+  '/api/oauth/melhor-envio/callback': typeof ApiOauthMelhorEnvioCallbackRoute
   '/api/oauth/mercado-livre/callback': typeof ApiOauthMercadoLivreCallbackRoute
   '/api/oauth/meta/callback': typeof ApiOauthMetaCallbackRoute
   '/api/oauth/nuvemshop/callback': typeof ApiOauthNuvemshopCallbackRoute
@@ -200,6 +208,7 @@ export interface FileRoutesByTo {
   '/api/webhooks/nuvemshop': typeof ApiWebhooksNuvemshopRoute
   '/api/webhooks/shopee': typeof ApiWebhooksShopeeRoute
   '/api/webhooks/shopify': typeof ApiWebhooksShopifyRoute
+  '/api/oauth/melhor-envio/callback': typeof ApiOauthMelhorEnvioCallbackRoute
   '/api/oauth/mercado-livre/callback': typeof ApiOauthMercadoLivreCallbackRoute
   '/api/oauth/meta/callback': typeof ApiOauthMetaCallbackRoute
   '/api/oauth/nuvemshop/callback': typeof ApiOauthNuvemshopCallbackRoute
@@ -227,6 +236,7 @@ export interface FileRoutesById {
   '/api/webhooks/nuvemshop': typeof ApiWebhooksNuvemshopRoute
   '/api/webhooks/shopee': typeof ApiWebhooksShopeeRoute
   '/api/webhooks/shopify': typeof ApiWebhooksShopifyRoute
+  '/api/oauth/melhor-envio/callback': typeof ApiOauthMelhorEnvioCallbackRoute
   '/api/oauth/mercado-livre/callback': typeof ApiOauthMercadoLivreCallbackRoute
   '/api/oauth/meta/callback': typeof ApiOauthMetaCallbackRoute
   '/api/oauth/nuvemshop/callback': typeof ApiOauthNuvemshopCallbackRoute
@@ -254,6 +264,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/nuvemshop'
     | '/api/webhooks/shopee'
     | '/api/webhooks/shopify'
+    | '/api/oauth/melhor-envio/callback'
     | '/api/oauth/mercado-livre/callback'
     | '/api/oauth/meta/callback'
     | '/api/oauth/nuvemshop/callback'
@@ -279,6 +290,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/nuvemshop'
     | '/api/webhooks/shopee'
     | '/api/webhooks/shopify'
+    | '/api/oauth/melhor-envio/callback'
     | '/api/oauth/mercado-livre/callback'
     | '/api/oauth/meta/callback'
     | '/api/oauth/nuvemshop/callback'
@@ -305,6 +317,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/nuvemshop'
     | '/api/webhooks/shopee'
     | '/api/webhooks/shopify'
+    | '/api/oauth/melhor-envio/callback'
     | '/api/oauth/mercado-livre/callback'
     | '/api/oauth/meta/callback'
     | '/api/oauth/nuvemshop/callback'
@@ -321,6 +334,7 @@ export interface RootRouteChildren {
   ApiWebhooksNuvemshopRoute: typeof ApiWebhooksNuvemshopRoute
   ApiWebhooksShopeeRoute: typeof ApiWebhooksShopeeRoute
   ApiWebhooksShopifyRoute: typeof ApiWebhooksShopifyRoute
+  ApiOauthMelhorEnvioCallbackRoute: typeof ApiOauthMelhorEnvioCallbackRoute
   ApiOauthMercadoLivreCallbackRoute: typeof ApiOauthMercadoLivreCallbackRoute
   ApiOauthMetaCallbackRoute: typeof ApiOauthMetaCallbackRoute
   ApiOauthNuvemshopCallbackRoute: typeof ApiOauthNuvemshopCallbackRoute
@@ -498,6 +512,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiOauthMercadoLivreCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/oauth/melhor-envio/callback': {
+      id: '/api/oauth/melhor-envio/callback'
+      path: '/api/oauth/melhor-envio/callback'
+      fullPath: '/api/oauth/melhor-envio/callback'
+      preLoaderRoute: typeof ApiOauthMelhorEnvioCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -561,6 +582,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiWebhooksNuvemshopRoute: ApiWebhooksNuvemshopRoute,
   ApiWebhooksShopeeRoute: ApiWebhooksShopeeRoute,
   ApiWebhooksShopifyRoute: ApiWebhooksShopifyRoute,
+  ApiOauthMelhorEnvioCallbackRoute: ApiOauthMelhorEnvioCallbackRoute,
   ApiOauthMercadoLivreCallbackRoute: ApiOauthMercadoLivreCallbackRoute,
   ApiOauthMetaCallbackRoute: ApiOauthMetaCallbackRoute,
   ApiOauthNuvemshopCallbackRoute: ApiOauthNuvemshopCallbackRoute,

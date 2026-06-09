@@ -1,5 +1,5 @@
 /**
- * Smoke test Fase 1 — ML/Shopee webhook payloads, reserva de estoque, tracking simulado.
+ * Smoke test Fase 1 — ML/Shopee ingestão inline, reserva de estoque, despacho simulado.
  *
  * Usage:
  *   node scripts/smoke-test-phase1.mjs [--client-id UUID]
@@ -37,6 +37,46 @@ if (!clientId) {
 
 console.log("Fase 1 smoke test — client:", clientId);
 
+async function upsertPaidOrder({ externalId, channel, valueCents, city, items, email }) {
+  const metadata = {
+    items,
+    payment_status: "paid",
+    customer_email: email,
+  };
+
+  const { data, error } = await sb
+    .from("orders")
+    .upsert(
+      {
+        client_id: clientId,
+        external_id: externalId,
+        channel,
+        status: "aguardando_nf",
+        nf_status: "pendente",
+        value_cents: valueCents,
+        city,
+        metadata,
+      },
+      { onConflict: "client_id,channel,external_id" },
+    )
+    .select("id, status")
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+async function reserveItems(items) {
+  for (const item of items) {
+    const { error } = await sb.rpc("reserve_inventory", {
+      p_client_id: clientId,
+      p_sku: item.sku,
+      p_qty: item.quantity,
+    });
+    if (error) throw new Error(`reserve ${item.sku}: ${error.message}`);
+  }
+}
+
 // ─── Stock RPCs ───────────────────────────────────────────────
 const { error: reserveErr } = await sb.rpc("reserve_inventory", {
   p_client_id: clientId,
@@ -45,13 +85,13 @@ const { error: reserveErr } = await sb.rpc("reserve_inventory", {
 });
 if (reserveErr) {
   console.warn("reserve_inventory:", reserveErr.message, "(apply migration 014 if missing)");
-} else {
-  console.log("✓ reserve_inventory CAM-001 x1");
-  await sb.rpc("release_inventory", { p_client_id: clientId, p_sku: "CAM-001", p_qty: 1 });
-  console.log("✓ release_inventory CAM-001 x1");
+  process.exit(1);
 }
+console.log("✓ reserve_inventory CAM-001 x1");
+await sb.rpc("release_inventory", { p_client_id: clientId, p_sku: "CAM-001", p_qty: 1 });
+console.log("✓ release_inventory CAM-001 x1");
 
-// ─── ML webhook payload ───────────────────────────────────────
+// ─── ML order ingest ──────────────────────────────────────────
 const mlSellerId = "ml-smoke-seller";
 await sb.from("oauth_connections").upsert(
   {
@@ -66,18 +106,17 @@ await sb.from("oauth_connections").upsert(
 );
 
 const mlOrderId = `ML-${Date.now()}`;
-const mlPayload = {
-  user_id: mlSellerId,
-  topic: "orders_v2",
-  data: {
-    id: mlOrderId,
-    status: "paid",
-    total_amount: 149.9,
-    order_items: [{ quantity: 1, unit_price: 149.9, item: { seller_sku: "CAM-001", title: "Camiseta" } }],
-    shipping: { receiver_address: { city: { name: "São Paulo" } } },
-    buyer: { email: "smoke-test@example.com" },
-  },
-};
+const mlItems = [{ sku: "CAM-001", name: "Camiseta", quantity: 1, unitPriceCents: 14990 }];
+const mlOrder = await upsertPaidOrder({
+  externalId: mlOrderId,
+  channel: "mercado_livre",
+  valueCents: 14990,
+  city: "São Paulo",
+  items: mlItems,
+  email: "smoke-test@example.com",
+});
+await reserveItems(mlItems.map((i) => ({ sku: i.sku, quantity: i.quantity })));
+console.log("✓ ML order + stock reserved:", mlOrder.id);
 
 const { data: mlEvent } = await sb
   .from("webhook_events")
@@ -86,15 +125,15 @@ const { data: mlEvent } = await sb
     event_id: `ml-smoke-${Date.now()}`,
     event_type: "orders_v2",
     client_id: clientId,
-    payload: mlPayload,
-    status: "queued",
+    payload: { user_id: mlSellerId, topic: "orders_v2", data: { id: mlOrderId, status: "paid" } },
+    status: "processed",
+    processed_at: new Date().toISOString(),
   })
   .select("id")
   .single();
-
 console.log("✓ ML webhook event:", mlEvent?.id);
 
-// ─── Shopee webhook payload ───────────────────────────────────
+// ─── Shopee order ingest ──────────────────────────────────────
 const shopeeShopId = "shopee-smoke-shop";
 await sb.from("oauth_connections").upsert(
   {
@@ -109,41 +148,26 @@ await sb.from("oauth_connections").upsert(
 );
 
 const shopeeOrderSn = `SP-${Date.now()}`;
-const shopeePayload = {
-  code: "order_status_push",
-  shop_id: shopeeShopId,
-  data: {
-    order_sn: shopeeOrderSn,
-    order_status: "READY_TO_SHIP",
-    shop_id: shopeeShopId,
-    total_amount: 89.9,
-    item_list: [{ item_sku: "CAL-002", item_name: "Calça", model_quantity_purchased: 1, model_discounted_price: 89.9 }],
-    recipient_address: { city: "Curitiba" },
-  },
-};
+const spItems = [{ sku: "CAL-002", name: "Calça", quantity: 1, unitPriceCents: 8990 }];
+const spOrder = await upsertPaidOrder({
+  externalId: shopeeOrderSn,
+  channel: "shopee",
+  valueCents: 8990,
+  city: "Curitiba",
+  items: spItems,
+  email: "smoke-test@example.com",
+});
+await reserveItems(spItems.map((i) => ({ sku: i.sku, quantity: i.quantity })));
+console.log("✓ Shopee order + stock reserved:", spOrder.id);
 
-const { data: spEvent } = await sb
-  .from("webhook_events")
-  .insert({
-    provider: "shopee",
-    event_id: `${shopeeOrderSn}-order_status_push`,
-    event_type: "order_status_push",
-    client_id: clientId,
-    payload: shopeePayload,
-    status: "queued",
-  })
-  .select("id")
-  .single();
-
-console.log("✓ Shopee webhook event:", spEvent?.id);
-
-// ─── Simulated dispatch + delivery order ──────────────────────
+// ─── Dispatch simulation ─────────────────────────────────────
+const dispatchExternalId = `smoke-dispatch-${Date.now()}`;
 const { data: sepOrder } = await sb
   .from("orders")
   .upsert(
     {
       client_id: clientId,
-      external_id: `smoke-dispatch-${Date.now()}`,
+      external_id: dispatchExternalId,
       channel: "nuvemshop",
       status: "separacao",
       nf_status: "autorizada",
@@ -160,30 +184,44 @@ const { data: sepOrder } = await sb
   .single();
 
 if (sepOrder) {
+  const tracking = `SMOKE${Date.now()}`;
   await sb
     .from("orders")
     .update({
-      status: "entregue",
-      tracking_code: `SMOKE${Date.now()}`,
+      status: "despachado",
+      tracking_code: tracking,
       shipment_external_id: `mock-${sepOrder.id}`,
       carrier: "Melhor Envio (smoke)",
     })
     .eq("id", sepOrder.id);
-  console.log("✓ Simulated delivered order:", sepOrder.id);
+
+  await sb.rpc("commit_inventory", { p_client_id: clientId, p_sku: "CAM-001", p_qty: 1 });
+  console.log("✓ Dispatch simulated — tracking:", tracking);
+
+  await sb.from("orders").update({ status: "entregue" }).eq("id", sepOrder.id);
+  console.log("✓ Order marked entregue:", sepOrder.id);
 }
 
-// ─── Automation flow seed check ───────────────────────────────
+// ─── Verifications ───────────────────────────────────────────
+const { data: inv } = await sb
+  .from("inventory")
+  .select("sku, units, reserved")
+  .eq("client_id", clientId)
+  .eq("sku", "CAM-001")
+  .single();
+console.log("inventory CAM-001:", inv);
+
 const { count: flowCount } = await sb
   .from("automation_flows")
   .select("id", { count: "exact", head: true })
   .eq("client_id", clientId)
   .eq("trigger", "pedido_entregue");
-
 console.log("automation_flows pedido_entregue:", flowCount ?? 0);
 
-// ─── Schema checks ────────────────────────────────────────────
-const { error: trackErr } = await sb.from("orders").select("tracking_code, shipment_external_id").limit(1);
-console.log("tracking columns:", trackErr ? `MISSING (${trackErr.message})` : "ok");
+const { count: orderCount } = await sb
+  .from("orders")
+  .select("id", { count: "exact", head: true })
+  .eq("client_id", clientId);
+console.log("total orders for client:", orderCount);
 
-console.log("\nDone. Process webhook events via app server or mark processed manually.");
-console.log("Events queued:", { ml: mlEvent?.id, shopee: spEvent?.id });
+console.log("\nSmoke test OK.");

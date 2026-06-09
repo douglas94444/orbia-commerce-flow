@@ -15,6 +15,7 @@ import {
   useStartMercadoLivreOAuth,
   useStartShopeeOAuth,
   useStartMetaOAuth,
+  useStartMelhorEnvioOAuth,
 } from '@/modules/integrations/hooks/use-oauth'
 
 export const Route = createFileRoute('/_dashboard/clients/$id')({
@@ -31,15 +32,16 @@ const PROVIDER_LABEL: Record<string, string> = {
   amazon:       'Amazon BR',
   tiktok:       'TikTok Shop',
   nuvemshop:    'Nuvemshop',
+  melhor_envio: 'Melhor Envio',
 }
 
 const MODULE_PROVIDERS: Array<{ label: string; providers: string[] }> = [
   { label: 'Tráfego',    providers: ['meta', 'google'] },
-  { label: 'Logística',  providers: ['mercado_livre', 'shopify', 'shopee', 'amazon', 'tiktok', 'nuvemshop'] },
+  { label: 'Logística',  providers: ['mercado_livre', 'shopify', 'shopee', 'amazon', 'tiktok', 'nuvemshop', 'melhor_envio'] },
   { label: 'Fiscal',     providers: ['focus_nfe'] },
 ]
 
-const CONNECTABLE = new Set(['nuvemshop', 'shopify', 'mercado_livre', 'shopee', 'meta'])
+const CONNECTABLE = new Set(['nuvemshop', 'shopify', 'mercado_livre', 'shopee', 'meta', 'melhor_envio'])
 
 function ClientDetailPage() {
   const { id } = Route.useParams()
@@ -50,6 +52,7 @@ function ClientDetailPage() {
   const mercadoLivreOAuth = useStartMercadoLivreOAuth()
   const shopeeOAuth = useStartShopeeOAuth()
   const metaOAuth = useStartMetaOAuth()
+  const melhorEnvioOAuth = useStartMelhorEnvioOAuth()
   const [shopDomain, setShopDomain] = useState('')
   const [shopeeShopId, setShopeeShopId] = useState('')
 
@@ -204,17 +207,20 @@ function ClientDetailPage() {
                               disabled={
                                 (p === 'nuvemshop' && nuvemshopOAuth.isPending) ||
                                 (p === 'mercado_livre' && mercadoLivreOAuth.isPending) ||
-                                (p === 'meta' && metaOAuth.isPending)
+                                (p === 'meta' && metaOAuth.isPending) ||
+                                (p === 'melhor_envio' && melhorEnvioOAuth.isPending)
                               }
                               onClick={() => {
                                 if (p === 'nuvemshop') nuvemshopOAuth.mutate(id)
                                 else if (p === 'mercado_livre') mercadoLivreOAuth.mutate(id)
                                 else if (p === 'meta') metaOAuth.mutate(id)
+                                else if (p === 'melhor_envio') melhorEnvioOAuth.mutate(id)
                               }}
                             >
                               {(p === 'nuvemshop' && nuvemshopOAuth.isPending) ||
                               (p === 'mercado_livre' && mercadoLivreOAuth.isPending) ||
-                              (p === 'meta' && metaOAuth.isPending) ? (
+                              (p === 'meta' && metaOAuth.isPending) ||
+                              (p === 'melhor_envio' && melhorEnvioOAuth.isPending) ? (
                                 <Loader2 className="size-3 animate-spin" />
                               ) : (
                                 <Link2 className="size-3" />

@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { buildMercadoLivreAuthUrl } from "@/integrations/mercado-livre";
+import { buildMelhorEnvioAuthUrl } from "@/integrations/melhor-envio";
 import { buildMetaAuthUrl } from "@/integrations/meta";
 import { buildNuvemshopAuthUrl } from "@/integrations/nuvemshop";
 import { buildShopeeAuthUrl } from "@/integrations/shopee";
@@ -82,4 +83,13 @@ export const startMetaOAuth = createServerFn({ method: "POST" })
     await requireStaff(context.userId, context.supabase);
     const state = await createOAuthState(context.userId, data.clientId, "meta");
     return { url: buildMetaAuthUrl(state) };
+  });
+
+export const startMelhorEnvioOAuth = createServerFn({ method: "POST" })
+  .inputValidator(clientIdSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await requireStaff(context.userId, context.supabase);
+    const state = await createOAuthState(context.userId, data.clientId, "melhor_envio");
+    return { url: buildMelhorEnvioAuthUrl(state) };
   });
