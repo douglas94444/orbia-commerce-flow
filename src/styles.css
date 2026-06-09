@@ -217,10 +217,32 @@
   }
 }
 
+@keyframes ripple-glow {
+  0% {
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0.75;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(4);
+    opacity: 0;
+  }
+}
+
 @utility animate-pulse-ring {
   animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 @utility animate-orbit {
   animation: orbit-spin 18s linear infinite;
+}
+
+@utility ripple-glow-element {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  border-radius: 9999px;
+  background: oklch(0.82 0.14 195 / 0.35);
+  box-shadow: 0 0 16px oklch(0.82 0.14 195 / 0.5), 0 0 40px oklch(0.82 0.14 195 / 0.25);
+  animation: ripple-glow 600ms ease-out forwards;
+  pointer-events: none;
 }

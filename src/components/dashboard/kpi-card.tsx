@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { type LucideIcon, TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useRipple } from "@/hooks/use-ripple";
 
 interface KpiCardProps {
   label: string;
@@ -20,12 +21,15 @@ const accentMap = {
 } as const;
 
 export function KpiCard({ label, value, delta, hint, icon: Icon, accent = "primary" }: KpiCardProps) {
+  const { onMouseDown, rippleElements } = useRipple<HTMLDivElement>();
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
       className="glass-panel group relative overflow-hidden rounded-2xl p-5"
+      onMouseDown={onMouseDown}
     >
       <div
         className="pointer-events-none absolute -right-8 -top-8 size-24 rounded-full opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100"
@@ -58,6 +62,7 @@ export function KpiCard({ label, value, delta, hint, icon: Icon, accent = "prima
         )}
       </div>
       {hint && <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>}
+      {rippleElements}
     </motion.div>
   );
 }

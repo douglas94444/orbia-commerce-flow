@@ -11,37 +11,37 @@ export const Route = createFileRoute("/_dashboard/success")({
   component: SuccessPage,
 });
 
-const pipeline: { stage: string; tone: Tone; deals: { name: string; plan: "Launch" | "Growth" | "Scale"; value: string }[] }[] = [
+const pipeline: { stage: string; tone: Tone; deals: { name: string; plan: import("@/types/orbia").PlanTier; value: string }[] }[] = [
   {
     stage: "Diagnóstico",
     tone: "primary",
     deals: [
-      { name: "Moda Prime", plan: "Growth", value: "R$ 9k/mês" },
-      { name: "ZenHome", plan: "Launch", value: "R$ 3,5k/mês" },
+      { name: "Moda Prime", plan: "growth", value: "R$ 9k/mês" },
+      { name: "ZenHome", plan: "launch", value: "R$ 3,5k/mês" },
     ],
   },
   {
     stage: "Proposta",
     tone: "accent",
     deals: [
-      { name: "Atletica Co.", plan: "Scale", value: "R$ 18k/mês" },
-      { name: "Doce Lar", plan: "Growth", value: "R$ 9k/mês" },
+      { name: "Atletica Co.", plan: "scale", value: "R$ 18k/mês" },
+      { name: "Doce Lar", plan: "growth", value: "R$ 9k/mês" },
     ],
   },
   {
     stage: "Onboarding",
     tone: "warning",
     deals: [
-      { name: "PetClub", plan: "Launch", value: "Semana 2" },
-      { name: "Gourmet Express", plan: "Launch", value: "Semana 3" },
+      { name: "PetClub", plan: "launch", value: "Semana 2" },
+      { name: "Gourmet Express", plan: "launch", value: "Semana 3" },
     ],
   },
   {
     stage: "Ativo",
     tone: "success",
     deals: [
-      { name: "Livraria Aurora", plan: "Scale", value: "QBR em 12d" },
-      { name: "VeloBike", plan: "Scale", value: "QBR em 20d" },
+      { name: "Livraria Aurora", plan: "scale", value: "QBR em 12d" },
+      { name: "VeloBike", plan: "scale", value: "QBR em 20d" },
     ],
   },
 ];

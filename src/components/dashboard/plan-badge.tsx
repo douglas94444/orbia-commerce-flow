@@ -2,9 +2,15 @@ import { cn } from "@/lib/utils";
 import type { PlanTier } from "@/types/orbia";
 
 const styles: Record<PlanTier, string> = {
-  Launch: "border-border bg-muted/60 text-muted-foreground",
-  Growth: "border-primary/40 bg-primary/10 text-primary",
-  Scale: "border-accent/40 bg-accent/15 text-accent",
+  launch: "border-border bg-muted/60 text-muted-foreground",
+  growth: "border-primary/40 bg-primary/10 text-primary",
+  scale: "border-accent/40 bg-accent/15 text-accent",
+};
+
+const labels: Record<PlanTier, string> = {
+  launch: "Launch",
+  growth: "Growth",
+  scale: "Scale",
 };
 
 export function PlanBadge({ plan, className }: { plan: PlanTier; className?: string }) {
@@ -16,7 +22,7 @@ export function PlanBadge({ plan, className }: { plan: PlanTier; className?: str
         className,
       )}
     >
-      {plan}
+      {labels[plan]}
     </span>
   );
 }

@@ -15,14 +15,14 @@ export function healthStatus(score: number): "saudavel" | "atencao" | "risco" {
 }
 
 export const clients: Client[] = [
-  { id: "c1", name: "Livraria Aurora", initials: "LA", plan: "Scale", healthScore: 92, gmv30d: 842000, roas: 7.2, lastContactDays: 2, onboardingStage: 4, segment: "Editorial" },
-  { id: "c2", name: "Lumina Fashion", initials: "LF", plan: "Scale", healthScore: 88, gmv30d: 691000, roas: 6.4, lastContactDays: 1, onboardingStage: 4, segment: "Moda" },
-  { id: "c3", name: "TechStore BR", initials: "TS", plan: "Growth", healthScore: 64, gmv30d: 312000, roas: 4.1, lastContactDays: 9, onboardingStage: 4, segment: "Eletrônicos" },
-  { id: "c4", name: "Gourmet Express", initials: "GE", plan: "Launch", healthScore: 42, gmv30d: 58000, roas: 2.8, lastContactDays: 14, onboardingStage: 3, segment: "Alimentos" },
-  { id: "c5", name: "Naturae Life", initials: "NL", plan: "Growth", healthScore: 76, gmv30d: 224000, roas: 5.6, lastContactDays: 4, onboardingStage: 4, segment: "Cosméticos" },
-  { id: "c6", name: "Casa & Perfil", initials: "CP", plan: "Growth", healthScore: 81, gmv30d: 188000, roas: 6.1, lastContactDays: 3, onboardingStage: 4, segment: "Decoração" },
-  { id: "c7", name: "PetClub", initials: "PC", plan: "Launch", healthScore: 58, gmv30d: 74000, roas: 3.9, lastContactDays: 11, onboardingStage: 2, segment: "Pet" },
-  { id: "c8", name: "VeloBike", initials: "VB", plan: "Scale", healthScore: 90, gmv30d: 503000, roas: 6.9, lastContactDays: 1, onboardingStage: 4, segment: "Esporte" },
+  { id: "c1", name: "Livraria Aurora", initials: "LA", plan: "scale",  status: "active",     healthScore: 92, gmv30d: 842000, roas: 7.2, lastContactDays: 2,  onboardingStage: 4, segment: "Editorial"   },
+  { id: "c2", name: "Lumina Fashion",  initials: "LF", plan: "scale",  status: "active",     healthScore: 88, gmv30d: 691000, roas: 6.4, lastContactDays: 1,  onboardingStage: 4, segment: "Moda"        },
+  { id: "c3", name: "TechStore BR",    initials: "TS", plan: "growth", status: "active",     healthScore: 64, gmv30d: 312000, roas: 4.1, lastContactDays: 9,  onboardingStage: 4, segment: "Eletrônicos" },
+  { id: "c4", name: "Gourmet Express", initials: "GE", plan: "launch", status: "active",     healthScore: 42, gmv30d: 58000,  roas: 2.8, lastContactDays: 14, onboardingStage: 3, segment: "Alimentos"   },
+  { id: "c5", name: "Naturae Life",    initials: "NL", plan: "growth", status: "active",     healthScore: 76, gmv30d: 224000, roas: 5.6, lastContactDays: 4,  onboardingStage: 4, segment: "Cosméticos"  },
+  { id: "c6", name: "Casa & Perfil",   initials: "CP", plan: "growth", status: "active",     healthScore: 81, gmv30d: 188000, roas: 6.1, lastContactDays: 3,  onboardingStage: 4, segment: "Decoração"   },
+  { id: "c7", name: "PetClub",         initials: "PC", plan: "launch", status: "onboarding", healthScore: 58, gmv30d: 74000,  roas: 3.9, lastContactDays: 11, onboardingStage: 2, segment: "Pet"         },
+  { id: "c8", name: "VeloBike",        initials: "VB", plan: "scale",  status: "active",     healthScore: 90, gmv30d: 503000, roas: 6.9, lastContactDays: 1,  onboardingStage: 4, segment: "Esporte"     },
 ];
 
 export const alerts: OperationAlert[] = [

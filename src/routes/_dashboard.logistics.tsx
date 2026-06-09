@@ -1,35 +1,43 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Lock, PackageCheck, PackageX, Truck } from "lucide-react";
-import { PageIntro, Panel } from "@/components/dashboard/panel";
-import { KpiCard } from "@/components/dashboard/kpi-card";
-import { StatusPill, type Tone } from "@/components/dashboard/status-pill";
-import { inventory, orders } from "@/lib/mock/data";
-import { formatBRL } from "@/lib/format";
-import type { NfStatus, OrderStatus } from "@/types/orbia";
+import { createFileRoute } from '@tanstack/react-router'
+import { Lock, PackageCheck, PackageX, Truck } from 'lucide-react'
+import { PageIntro, Panel } from '@/components/dashboard/panel'
+import { KpiCard } from '@/components/dashboard/kpi-card'
+import { StatusPill, type Tone } from '@/components/dashboard/status-pill'
+import { formatBRL } from '@/lib/format'
+import { useOrders, useInventory, useLogisticsStats } from '@/modules/logistics/hooks/use-logistics'
+import type { NfStatus, OrderStatus } from '@/types/orbia'
 
-export const Route = createFileRoute("/_dashboard/logistics")({
-  head: () => ({ meta: [{ title: "Logística — Orbia" }] }),
+export const Route = createFileRoute('/_dashboard/logistics')({
+  head: () => ({ meta: [{ title: 'Logística — Orbia' }] }),
   component: LogisticsPage,
-});
+})
 
-const orderStatus: Record<OrderStatus, { label: string; tone: Tone }> = {
-  aguardando_nf: { label: "Aguardando NF", tone: "warning" },
-  separacao: { label: "Separação", tone: "primary" },
-  despachado: { label: "Despachado", tone: "accent" },
-  em_transito: { label: "Em trânsito", tone: "accent" },
-  entregue: { label: "Entregue", tone: "success" },
-};
+const ORDER_STATUS: Record<OrderStatus, { label: string; tone: Tone }> = {
+  aguardando_nf: { label: 'Aguardando NF', tone: 'warning' },
+  separacao:     { label: 'Separação',     tone: 'primary' },
+  despachado:    { label: 'Despachado',    tone: 'accent'  },
+  em_transito:   { label: 'Em trânsito',   tone: 'accent'  },
+  entregue:      { label: 'Entregue',      tone: 'success' },
+}
 
-const nfStatus: Record<NfStatus, { label: string; tone: Tone }> = {
-  autorizada: { label: "Autorizada", tone: "success" },
-  pendente: { label: "Pendente", tone: "warning" },
-  rejeitada: { label: "Rejeitada", tone: "danger" },
-};
+const NF_STATUS: Record<NfStatus, { label: string; tone: Tone }> = {
+  autorizada: { label: 'Autorizada', tone: 'success' },
+  pendente:   { label: 'Pendente',   tone: 'warning' },
+  rejeitada:  { label: 'Rejeitada',  tone: 'danger'  },
+}
 
-const invTone: Record<string, Tone> = { ok: "success", atencao: "warning", critico: "danger" };
+const INV_TONE: Record<string, Tone> = { ok: 'success', atencao: 'warning', critico: 'danger' }
 
 function LogisticsPage() {
-  const awaiting = orders.filter((o) => o.status === "aguardando_nf").length;
+  const { data: orders = [],    isLoading: loadingOrders    } = useOrders()
+  const { data: inventory = [], isLoading: loadingInventory } = useInventory()
+  const { data: stats,          isLoading: loadingStats     } = useLogisticsStats()
+
+  const awaitingNf   = stats?.awaitingNf   ?? orders.filter((o) => o.status === 'aguardando_nf').length
+  const todayCount   = stats?.todayCount   ?? 0
+  const slaPercent   = stats?.slaPercent   ?? 0
+  const criticalSkus = stats?.criticalSkus ?? inventory.filter((i) => i.level === 'critico').length
+
   return (
     <div className="space-y-6">
       <PageIntro
@@ -39,10 +47,10 @@ function LogisticsPage() {
       />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard label="Pedidos hoje" value="184" delta={{ value: "12%", positive: true }} icon={PackageCheck} accent="primary" />
-        <KpiCard label="Aguardando NF" value={String(awaiting)} hint="Bloqueados pela trava fiscal" icon={Lock} accent="warning" />
-        <KpiCard label="SLA no prazo" value="98,2%" icon={Truck} accent="success" />
-        <KpiCard label="SKUs críticos" value="2" hint="Estoque ≤ 5 unidades" icon={PackageX} accent="warning" />
+        <KpiCard label="Pedidos hoje"    value={loadingStats ? '—' : String(todayCount)}    delta={todayCount > 0 ? undefined : undefined} icon={PackageCheck} accent="primary" />
+        <KpiCard label="Aguardando NF"   value={loadingStats ? '—' : String(awaitingNf)}    hint="Bloqueados pela trava fiscal"             icon={Lock}         accent="warning" />
+        <KpiCard label="SLA no prazo"    value={loadingStats ? '—' : slaPercent > 0 ? `${slaPercent}%` : '—'} icon={Truck} accent="success" />
+        <KpiCard label="SKUs críticos"   value={loadingStats ? '—' : String(criticalSkus)}  hint="Estoque ≤ 5 unidades"                     icon={PackageX}     accent="warning" />
       </div>
 
       <Panel
@@ -53,62 +61,84 @@ function LogisticsPage() {
           </span>
         }
       >
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border text-left">
-                <th className="pb-3 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Pedido</th>
-                <th className="pb-3 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Cliente</th>
-                <th className="pb-3 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Canal</th>
-                <th className="pb-3 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Transportadora</th>
-                <th className="pb-3 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">NF-e</th>
-                <th className="pb-3 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Status</th>
-                <th className="pb-3 text-right text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Valor</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {orders.map((o) => (
-                <tr key={o.id} className="transition-colors hover:bg-muted/30">
-                  <td className="py-3 font-mono text-xs text-foreground">{o.id}</td>
-                  <td className="py-3 text-sm text-foreground">{o.client}</td>
-                  <td className="py-3 text-sm text-muted-foreground">{o.channel}</td>
-                  <td className="py-3 text-sm text-muted-foreground">{o.carrier}</td>
-                  <td className="py-3">
-                    <StatusPill label={nfStatus[o.nf].label} tone={nfStatus[o.nf].tone} dot />
-                  </td>
-                  <td className="py-3">
-                    <StatusPill label={orderStatus[o.status].label} tone={orderStatus[o.status].tone} />
-                  </td>
-                  <td className="py-3 text-right font-mono text-sm text-foreground">{formatBRL(o.value)}</td>
+        {loadingOrders ? (
+          <RowSkeleton rows={5} />
+        ) : orders.length === 0 ? (
+          <EmptyState message="Nenhum pedido recebido. Conecte um marketplace para começar." />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border text-left">
+                  {['Pedido','Cliente','Canal','Transportadora','NF-e','Status','Valor'].map((h) => (
+                    <th key={h} className={`pb-3 text-[10px] font-medium uppercase tracking-wider text-muted-foreground${h === 'Valor' ? ' text-right' : ''}`}>{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {orders.map((o) => (
+                  <tr key={o.id} className="transition-colors hover:bg-muted/30">
+                    <td className="py-3 font-mono text-xs text-foreground">{o.id}</td>
+                    <td className="py-3 text-sm text-foreground">{o.client}</td>
+                    <td className="py-3 text-sm text-muted-foreground">{o.channel}</td>
+                    <td className="py-3 text-sm text-muted-foreground">{o.carrier}</td>
+                    <td className="py-3"><StatusPill label={NF_STATUS[o.nf].label} tone={NF_STATUS[o.nf].tone} dot /></td>
+                    <td className="py-3"><StatusPill label={ORDER_STATUS[o.status].label} tone={ORDER_STATUS[o.status].tone} /></td>
+                    <td className="py-3 text-right font-mono text-sm text-foreground">{formatBRL(o.value)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Panel>
 
       <Panel title="Estoque por SKU" subtitle="Reserva atômica · níveis de alerta">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {inventory.map((item) => (
-            <div key={item.sku} className="rounded-xl border border-border bg-muted/20 p-4">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="font-mono text-xs text-muted-foreground">{item.sku}</span>
-                <StatusPill
-                  label={item.level === "ok" ? "OK" : item.level === "atencao" ? "Atenção" : "Crítico"}
-                  tone={invTone[item.level]}
-                  dot
-                />
+        {loadingInventory ? (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-24 animate-pulse rounded-xl bg-muted/40" />)}
+          </div>
+        ) : inventory.length === 0 ? (
+          <EmptyState message="Nenhum SKU cadastrado. Importe o estoque inicial para começar." />
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {inventory.map((item) => (
+              <div key={item.sku} className="rounded-xl border border-border bg-muted/20 p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="font-mono text-xs text-muted-foreground">{item.sku}</span>
+                  <StatusPill
+                    label={item.level === 'ok' ? 'OK' : item.level === 'atencao' ? 'Atenção' : 'Crítico'}
+                    tone={INV_TONE[item.level]}
+                    dot
+                  />
+                </div>
+                <p className="text-sm font-medium text-foreground">{item.product}</p>
+                <p className="text-[11px] text-muted-foreground">{item.client}</p>
+                <p className="mt-2 font-mono text-lg font-semibold text-foreground">
+                  {item.units}
+                  <span className="ml-1 text-[11px] font-normal text-muted-foreground">un.</span>
+                </p>
               </div>
-              <p className="text-sm font-medium text-foreground">{item.product}</p>
-              <p className="text-[11px] text-muted-foreground">{item.client}</p>
-              <p className="mt-2 font-mono text-lg font-semibold text-foreground">
-                {item.units}
-                <span className="ml-1 text-[11px] font-normal text-muted-foreground">un.</span>
-              </p>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </Panel>
     </div>
-  );
+  )
+}
+
+function RowSkeleton({ rows }: { rows: number }) {
+  return (
+    <div className="space-y-3 py-2">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="h-12 animate-pulse rounded-lg bg-muted/40" />
+      ))}
+    </div>
+  )
+}
+
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div className="py-12 text-center text-sm text-muted-foreground">{message}</div>
+  )
 }
