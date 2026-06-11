@@ -9,6 +9,12 @@ const VALID_JOBS = new Set<CronJobName>([
   "cleanup-oauth",
   "process-outbox",
   "capture-benchmarks",
+  "check-alerts",
+  "compute-rfm",
+  "refresh-tokens",
+  "process-automation-enrollments",
+  "retention-crons",
+  "attribute-conversions",
   "all",
 ]);
 

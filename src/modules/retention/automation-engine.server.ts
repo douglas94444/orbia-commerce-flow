@@ -1,205 +1,146 @@
-import { createHash } from "node:crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { decryptToken } from "@/lib/crypto.server";
-import { sendEmail } from "@/integrations/resend";
-import { sendTemplateMessage } from "@/integrations/whatsapp";
-import { getServerConfig } from "@/lib/config.server";
+import { getOrderContact, syncCustomerFromOrder } from "./customer-sync.server";
+import { enrollInSequence, ensureDefaultSequences } from "./enrollment.server";
+import { earnPointsFromOrder } from "./loyalty.server";
 
-function hashValue(value: string): string {
-  return createHash("sha256").update(value.trim().toLowerCase()).digest("hex");
+async function buildEnrollmentContext(orderId: string) {
+  const contact = await getOrderContact(orderId);
+  const items = (contact.metadata.items ?? contact.metadata.products ?? []) as Array<Record<string, unknown>>;
+  const firstItem = items[0];
+
+  return {
+    order_id: orderId,
+    email: contact.email,
+    phone: contact.phone,
+    customer_name: contact.customerName,
+    value_cents: contact.valueCents,
+    tracking_code: contact.trackingCode,
+    product_name: firstItem?.name ? String(firstItem.name) : firstItem?.title ? String(firstItem.title) : undefined,
+    product_image: firstItem?.image ? String(firstItem.image) : undefined,
+    acquisition_channel: contact.channel,
+  };
 }
 
-function normalizePhone(phone: string): string {
-  const digits = phone.replace(/\D/g, "");
-  if (digits.startsWith("55")) return digits;
-  return `55${digits}`;
+async function enrollForOrder(
+  orderId: string,
+  trigger: string,
+  delayMinutes?: number,
+): Promise<void> {
+  const contact = await getOrderContact(orderId);
+  await ensureDefaultSequences(contact.clientId);
+
+  const customerId = await syncCustomerFromOrder({
+    orderId,
+    clientId: contact.clientId,
+    valueCents: contact.valueCents,
+    email: contact.email,
+    phone: contact.phone,
+    acquisitionChannel: contact.channel,
+    customerName: contact.customerName,
+  });
+
+  const context = await buildEnrollmentContext(orderId);
+  await enrollInSequence({
+    clientId: contact.clientId,
+    trigger,
+    customerId,
+    context,
+    delayMinutes,
+  });
 }
 
-interface AutomationFlowRow {
-  id: string;
-  name: string;
-  channel: string;
-  sent_30d: number | null;
-  metadata: Record<string, unknown> | null;
-}
+export async function onOrderPaid(orderId: string): Promise<void> {
+  const contact = await getOrderContact(orderId);
+  const customerId = await syncCustomerFromOrder({
+    orderId,
+    clientId: contact.clientId,
+    valueCents: contact.valueCents,
+    email: contact.email,
+    phone: contact.phone,
+    acquisitionChannel: contact.channel,
+    customerName: contact.customerName,
+  });
 
-async function getWhatsAppConnection(clientId: string) {
-  const { data } = await supabaseAdmin
-    .from("oauth_connections")
-    .select("access_token, metadata")
-    .eq("client_id", clientId)
-    .eq("provider", "whatsapp")
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (!data?.access_token) return null;
-  const meta = (data.metadata ?? {}) as Record<string, unknown>;
-  const phoneNumberId = String(meta.phone_number_id ?? "");
-  if (!phoneNumberId) return null;
-  return { accessToken: decryptToken(data.access_token), phoneNumberId };
-}
-
-async function executeFlow(
-  flow: AutomationFlowRow,
-  input: {
-    orderId: string;
-    clientId: string;
-    channel: string;
-    email: string | null;
-    phone: string | null;
-    customerId: string | null;
-    storeName: string;
-  },
-): Promise<"sent" | "failed"> {
-  const { appUrl } = getServerConfig();
-
-  try {
-    if (flow.channel === "email") {
-      if (!input.email) return "failed";
-      await sendEmail({
-        to: input.email,
-        subject: "Obrigado pela compra!",
-        html: `<p>Obrigado pela sua compra na ${input.storeName}.</p><p>Esperamos vê-lo novamente em <a href="${appUrl}">${appUrl}</a>.</p>`,
-        clientId: input.clientId,
-      });
-      return "sent";
-    }
-
-    if (flow.channel === "whatsapp") {
-      if (!input.phone) return "failed";
-      const wa = await getWhatsAppConnection(input.clientId);
-      if (!wa) return "failed";
-
-      const meta = flow.metadata ?? {};
-      const templateName = String(meta.template_name ?? "pedido_entregue_obrigado");
-      const language = String(meta.language ?? "pt_BR");
-
-      await sendTemplateMessage({
-        phoneNumberId: wa.phoneNumberId,
-        accessToken: wa.accessToken,
-        to: normalizePhone(input.phone),
-        templateName,
-        language,
-        bodyParams: [input.storeName],
-        clientId: input.clientId,
-      });
-      return "sent";
-    }
-
-    return "failed";
-  } catch {
-    return "failed";
+  if (customerId) {
+    await earnPointsFromOrder(customerId, contact.clientId, orderId, contact.valueCents);
   }
+}
+
+export async function onOrderDispatched(orderId: string): Promise<void> {
+  await enrollForOrder(orderId, "pedido_despachado");
 }
 
 export async function onOrderDelivered(orderId: string): Promise<void> {
-  const { data: order, error } = await supabaseAdmin
-    .from("orders")
-    .select("id, client_id, metadata, channel")
-    .eq("id", orderId)
-    .single();
+  await enrollForOrder(orderId, "pedido_entregue");
+  await enrollForOrder(orderId, "pos_entrega_7d", 7 * 24 * 60);
+}
 
-  if (error || !order) throw new Error(`Order ${orderId} not found`);
+export async function onNfeAuthorized(
+  orderId: string,
+  danfeUrl: string | null,
+): Promise<void> {
+  const contact = await getOrderContact(orderId);
+  await ensureDefaultSequences(contact.clientId);
 
-  const metadata = order.metadata as Record<string, unknown>;
-  const email = metadata.customer_email ? String(metadata.customer_email) : null;
-  const phone = metadata.customer_phone ? String(metadata.customer_phone) : null;
+  const customerId = await syncCustomerFromOrder({
+    orderId,
+    clientId: contact.clientId,
+    valueCents: contact.valueCents,
+    email: contact.email,
+    phone: contact.phone,
+    acquisitionChannel: contact.channel,
+  });
 
-  if (!email && !phone) return;
+  const context = await buildEnrollmentContext(orderId);
 
-  const { data: client } = await supabaseAdmin
-    .from("clients")
-    .select("name")
-    .eq("id", order.client_id)
-    .single();
-
-  const { data: flows } = await supabaseAdmin
-    .from("automation_flows")
-    .select("id, name, channel, sent_30d, metadata")
-    .eq("client_id", order.client_id)
-    .eq("trigger", "pedido_entregue")
-    .eq("is_active", true);
-
-  if (!flows?.length) return;
-
-  let customerId: string | null = null;
-
-  if (email || phone) {
-    const emailHash = email ? hashValue(email) : hashValue(`phone:${phone}`);
-    const upsert: Record<string, unknown> = {
-      client_id: order.client_id,
-      email_hash: emailHash,
-      order_count: 1,
-      last_order_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    if (phone) upsert.phone_hash = hashValue(phone);
-
-    const { data: customer } = await supabaseAdmin
-      .from("customers")
-      .upsert(upsert, { onConflict: "client_id,email_hash" })
-      .select("id")
-      .single();
-    customerId = customer?.id ?? null;
-  }
-
-  for (const flow of flows) {
-    const executionStatus = await executeFlow(flow, {
-      orderId,
-      clientId: order.client_id,
-      channel: order.channel,
-      email,
-      phone,
-      customerId,
-      storeName: client?.name ?? "nossa loja",
-    });
-
-    await supabaseAdmin.from("automation_executions").insert({
-      flow_id: flow.id,
-      customer_id: customerId,
-      status: executionStatus,
-      metadata: { order_id: orderId, channel: flow.channel, wa_message_id: null },
-    });
-
-    if (executionStatus === "sent") {
-      await supabaseAdmin
-        .from("automation_flows")
-        .update({ sent_30d: (flow.sent_30d ?? 0) + 1, updated_at: new Date().toISOString() })
-        .eq("id", flow.id);
-    }
-  }
+  await enrollInSequence({
+    clientId: contact.clientId,
+    trigger: "nfe_autorizada",
+    customerId,
+    context: { ...context, danfe_url: danfeUrl },
+  });
 }
 
 export async function updateWhatsAppExecutionStatus(
   messageId: string,
   status: "delivered" | "read" | "failed",
 ): Promise<void> {
-  const mapped = status === "read" ? "delivered" : status;
-  const { data: rows } = await supabaseAdmin
-    .from("automation_executions")
-    .select("id, metadata")
-    .contains("metadata", { wa_message_id: messageId })
-    .limit(1);
+  const mapped = status === "read" ? "opened" : status;
 
-  if (!rows?.length) {
-    const { data: recent } = await supabaseAdmin
-      .from("automation_executions")
-      .select("id")
-      .eq("status", "sent")
-      .order("sent_at", { ascending: false })
-      .limit(20);
+  const { data: log } = await supabaseAdmin
+    .from("message_delivery_log")
+    .select("id, execution_id")
+    .eq("provider_message_id", messageId)
+    .maybeSingle();
 
-    if (recent?.[0]) {
+  if (log) {
+    await supabaseAdmin
+      .from("message_delivery_log")
+      .update({
+        status: mapped,
+        opened_at: status === "read" ? new Date().toISOString() : undefined,
+      })
+      .eq("id", log.id);
+
+    if (log.execution_id) {
       await supabaseAdmin
         .from("automation_executions")
-        .update({ status: mapped })
-        .eq("id", recent[0].id);
+        .update({ status: mapped === "opened" ? "delivered" : mapped })
+        .eq("id", log.execution_id);
     }
     return;
   }
 
-  await supabaseAdmin
+  const { data: rows } = await supabaseAdmin
     .from("automation_executions")
-    .update({ status: mapped })
-    .eq("id", rows[0].id);
+    .select("id, metadata")
+    .contains("metadata", { provider_message_id: messageId })
+    .limit(1);
+
+  if (rows?.[0]) {
+    await supabaseAdmin
+      .from("automation_executions")
+      .update({ status: mapped === "opened" ? "delivered" : mapped })
+      .eq("id", rows[0].id);
+  }
 }

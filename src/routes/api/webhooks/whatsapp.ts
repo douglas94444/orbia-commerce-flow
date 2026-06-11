@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { parseWhatsAppWebhook } from "@/integrations/whatsapp";
+import { parseWhatsAppWebhook, parseInboundMessages } from "@/integrations/whatsapp";
 import { updateWhatsAppExecutionStatus } from "@/modules/retention/automation-engine.server";
+import { handleInboundWhatsApp } from "@/modules/retention/whatsapp-compliance.server";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getServerConfig } from "@/lib/config.server";
 import { rateLimit } from "@/lib/rate-limit.server";
 
@@ -48,12 +50,26 @@ export const Route = createFileRoute("/api/webhooks/whatsapp")({
         }
 
         const updates = parseWhatsAppWebhook(payload);
+        const inbound = parseInboundMessages(payload);
 
         for (const u of updates) {
           if (u.status === "sent") continue;
-          const mapped = u.status === "read" ? "delivered" : u.status;
-          if (mapped === "delivered" || mapped === "failed") {
+          const mapped = u.status === "read" ? "read" : u.status;
+          if (mapped === "delivered" || mapped === "read" || mapped === "failed") {
             await updateWhatsAppExecutionStatus(u.messageId, mapped);
+          }
+        }
+
+        for (const msg of inbound) {
+          const { data: connections } = await supabaseAdmin
+            .from("oauth_connections")
+            .select("client_id")
+            .eq("provider", "whatsapp")
+            .eq("is_active", true)
+            .limit(1);
+          const clientId = connections?.[0]?.client_id;
+          if (clientId && msg.text) {
+            await handleInboundWhatsApp({ clientId, from: msg.from, text: msg.text });
           }
         }
 

@@ -3,6 +3,7 @@ import { emitNFeWithRetry } from "@/integrations/focus-nfe";
 import type { FocusNfePayload } from "@/integrations/focus-nfe";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { logAudit } from "@/shared/lib/logger";
+import { emitDomainEvent } from "@/shared/lib/domain-events.server";
 import type { NormalizedOrderItem } from "@/modules/logistics/order-ingestion.server";
 import {
   applyDestinatarioToPayload,
@@ -148,6 +149,13 @@ export async function emitNfeForOrder(orderId: string): Promise<void> {
       resource: "nfe_emission",
       resource_id: emission.id,
       new_data: { ref, status: result.status },
+    });
+
+    await emitDomainEvent("nfe.authorized", {
+      orderId: order.id,
+      clientId: order.client_id,
+      danfeUrl: result.caminho_danfe ?? null,
+      xmlUrl: xmlUrl,
     });
   } catch (err) {
     await supabaseAdmin

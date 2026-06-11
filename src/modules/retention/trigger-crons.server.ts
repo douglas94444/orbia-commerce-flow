@@ -1,0 +1,313 @@
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { enrollInSequence } from "./enrollment.server";
+import { hashContact } from "./customer-sync.server";
+import { processExpiringPoints, processTierReminders } from "./loyalty.server";
+
+export async function processReactivationCrons(): Promise<{ enrolled: number }> {
+  const triggers = [
+    { trigger: "reativacao_30d", days: 30 },
+    { trigger: "reativacao_60d", days: 60 },
+    { trigger: "reativacao_90d", days: 90 },
+  ] as const;
+
+  let enrolled = 0;
+
+  for (const { trigger, days } of triggers) {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    const windowStart = new Date(cutoff);
+    windowStart.setDate(windowStart.getDate() - 1);
+
+    const { data: customers } = await supabaseAdmin
+      .from("customers")
+      .select("id, client_id, last_order_at, cold_list_at")
+      .gte("last_order_at", windowStart.toISOString())
+      .lte("last_order_at", cutoff.toISOString())
+      .is("cold_list_at", null);
+
+    for (const c of customers ?? []) {
+      const id = await enrollInSequence({
+        clientId: c.client_id,
+        trigger,
+        customerId: c.id,
+        context: { last_order_at: c.last_order_at },
+      });
+      if (id) enrolled += 1;
+
+      if (trigger === "reativacao_90d" && !id) {
+        await supabaseAdmin
+          .from("customers")
+          .update({ cold_list_at: new Date().toISOString(), rfm_segment: "perdidos" })
+          .eq("id", c.id);
+      }
+    }
+  }
+
+  return { enrolled };
+}
+
+export async function processBirthdayCrons(): Promise<{ enrolled: number }> {
+  const today = new Date();
+  const month = today.getMonth() + 1;
+  const day = today.getDate();
+
+  const { data: prefs } = await supabaseAdmin
+    .from("customer_contact_prefs")
+    .select("customer_id, birthday, customers(client_id)")
+    .not("birthday", "is", null);
+
+  let enrolled = 0;
+  for (const p of prefs ?? []) {
+    if (!p.birthday) continue;
+    const bday = new Date(p.birthday);
+    if (bday.getMonth() + 1 !== month || bday.getDate() !== day) continue;
+
+    const customer = p.customers as { client_id: string } | null;
+    if (!customer) continue;
+
+    const id = await enrollInSequence({
+      clientId: customer.client_id,
+      trigger: "aniversario",
+      customerId: p.customer_id,
+      context: { coupon_valid_hours: 48 },
+    });
+    if (id) enrolled += 1;
+  }
+
+  return { enrolled };
+}
+
+export async function processFirstPurchaseAnniversary(): Promise<{ enrolled: number }> {
+  const today = new Date();
+  const yearAgo = new Date(today);
+  yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+  const windowStart = new Date(yearAgo);
+  windowStart.setDate(windowStart.getDate() - 1);
+
+  const { data: prefs } = await supabaseAdmin
+    .from("customer_contact_prefs")
+    .select("customer_id, first_purchase_at, customers(client_id)")
+    .gte("first_purchase_at", windowStart.toISOString())
+    .lte("first_purchase_at", yearAgo.toISOString());
+
+  let enrolled = 0;
+  for (const p of prefs ?? []) {
+    const customer = p.customers as { client_id: string } | null;
+    if (!customer) continue;
+    const id = await enrollInSequence({
+      clientId: customer.client_id,
+      trigger: "aniversario_cliente",
+      customerId: p.customer_id,
+      context: { years: 1 },
+    });
+    if (id) enrolled += 1;
+  }
+  return { enrolled };
+}
+
+export async function processAbandonedCarts(): Promise<{ enrolled: number }> {
+  const oneHourAgo = new Date(Date.now() - 60 * 60_000);
+
+  const { data: carts } = await supabaseAdmin
+    .from("abandoned_carts")
+    .select("id, client_id, customer_id, value_cents, checkout_url, items, email_hash, phone_hash")
+    .eq("status", "open")
+    .lte("abandoned_at", oneHourAgo.toISOString());
+
+  let enrolled = 0;
+  for (const cart of carts ?? []) {
+    const id = await enrollInSequence({
+      clientId: cart.client_id,
+      trigger: "carrinho_abandonado",
+      customerId: cart.customer_id,
+      context: {
+        value_cents: cart.value_cents,
+        checkout_url: cart.checkout_url,
+        items: cart.items,
+        cart_id: cart.id,
+      },
+    });
+    if (id) enrolled += 1;
+  }
+  return { enrolled };
+}
+
+export async function processBoletoReminders(): Promise<{ reminded: number }> {
+  const in24h = new Date(Date.now() + 24 * 60 * 60_000);
+
+  const { data: boletos } = await supabaseAdmin
+    .from("boleto_reminders")
+    .select("id, client_id, customer_id, boleto_url, due_at, order_id")
+    .eq("status", "pending")
+    .lte("due_at", in24h.toISOString())
+    .gte("due_at", new Date().toISOString());
+
+  let reminded = 0;
+  for (const b of boletos ?? []) {
+    await enrollInSequence({
+      clientId: b.client_id,
+      trigger: "boleto_vencimento",
+      customerId: b.customer_id,
+      context: { boleto_url: b.boleto_url, due_at: b.due_at, order_id: b.order_id },
+    });
+    reminded += 1;
+  }
+
+  const expired = await supabaseAdmin
+    .from("boleto_reminders")
+    .select("id, client_id, customer_id, order_id")
+    .eq("status", "pending")
+    .lt("due_at", new Date().toISOString());
+
+  for (const b of expired.data ?? []) {
+    await supabaseAdmin
+      .from("boleto_reminders")
+      .update({ status: "expired", updated_at: new Date().toISOString() })
+      .eq("id", b.id);
+
+    await enrollInSequence({
+      clientId: b.client_id,
+      trigger: "boleto_expirado",
+      customerId: b.customer_id,
+      context: { order_id: b.order_id, regenerate: true },
+    });
+  }
+
+  return { reminded };
+}
+
+export async function processWishlistAlerts(): Promise<{ notified: number }> {
+  const { data: items } = await supabaseAdmin
+    .from("wishlist_items")
+    .select("id, client_id, customer_id, product_sku, product_name, product_image")
+    .is("notified_at", null)
+    .gte("view_count", 3);
+
+  let notified = 0;
+  for (const item of items ?? []) {
+    const { data: product } = await supabaseAdmin
+      .from("product_catalog")
+      .select("stock_quantity, price_cents")
+      .eq("client_id", item.client_id)
+      .eq("sku", item.product_sku)
+      .maybeSingle();
+
+    if (!product || (product.stock_quantity ?? 0) <= 0) continue;
+
+    await enrollInSequence({
+      clientId: item.client_id,
+      trigger: "estoque_favorito",
+      customerId: item.customer_id,
+      context: {
+        product_name: item.product_name,
+        product_image: item.product_image,
+        product_sku: item.product_sku,
+      },
+    });
+
+    await supabaseAdmin
+      .from("wishlist_items")
+      .update({ notified_at: new Date().toISOString() })
+      .eq("id", item.id);
+
+    notified += 1;
+  }
+  return { notified };
+}
+
+export async function runRetentionCrons(): Promise<Record<string, unknown>> {
+  const [reactivation, birthdays, anniversary, carts, boletos, wishlist, expiring, tiers] =
+    await Promise.all([
+      processReactivationCrons(),
+      processBirthdayCrons(),
+      processFirstPurchaseAnniversary(),
+      processAbandonedCarts(),
+      processBoletoReminders(),
+      processWishlistAlerts(),
+      processExpiringPoints(),
+      processTierReminders(),
+    ]);
+
+  return { reactivation, birthdays, anniversary, carts, boletos, wishlist, expiring, tiers };
+}
+
+export async function recordAbandonedCart(input: {
+  clientId: string;
+  email?: string;
+  phone?: string;
+  customerId?: string;
+  valueCents: number;
+  items: unknown[];
+  checkoutUrl?: string;
+}): Promise<void> {
+  await supabaseAdmin.from("abandoned_carts").insert({
+    client_id: input.clientId,
+    customer_id: input.customerId ?? null,
+    email_hash: input.email ? hashContact(input.email) : null,
+    phone_hash: input.phone ? hashContact(input.phone) : null,
+    value_cents: input.valueCents,
+    items: input.items,
+    checkout_url: input.checkoutUrl ?? null,
+    status: "open",
+  });
+}
+
+export async function handleNegativeReview(input: {
+  clientId: string;
+  orderId: string;
+  customerId: string;
+  rating: number;
+  comment?: string;
+}): Promise<void> {
+  const { data: review } = await supabaseAdmin
+    .from("cs_reviews")
+    .insert({
+      client_id: input.clientId,
+      order_id: input.orderId,
+      customer_id: input.customerId,
+      rating: input.rating,
+      comment: input.comment ?? null,
+    })
+    .select("id")
+    .single();
+
+  await enrollInSequence({
+    clientId: input.clientId,
+    trigger: "avaliacao_negativa",
+    customerId: input.customerId,
+    context: {
+      order_id: input.orderId,
+      rating: input.rating,
+      review_id: review?.id,
+    },
+  });
+}
+
+export async function recordBoletoGenerated(input: {
+  clientId: string;
+  orderId: string;
+  customerId: string;
+  boletoUrl: string;
+  dueAt: string;
+}): Promise<void> {
+  await supabaseAdmin.from("boleto_reminders").insert({
+    client_id: input.clientId,
+    order_id: input.orderId,
+    customer_id: input.customerId,
+    boleto_url: input.boletoUrl,
+    due_at: input.dueAt,
+    status: "pending",
+  });
+
+  await enrollInSequence({
+    clientId: input.clientId,
+    trigger: "boleto_gerado",
+    customerId: input.customerId,
+    context: {
+      boleto_url: input.boletoUrl,
+      due_at: input.dueAt,
+      order_id: input.orderId,
+    },
+    delayMinutes: 60,
+  });
+}

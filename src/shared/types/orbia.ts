@@ -86,10 +86,11 @@ export interface AutomationFlow {
   id: string
   name: string
   trigger: string
-  channel: 'Email' | 'SMS' | 'WhatsApp'
+  channel: 'Email' | 'SMS' | 'WhatsApp' | 'Push'
   active: boolean
   sent30d: number
   recovered: number
+  recoveredCents?: number
 }
 
 export interface InventoryItem {

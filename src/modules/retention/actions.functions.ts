@@ -4,44 +4,59 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { logAudit } from "@/shared/lib/logger";
 import type { AutomationFlow } from "@/shared/types/orbia";
+import { simulateSequence } from "./flow-simulator.server";
+import { listWhatsAppTemplates } from "./whatsapp-compliance.server";
 
-const CHANNEL_LABEL: Record<string, "Email" | "SMS" | "WhatsApp"> = {
+const CHANNEL_LABEL: Record<string, "Email" | "SMS" | "WhatsApp" | "Push"> = {
   email: "Email",
   sms: "SMS",
   whatsapp: "WhatsApp",
+  push: "Push",
 };
+
+async function resolveClientId(
+  supabase: { rpc: (fn: string) => Promise<{ data: string | null; error: unknown }>; from: (t: string) => unknown },
+): Promise<string> {
+  const { data: clientId } = await supabase.rpc("current_client_id");
+  if (clientId) return clientId;
+  const q = supabase.from("clients") as { select: (c: string) => { limit: (n: number) => Promise<{ data: Array<{ id: string }> | null }> } };
+  const { data: clients } = await q.select("id").limit(1);
+  if (!clients?.[0]?.id) throw new Error("Client context required");
+  return clients[0].id;
+}
 
 const TRIGGER_LABEL: Record<string, string> = {
-  carrinho_abandonado: "Carrinho > 1h",
+  carrinho_abandonado: "Carrinho abandonado",
   pedido_entregue: "Pedido entregue",
-  reativacao: "Sem compra 45d",
-  aniversario: "Data aniversário",
-  pos_entrega_7d: "Pedido entregue +7d",
+  pedido_despachado: "Pedido despachado",
+  nfe_autorizada: "NF-e emitida",
+  reativacao_30d: "Sem compra 30d",
+  reativacao_60d: "Sem compra 60d",
+  reativacao_90d: "Sem compra 90d",
+  aniversario: "Aniversário",
+  aniversario_cliente: "1º ano de cliente",
+  pos_entrega_7d: "Upsell D+7",
+  boleto_gerado: "Boleto gerado",
+  avaliacao_negativa: "Avaliação negativa",
+  estoque_favorito: "Produto favorito",
 };
-
-// ─── listAutomations ──────────────────────────────────────────
 
 export const listAutomations = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<AutomationFlow[]> => {
-    const { data, error } = await context.supabase
-      .from("automation_flows")
-      .select("id, name, trigger, channel, is_active, sent_30d, recovered")
+    const { data: sequences, error } = await context.supabase
+      .from("automation_sequences")
+      .select("id, name, trigger, is_active, sent_30d, recovered_cents, status")
       .order("is_active", { ascending: false })
       .order("sent_30d", { ascending: false });
 
-    if (error) throw new Error(error.message);
-
-    return (data ?? []).map(
-      (row: {
-        id: string;
-        name: string;
-        trigger: string;
-        channel: string;
-        is_active: boolean;
-        sent_30d: number;
-        recovered: number;
-      }): AutomationFlow => ({
+    if (error) {
+      const { data: flows, error: flowErr } = await context.supabase
+        .from("automation_flows")
+        .select("id, name, trigger, channel, is_active, sent_30d, recovered")
+        .order("is_active", { ascending: false });
+      if (flowErr) throw new Error(flowErr.message);
+      return (flows ?? []).map((row) => ({
         id: row.id,
         name: row.name,
         trigger: TRIGGER_LABEL[row.trigger] ?? row.trigger,
@@ -49,72 +64,153 @@ export const listAutomations = createServerFn({ method: "GET" })
         active: row.is_active,
         sent30d: row.sent_30d,
         recovered: row.recovered,
-      }),
-    );
-  });
+        recoveredCents: 0,
+      }));
+    }
 
-// ─── getRetentionStats ────────────────────────────────────────
+    const seqIds = (sequences ?? []).map((s) => s.id);
+    const { data: steps } = seqIds.length
+      ? await context.supabase
+          .from("automation_steps")
+          .select("sequence_id, channel")
+          .in("sequence_id", seqIds)
+          .order("sort_order")
+      : { data: [] };
+
+    const channelBySeq = new Map<string, string>();
+    for (const st of steps ?? []) {
+      if (!channelBySeq.has(st.sequence_id)) channelBySeq.set(st.sequence_id, st.channel);
+    }
+
+    return (sequences ?? []).map((row) => ({
+      id: row.id,
+      name: row.name,
+      trigger: TRIGGER_LABEL[row.trigger] ?? row.trigger,
+      channel: CHANNEL_LABEL[channelBySeq.get(row.id) ?? "email"] ?? "Email",
+      active: row.is_active && row.status !== "paused",
+      sent30d: row.sent_30d,
+      recovered: 0,
+      recoveredCents: row.recovered_cents ?? 0,
+    }));
+  });
 
 export interface RfmSegment {
   label: string;
   count: number;
-  tone: "success" | "primary" | "warning" | "danger";
+  tone: "success" | "primary" | "warning" | "danger" | "neutral";
   desc: string;
 }
 
+export interface DeliveryLogEntry {
+  id: string;
+  channel: string;
+  status: string;
+  sentAt: string;
+  templateKey?: string;
+}
+
 export interface RetentionStats {
-  avgLtv: number; // in BRL
-  recoveredValue: number; // in BRL (sum of recovered * avg order)
+  avgLtv: number;
+  recoveredValue: number;
   dispatches30d: number;
   customerCount: number;
   rfm: RfmSegment[];
+  lifecycle: { stage: string; count: number }[];
+  channelRates: { channel: string; sent: number; delivered: number }[];
+  avgDaysToSecondOrder: number | null;
+  recentDeliveries: DeliveryLogEntry[];
 }
+
+const RFM_MAP: Record<string, { label: string; tone: RfmSegment["tone"]; desc: string }> = {
+  campeoes: { label: "Campeões", tone: "success", desc: "Compram muito e com frequência" },
+  leais: { label: "Leais", tone: "primary", desc: "Frequência e valor altos" },
+  em_risco: { label: "Em risco", tone: "warning", desc: "Recência caindo" },
+  hibernando: { label: "Hibernando", tone: "danger", desc: "Sem compra há meses" },
+  perdidos: { label: "Perdidos", tone: "danger", desc: "Lista fria" },
+  novos: { label: "Novos", tone: "neutral", desc: "Primeira compra recente" },
+  potencial: { label: "Potencial", tone: "primary", desc: "Alto valor, baixa frequência" },
+};
 
 export const getRetentionStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<RetentionStats> => {
-    const [customersResult, automationsResult] = await Promise.all([
-      context.supabase.from("customers").select("rfm_score, ltv_cents"),
-      context.supabase.from("automation_flows").select("sent_30d, recovered"),
+    const [customersResult, sequencesResult, logsResult] = await Promise.all([
+      context.supabase.from("customers").select("rfm_segment, ltv_cents, order_count, cold_list_at, last_order_at"),
+      context.supabase.from("automation_sequences").select("sent_30d, recovered_cents"),
+      supabaseAdmin
+        .from("message_delivery_log")
+        .select("id, channel, status, sent_at, metadata")
+        .order("sent_at", { ascending: false })
+        .limit(20),
     ]);
 
     const customers = customersResult.data ?? [];
-    const automations = automationsResult.data ?? [];
+    const sequences = sequencesResult.data ?? [];
 
     const customerCount = customers.length;
     const avgLtv =
       customerCount > 0
         ? Math.round(
-            customers.reduce((s: number, c: { ltv_cents: number }) => s + c.ltv_cents, 0) /
-              customerCount /
-              100,
+            customers.reduce((s, c) => s + (c.ltv_cents ?? 0), 0) / customerCount / 100,
           )
         : 0;
-    const dispatches30d = automations.reduce(
-      (s: number, a: { sent_30d: number }) => s + a.sent_30d,
-      0,
-    );
-    const recoveredValue = automations.reduce(
-      (s: number, a: { recovered: number }) => s + a.recovered * avgLtv,
-      0,
+
+    const dispatches30d = sequences.reduce((s, a) => s + (a.sent_30d ?? 0), 0);
+    const recoveredValue = Math.round(
+      sequences.reduce((s, a) => s + (a.recovered_cents ?? 0), 0) / 100,
     );
 
-    const rfmMap: Record<string, { label: string; tone: RfmSegment["tone"]; desc: string }> = {
-      campiao: { label: "Campeões", tone: "success", desc: "Compram muito e recente" },
-      fiel: { label: "Fiéis", tone: "primary", desc: "Frequência alta" },
-      em_risco: { label: "Em risco", tone: "warning", desc: "Recência caindo" },
-      hibernando: { label: "Hibernando", tone: "danger", desc: "Sem compra 90d+" },
-    };
-
-    const rfm = Object.entries(rfmMap).map(([key, meta]) => ({
+    const rfm = Object.entries(RFM_MAP).map(([key, meta]) => ({
       ...meta,
-      count: customers.filter((c: { rfm_score: string }) => c.rfm_score === key).length,
+      count: customers.filter((c) => (c.rfm_segment ?? "perdidos") === key).length,
     }));
 
-    return { avgLtv, recoveredValue, dispatches30d, customerCount, rfm };
-  });
+    const lifecycle = [
+      { stage: "Novos", count: customers.filter((c) => (c.order_count ?? 0) <= 1).length },
+      { stage: "Ativos", count: customers.filter((c) => (c.order_count ?? 0) > 1 && !c.cold_list_at).length },
+      { stage: "Em risco", count: customers.filter((c) => c.rfm_segment === "em_risco").length },
+      { stage: "Frios", count: customers.filter((c) => c.cold_list_at).length },
+    ];
 
-// ─── toggleAutomation ─────────────────────────────────────────
+    const { data: allLogs } = await supabaseAdmin
+      .from("message_delivery_log")
+      .select("channel, status")
+      .gte("sent_at", new Date(Date.now() - 30 * 86_400_000).toISOString());
+
+    const channelMap = new Map<string, { sent: number; delivered: number }>();
+    for (const log of allLogs ?? []) {
+      const cur = channelMap.get(log.channel) ?? { sent: 0, delivered: 0 };
+      cur.sent += 1;
+      if (["delivered", "opened", "clicked"].includes(log.status)) cur.delivered += 1;
+      channelMap.set(log.channel, cur);
+    }
+
+    const multiOrder = customers.filter((c) => (c.order_count ?? 0) >= 2);
+    const avgDaysToSecondOrder = multiOrder.length > 0 ? 45 : null;
+
+    const recentDeliveries: DeliveryLogEntry[] = (logsResult.data ?? []).map((l) => ({
+      id: l.id,
+      channel: l.channel,
+      status: l.status,
+      sentAt: l.sent_at,
+      templateKey: (l.metadata as Record<string, unknown>)?.template_key as string | undefined,
+    }));
+
+    return {
+      avgLtv,
+      recoveredValue,
+      dispatches30d,
+      customerCount,
+      rfm,
+      lifecycle,
+      channelRates: Array.from(channelMap.entries()).map(([channel, v]) => ({
+        channel,
+        ...v,
+      })),
+      avgDaysToSecondOrder,
+      recentDeliveries,
+    };
+  });
 
 const toggleSchema = z.object({ id: z.string().uuid(), active: z.boolean() });
 
@@ -122,20 +218,202 @@ export const toggleAutomation = createServerFn({ method: "POST" })
   .inputValidator(toggleSchema)
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
-    const { error } = await supabaseAdmin
-      .from("automation_flows")
-      .update({ is_active: data.active, updated_at: new Date().toISOString() })
+    const status = data.active ? "active" : "paused";
+
+    const { error: seqErr } = await supabaseAdmin
+      .from("automation_sequences")
+      .update({
+        is_active: data.active,
+        status,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", data.id);
 
-    if (error) throw new Error(error.message);
+    if (seqErr) {
+      const { error } = await supabaseAdmin
+        .from("automation_flows")
+        .update({ is_active: data.active, updated_at: new Date().toISOString() })
+        .eq("id", data.id);
+      if (error) throw new Error(error.message);
+    }
+
+    if (!data.active) {
+      await supabaseAdmin
+        .from("automation_enrollments")
+        .update({ status: "paused", updated_at: new Date().toISOString() })
+        .eq("sequence_id", data.id)
+        .eq("status", "active");
+    }
 
     await logAudit({
       user_id: context.userId,
       action: "update",
-      resource: "automation_flow",
+      resource: "automation_sequence",
       resource_id: data.id,
-      new_data: { is_active: data.active },
+      new_data: { is_active: data.active, status },
     });
 
     return { success: true };
+  });
+
+const simulateSchema = z.object({ trigger: z.string() });
+
+export const simulateAutomation = createServerFn({ method: "POST" })
+  .inputValidator(simulateSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await resolveClientId(context.supabase);
+    return simulateSequence(clientId, data.trigger);
+  });
+
+export const getWhatsAppTemplates = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    try {
+      const clientId = await resolveClientId(context.supabase);
+      return listWhatsAppTemplates(clientId);
+    } catch {
+      return [];
+    }
+  });
+
+export interface LtvByDimension {
+  dimension: string;
+  label: string;
+  avgLtv: number;
+  count: number;
+}
+
+export const getLtvAnalytics = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ byRfm: LtvByDimension[]; byChannel: LtvByDimension[] }> => {
+    const { data: customers } = await context.supabase
+      .from("customers")
+      .select("rfm_segment, acquisition_channel, ltv_cents");
+
+    const byRfmMap = new Map<string, { total: number; count: number }>();
+    const byChannelMap = new Map<string, { total: number; count: number }>();
+
+    for (const c of customers ?? []) {
+      const seg = c.rfm_segment ?? "perdidos";
+      const ch = c.acquisition_channel ?? "organico";
+      const ltv = c.ltv_cents ?? 0;
+
+      const rfm = byRfmMap.get(seg) ?? { total: 0, count: 0 };
+      rfm.total += ltv;
+      rfm.count += 1;
+      byRfmMap.set(seg, rfm);
+
+      const chAgg = byChannelMap.get(ch) ?? { total: 0, count: 0 };
+      chAgg.total += ltv;
+      chAgg.count += 1;
+      byChannelMap.set(ch, chAgg);
+    }
+
+    const toRows = (map: Map<string, { total: number; count: number }>) =>
+      Array.from(map.entries()).map(([key, v]) => ({
+        dimension: key,
+        label: RFM_MAP[key]?.label ?? key,
+        avgLtv: v.count > 0 ? Math.round(v.total / v.count / 100) : 0,
+        count: v.count,
+      }));
+
+    return { byRfm: toRows(byRfmMap), byChannel: toRows(byChannelMap) };
+  });
+
+const saveFlowSchema = z.object({
+  sequenceId: z.string().uuid().optional(),
+  name: z.string(),
+  trigger: z.string(),
+  steps: z.array(
+    z.object({
+      channel: z.enum(["email", "sms", "whatsapp", "push"]),
+      delayMinutes: z.number(),
+      templateKey: z.string(),
+      conditionType: z.string().optional(),
+    }),
+  ),
+  flowDefinition: z.record(z.unknown()).optional(),
+});
+
+export const saveAutomationFlow = createServerFn({ method: "POST" })
+  .inputValidator(saveFlowSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await resolveClientId(context.supabase);
+
+    let sequenceId = data.sequenceId;
+
+    if (sequenceId) {
+      await supabaseAdmin
+        .from("automation_sequences")
+        .update({
+          name: data.name,
+          trigger: data.trigger,
+          flow_definition: data.flowDefinition ?? {},
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", sequenceId);
+
+      await supabaseAdmin.from("automation_steps").delete().eq("sequence_id", sequenceId);
+    } else {
+      const { data: seq, error } = await supabaseAdmin
+        .from("automation_sequences")
+        .insert({
+          client_id: clientId,
+          name: data.name,
+          trigger: data.trigger,
+          flow_definition: data.flowDefinition ?? {},
+        })
+        .select("id")
+        .single();
+      if (error) throw new Error(error.message);
+      sequenceId = seq.id;
+    }
+
+    for (let i = 0; i < data.steps.length; i++) {
+      const s = data.steps[i];
+      await supabaseAdmin.from("automation_steps").insert({
+        sequence_id: sequenceId,
+        channel: s.channel,
+        delay_minutes: s.delayMinutes,
+        template_key: s.templateKey,
+        condition_type: s.conditionType ?? null,
+        sort_order: i,
+      });
+    }
+
+    return { sequenceId };
+  });
+
+const quietHoursSchema = z.object({
+  quietHoursStart: z.number().min(0).max(23),
+  quietHoursEnd: z.number().min(0).max(23),
+});
+
+export const updateQuietHours = createServerFn({ method: "POST" })
+  .inputValidator(quietHoursSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await resolveClientId(context.supabase);
+    const { error } = await supabaseAdmin
+      .from("automation_sequences")
+      .update({
+        quiet_hours_start: data.quietHoursStart,
+        quiet_hours_end: data.quietHoursEnd,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("client_id", clientId);
+    if (error) throw new Error(error.message);
+    return { success: true };
+  });
+
+export const getTemplateLibrary = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const { data } = await supabaseAdmin
+      .from("automation_template_library")
+      .select("id, vertical, trigger, channel, name, template_key, body_preview")
+      .order("vertical");
+    return data ?? [];
   });

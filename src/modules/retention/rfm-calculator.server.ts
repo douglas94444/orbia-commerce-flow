@@ -6,7 +6,9 @@ export type RfmSegment =
   | "leais"
   | "em_risco"
   | "hibernando"
-  | "perdidos";
+  | "perdidos"
+  | "novos"
+  | "potencial";
 
 function hashEmail(email: string): string {
   return createHash("sha256").update(email.trim().toLowerCase()).digest("hex");
@@ -36,11 +38,13 @@ function scoreMonetary(cents: number): number {
   return 1;
 }
 
-function classifySegment(r: number, f: number, m: number): RfmSegment {
+function classifySegment(r: number, f: number, m: number, orderCount: number): RfmSegment {
+  if (orderCount === 1 && r >= 4) return "novos";
   if (r >= 4 && f >= 4) return "campeoes";
   if (r >= 3 && f >= 3 && m >= 3) return "leais";
   if (r <= 2 && f >= 3) return "em_risco";
   if (r <= 2 && f <= 2 && m >= 2) return "hibernando";
+  if (r >= 3 && f <= 2 && m >= 3) return "potencial";
   return "perdidos";
 }
 
@@ -98,12 +102,13 @@ export async function computeRfmSegments(): Promise<{
 
   const now = Date.now();
   const segCounts: Record<RfmSegment, number> = {
-    campeoes: 0, leais: 0, em_risco: 0, hibernando: 0, perdidos: 0,
+    campeoes: 0, leais: 0, em_risco: 0, hibernando: 0, perdidos: 0, novos: 0, potencial: 0,
   };
 
   type UpsertRow = {
     id: string;
     rfm_segment: RfmSegment;
+    rfm_score: string;
     rfm_last_calc: string;
     rfm_recency_days: number;
     rfm_frequency: number;
@@ -120,12 +125,18 @@ export async function computeRfmSegments(): Promise<{
     const r = scoreRecency(recencyDays);
     const f = scoreFrequency(data.count);
     const m = scoreMonetary(data.total);
-    const segment = classifySegment(r, f, m);
+    const segment = classifySegment(r, f, m, data.count);
 
     segCounts[segment] += 1;
     upsertRows.push({
       id: customerId,
       rfm_segment: segment,
+      rfm_score:
+        segment === "campeoes" ? "campiao"
+        : segment === "leais" ? "fiel"
+        : segment === "em_risco" ? "em_risco"
+        : segment === "hibernando" ? "hibernando"
+        : "indefinido",
       rfm_last_calc: new Date().toISOString(),
       rfm_recency_days: recencyDays,
       rfm_frequency: data.count,

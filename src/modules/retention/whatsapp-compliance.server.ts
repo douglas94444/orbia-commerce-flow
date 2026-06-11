@@ -1,0 +1,79 @@
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { hashContact } from "./customer-sync.server";
+import { cancelEnrollmentsForCustomer } from "./enrollment.server";
+
+const OPT_OUT_KEYWORDS = ["parar", "stop", "cancelar", "sair"];
+
+export async function handleInboundWhatsApp(input: {
+  clientId: string;
+  from: string;
+  text: string;
+}): Promise<void> {
+  const normalized = input.text.trim().toLowerCase();
+  const phoneHash = hashContact(input.from);
+
+  const windowExpires = new Date(Date.now() + 24 * 60 * 60_000);
+
+  const { data: customer } = await supabaseAdmin
+    .from("customers")
+    .select("id")
+    .eq("client_id", input.clientId)
+    .eq("phone_hash", phoneHash)
+    .maybeSingle();
+
+  if (customer) {
+    await supabaseAdmin.from("customer_contact_prefs").upsert(
+      {
+        customer_id: customer.id,
+        whatsapp_window_expires_at: windowExpires.toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "customer_id" },
+    );
+  }
+
+  if (!OPT_OUT_KEYWORDS.includes(normalized)) return;
+
+  await supabaseAdmin.from("whatsapp_opt_outs").upsert(
+    {
+      client_id: input.clientId,
+      phone_hash: phoneHash,
+      opted_out_at: new Date().toISOString(),
+      source: "keyword_parar",
+    },
+    { onConflict: "client_id,phone_hash" },
+  );
+
+  if (customer) {
+    const { data: prefs } = await supabaseAdmin
+      .from("customer_contact_prefs")
+      .select("opted_out_channels")
+      .eq("customer_id", customer.id)
+      .maybeSingle();
+
+    const channels = new Set([...(prefs?.opted_out_channels ?? []), "whatsapp", "sms"]);
+    await supabaseAdmin
+      .from("customer_contact_prefs")
+      .upsert(
+        {
+          customer_id: customer.id,
+          opted_out_channels: Array.from(channels),
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "customer_id" },
+      );
+
+    await cancelEnrollmentsForCustomer(customer.id, "opt_out_parar");
+  }
+}
+
+export async function listWhatsAppTemplates(clientId: string) {
+  const { data, error } = await supabaseAdmin
+    .from("whatsapp_templates")
+    .select("id, name, language, status, category, created_at")
+    .eq("client_id", clientId)
+    .order("name");
+
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}

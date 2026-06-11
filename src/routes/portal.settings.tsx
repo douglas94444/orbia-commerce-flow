@@ -4,7 +4,8 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useEffect } from 'react'
-import { User, UserPlus } from 'lucide-react'
+import { User, UserPlus, MessageSquare } from 'lucide-react'
+import { useWhatsAppTemplates } from '@/modules/retention/hooks/use-retention'
 import { PageIntro, Panel } from '@/components/dashboard/panel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -55,6 +56,7 @@ function PortalSettingsPage() {
   const canBilling = canInvite
   const { data: subscription } = useClientSubscription()
   const mpCheckout = useStartMercadoPagoCheckout()
+  const { data: waTemplates = [] } = useWhatsAppTemplates()
 
   async function handleInvite() {
     if (!inviteEmail) return
@@ -130,6 +132,24 @@ function PortalSettingsPage() {
           </div>
         </Panel>
       )}
+
+      <Panel title="WhatsApp (Meta)" subtitle="Templates e compliance" action={<MessageSquare className="size-4 text-muted-foreground" />}>
+        <p className="mb-3 text-sm text-muted-foreground">
+          Horário de envio: 8h–22h (configurável). Clientes que respondem PARAR são removidos automaticamente de todos os fluxos.
+        </p>
+        {waTemplates.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhum template registrado. Conecte WhatsApp Business via OAuth.</p>
+        ) : (
+          <div className="space-y-2">
+            {waTemplates.map((t) => (
+              <div key={t.id} className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm">
+                <span>{t.name}</span>
+                <span className="text-xs capitalize text-muted-foreground">{t.status}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Panel>
 
       <Panel title="Integrações" subtitle="Conectadas pela equipe Orbia (somente leitura)">
         <div className="flex flex-wrap gap-2">

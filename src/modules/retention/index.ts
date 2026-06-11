@@ -1,15 +1,10 @@
-// Retention module (formerly LTV Boost)
-// Responsibilities:
-//   - Automation engine: abandoned cart, post-purchase, win-back, birthday
-//   - Trigger on 'order delivered' event from Logistics module (same DB — no API needed)
-//   - RFM segmentation (Recência, Frequência, Valor)
-//   - Loyalty points program
-//   - LTV cohort analysis
-//
-// Tables (future migration):
-//   - automation_flows (client_id, trigger, channel, is_active)
-//   - automation_executions (flow_id, customer_id, sent_at, status)
-//   - customers (client_id, email, phone, rfm_score, ltv)
-//   - loyalty_points (customer_id, points, expires_at)
-
-export {};
+export {
+  onOrderDelivered,
+  onOrderDispatched,
+  onOrderPaid,
+  onNfeAuthorized,
+} from "./automation-engine.server";
+export { processAutomationEnrollments } from "./sequence-runner.server";
+export { computeRfmSegments } from "./rfm-calculator.server";
+export { earnPointsFromOrder, redeemPoints } from "./loyalty.server";
+export { simulateSequence } from "./flow-simulator.server";

@@ -11,6 +11,11 @@ import { captureBenchmarkSnapshots } from "@/modules/benchmarks/benchmarks.serve
 import { refreshOperationAlerts } from "@/modules/analytics/alert-engine.server";
 import { computeRfmSegments } from "@/modules/retention/rfm-calculator.server";
 import { refreshExpiredTokens } from "@/modules/integrations/refresh-tokens.server";
+import {
+  processAutomationEnrollments,
+  attributeConversions,
+} from "@/modules/retention/sequence-runner.server";
+import { runRetentionCrons } from "@/modules/retention/trigger-crons.server";
 
 export type CronJobName =
   | "health-recalc"
@@ -22,6 +27,9 @@ export type CronJobName =
   | "check-alerts"
   | "compute-rfm"
   | "refresh-tokens"
+  | "process-automation-enrollments"
+  | "retention-crons"
+  | "attribute-conversions"
   | "all";
 
 export interface JobResult {
@@ -95,6 +103,19 @@ async function runJob(name: Exclude<CronJobName, "all">): Promise<JobResult> {
         metadata = result;
         break;
       }
+      case "process-automation-enrollments": {
+        const run = await processAutomationEnrollments();
+        metadata = run;
+        break;
+      }
+      case "retention-crons": {
+        metadata = await runRetentionCrons();
+        break;
+      }
+      case "attribute-conversions": {
+        metadata = await attributeConversions();
+        break;
+      }
     }
 
     const durationMs = end();
@@ -123,12 +144,15 @@ async function runJob(name: Exclude<CronJobName, "all">): Promise<JobResult> {
 
 const JOB_SEQUENCE: Array<Exclude<CronJobName, "all">> = [
   "process-outbox",
+  "process-automation-enrollments",
   "refresh-tokens",
   "health-recalc",
   "check-alerts",
   "sync-campaigns",
   "sync-catalog",
   "compute-rfm",
+  "retention-crons",
+  "attribute-conversions",
   "cleanup-oauth",
 ];
 

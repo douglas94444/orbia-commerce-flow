@@ -87,6 +87,14 @@ export function getServerConfig() {
     demo: {
       enabled: process.env.VITE_DEMO_MODE === "true" || process.env.DEMO_MODE === "true",
     },
+    twilio: {
+      accountSid: process.env.TWILIO_ACCOUNT_SID,
+      authToken: process.env.TWILIO_AUTH_TOKEN,
+      fromNumber: process.env.TWILIO_FROM_NUMBER,
+    },
+    fcm: {
+      serverKey: process.env.FCM_SERVER_KEY,
+    },
   };
 }
 

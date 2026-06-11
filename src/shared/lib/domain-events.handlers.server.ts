@@ -2,11 +2,17 @@
 // Import once from server entry points (shipping, order-ingestion bootstrap).
 
 import { onDomainEvent } from "./domain-events.server";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { commitStock, itemsFromOrderMetadata } from "@/modules/logistics/stock-reservation.server";
 import type { StockItem } from "@/modules/logistics/stock-reservation.server";
 import { recalculateClientMetrics } from "@/modules/analytics/health-score.server";
 import { pushStockToAllChannels } from "@/modules/catalog/catalog-push.server";
-import { onOrderDelivered } from "@/modules/retention/automation-engine.server";
+import {
+  onOrderDelivered,
+  onOrderDispatched,
+  onOrderPaid,
+  onNfeAuthorized,
+} from "@/modules/retention/automation-engine.server";
 import { notifyCsOnOrderDelivered } from "@/modules/admin/cs-events.server";
 
 onDomainEvent("order.dispatched", async (payload) => {
@@ -19,6 +25,22 @@ onDomainEvent("order.dispatched", async (payload) => {
   }
 });
 
+onDomainEvent("order.paid", async (payload) => {
+  const orderId = String(payload.orderId ?? "");
+  if (!orderId) return;
+  await onOrderPaid(orderId);
+});
+
+onDomainEvent("order.dispatched", async (payload) => {
+  const orderId = String(payload.orderId ?? "");
+  if (!orderId) return;
+  try {
+    await onOrderDispatched(orderId);
+  } catch (err) {
+    console.error("[retention] order.dispatched handler:", err);
+  }
+});
+
 onDomainEvent("order.delivered", async (payload) => {
   const orderId = String(payload.orderId ?? "");
   const clientId = String(payload.clientId ?? "");
@@ -28,6 +50,74 @@ onDomainEvent("order.delivered", async (payload) => {
     await recalculateClientMetrics(clientId);
     await notifyCsOnOrderDelivered(orderId, clientId);
   }
+});
+
+onDomainEvent("nfe.authorized", async (payload) => {
+  const orderId = String(payload.orderId ?? "");
+  const danfeUrl = payload.danfeUrl ? String(payload.danfeUrl) : null;
+  if (!orderId) return;
+  await onNfeAuthorized(orderId, danfeUrl);
+});
+
+onDomainEvent("cart.abandoned", async (payload) => {
+  const { recordAbandonedCart } = await import("@/modules/retention/trigger-crons.server");
+  await recordAbandonedCart({
+    clientId: String(payload.clientId ?? ""),
+    email: payload.email ? String(payload.email) : undefined,
+    phone: payload.phone ? String(payload.phone) : undefined,
+    customerId: payload.customerId ? String(payload.customerId) : undefined,
+    valueCents: Number(payload.valueCents ?? 0),
+    items: (payload.items as unknown[]) ?? [],
+    checkoutUrl: payload.checkoutUrl ? String(payload.checkoutUrl) : undefined,
+  });
+});
+
+onDomainEvent("boleto.generated", async (payload) => {
+  const { recordBoletoGenerated } = await import("@/modules/retention/trigger-crons.server");
+  await recordBoletoGenerated({
+    clientId: String(payload.clientId ?? ""),
+    orderId: String(payload.orderId ?? ""),
+    customerId: String(payload.customerId ?? ""),
+    boletoUrl: String(payload.boletoUrl ?? ""),
+    dueAt: String(payload.dueAt ?? ""),
+  });
+});
+
+onDomainEvent("product.back_in_stock", async (payload) => {
+  const clientId = String(payload.clientId ?? "");
+  const sku = String(payload.sku ?? "");
+  if (!clientId || !sku) return;
+
+  const { data: items } = await supabaseAdmin
+    .from("wishlist_items")
+    .select("customer_id, product_name, product_image")
+    .eq("client_id", clientId)
+    .eq("product_sku", sku);
+
+  const { enrollInSequence } = await import("@/modules/retention/enrollment.server");
+  for (const item of items ?? []) {
+    await enrollInSequence({
+      clientId,
+      trigger: "estoque_favorito",
+      customerId: item.customer_id,
+      context: {
+        product_name: item.product_name,
+        product_image: item.product_image,
+        product_sku: sku,
+      },
+    });
+  }
+});
+
+onDomainEvent("review.negative", async (payload) => {
+  const { handleNegativeReview } = await import("@/modules/retention/trigger-crons.server");
+  await handleNegativeReview({
+    clientId: String(payload.clientId ?? ""),
+    orderId: String(payload.orderId ?? ""),
+    customerId: String(payload.customerId ?? ""),
+    rating: Number(payload.rating ?? 1),
+    comment: payload.comment ? String(payload.comment) : undefined,
+  });
 });
 
 // Re-export helper for typed item conversion from metadata payloads
