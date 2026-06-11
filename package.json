@@ -9,7 +9,9 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "deploy": "powershell -ExecutionPolicy Bypass -File ./scripts/deploy-cloudflare.ps1",
+    "deploy:secrets": "powershell -ExecutionPolicy Bypass -File ./scripts/sync-worker-secrets.ps1"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
