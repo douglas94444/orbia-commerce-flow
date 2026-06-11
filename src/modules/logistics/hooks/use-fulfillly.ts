@@ -15,6 +15,14 @@ import {
   getOpsTasksFn,
   createReceivingAppointmentFn,
   confirmReceivingLineFn,
+  listReturnsFn,
+  approveReturnFn,
+  markReturnReceivedFn,
+  inspectReturnFn,
+  getStockRuptureFn,
+  getDeliveryIncidentsFn,
+  generateWaveLabelsFn,
+  getDispatchManifestFn,
 } from "../fulfillly.actions.functions";
 
 export function useWarehouseLocations() {
@@ -125,11 +133,80 @@ export function useConfirmPackingItem() {
 export function useCompletePacking() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (sessionId: string) => completePackingFn({ data: { sessionId } }),
+    mutationFn: (input: { sessionId: string; photoUrls?: string[] }) =>
+      completePackingFn({ data: input }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["orders"] });
       toast.success("Packing concluído");
     },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useReturns() {
+  return useQuery({ queryKey: ["returns"], queryFn: () => listReturnsFn() });
+}
+
+export function useApproveReturn() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (returnRequestId: string) => approveReturnFn({ data: { returnRequestId } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["returns"] });
+      toast.success("Devolução aprovada");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useMarkReturnReceived() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (returnRequestId: string) => markReturnReceivedFn({ data: { returnRequestId } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["returns"] });
+      toast.success("Devolução recebida");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useInspectReturn() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      returnRequestId: string;
+      destination: "reintegrate" | "quarantine" | "discard";
+      notes?: string;
+      photoUrls?: string[];
+    }) => inspectReturnFn({ data: input }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["returns"] });
+      toast.success("Inspeção registrada");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useStockRupture() {
+  return useQuery({ queryKey: ["stock-rupture"], queryFn: () => getStockRuptureFn() });
+}
+
+export function useDeliveryIncidents() {
+  return useQuery({ queryKey: ["delivery-incidents"], queryFn: () => getDeliveryIncidentsFn() });
+}
+
+export function useGenerateWaveLabels() {
+  return useMutation({
+    mutationFn: (waveId: string) => generateWaveLabelsFn({ data: { waveId } }),
+    onSuccess: () => toast.success("Etiquetas geradas"),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useDispatchManifest() {
+  return useMutation({
+    mutationFn: (waveId: string) => getDispatchManifestFn({ data: { waveId } }),
     onError: (e: Error) => toast.error(e.message),
   });
 }

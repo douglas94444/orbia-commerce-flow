@@ -43,14 +43,36 @@ export async function selectBestCarrier(
   }
 
   const fromPostal = melhorEnvio.fromPostalCode ?? "01310100";
-  const quotes = await quoteAllCarriers(providerIds, {
-    fromPostalCode: fromPostal,
-    toPostalCode: input.toPostalCode,
-    weightKg: input.weightKg,
-    lengthCm: input.lengthCm,
-    widthCm: input.widthCm,
-    heightCm: input.heightCm,
-  });
+  const quotes = await quoteAllCarriers(
+    providerIds,
+    {
+      fromPostalCode: fromPostal,
+      toPostalCode: input.toPostalCode,
+      weightKg: input.weightKg,
+      lengthCm: input.lengthCm,
+      widthCm: input.widthCm,
+      heightCm: input.heightCm,
+    },
+    tokens,
+  );
 
   return quotes[0] ?? null;
+}
+
+export async function getCarrierToken(
+  clientId: string,
+  providerId: string,
+): Promise<string | null> {
+  const { melhorEnvio } = getServerConfig();
+  if (providerId === "melhor_envio" && melhorEnvio.token) return melhorEnvio.token;
+
+  const { data: conn } = await supabaseAdmin
+    .from("oauth_connections")
+    .select("access_token")
+    .eq("client_id", clientId)
+    .eq("provider", providerId)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  return conn?.access_token ? decryptToken(conn.access_token) : null;
 }

@@ -16,12 +16,18 @@ import {
 import { upsertOrderItems } from "./order-items.server";
 import { computeSlaDeadline } from "./sla/sla-engine.server";
 import { recordFulfillmentUsage } from "./forecast/volume-forecast.server";
+import { normalizeAmazonOrder } from "@/integrations/amazon/orders";
+import { normalizeTiktokOrder } from "@/integrations/tiktok/orders";
+import { normalizeInstagramOrder } from "@/integrations/instagram/orders";
 
 export type MarketplaceChannel =
   | "nuvemshop"
   | "shopify"
   | "mercado_livre"
-  | "shopee";
+  | "shopee"
+  | "amazon"
+  | "tiktok"
+  | "instagram";
 
 export interface NormalizedOrderItem {
   sku: string;
@@ -302,6 +308,12 @@ function normalizeByProvider(provider: MarketplaceChannel, payload: unknown): No
       return normalizeMercadoLivreOrder(payload);
     case "shopee":
       return normalizeShopeeOrder(payload);
+    case "amazon":
+      return normalizeAmazonOrder(payload);
+    case "tiktok":
+      return normalizeTiktokOrder(payload);
+    case "instagram":
+      return normalizeInstagramOrder(payload);
   }
 }
 
@@ -412,7 +424,13 @@ export async function ingestStoreWebhook(
           ? String(p.shop_domain ?? normalized.raw.shop_domain ?? "")
           : provider === "mercado_livre"
             ? String(p.user_id ?? normalized.raw.seller?.id ?? "")
-            : String(p.shop_id ?? normalized.raw.shop_id ?? "");
+            : provider === "amazon"
+              ? String(p.seller_id ?? normalized.raw.seller_id ?? p.marketplace_id ?? "")
+              : provider === "tiktok"
+                ? String(p.shop_id ?? normalized.raw.shop_id ?? "")
+                : provider === "instagram"
+                  ? String(p.page_id ?? normalized.raw.page_id ?? p.id ?? "")
+                  : String(p.shop_id ?? normalized.raw.shop_id ?? "");
 
     if (storeId) resolvedClientId = await resolveClientId(provider, storeId);
   }

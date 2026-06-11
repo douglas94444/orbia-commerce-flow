@@ -1,6 +1,8 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { getCarrierProvider } from "@/integrations/carriers";
 import { emitDomainEvent } from "@/shared/lib/domain-events.server";
 import { logAudit } from "@/shared/lib/logger";
+import { getCarrierToken, selectBestCarrier } from "../shipping/routing-engine.server";
 
 export async function createReturnRequest(input: {
   clientId: string;
@@ -71,6 +73,60 @@ export async function approveReturnRequest(returnRequestId: string, userId: stri
     orderId: data.order_id,
     clientId: data.client_id,
   });
+}
+
+export async function generateReturnLabel(returnRequestId: string): Promise<string> {
+  const { data: req } = await supabaseAdmin
+    .from("return_requests")
+    .select("id, client_id, order_id, orders(metadata, value_cents)")
+    .eq("id", returnRequestId)
+    .single();
+
+  if (!req) throw new Error("Solicitação não encontrada");
+
+  const order = req.orders as { metadata: Record<string, unknown> };
+  const postal = String(order.metadata.postal_code ?? "01310100");
+  const clientId = req.client_id as string;
+
+  const quote = await selectBestCarrier(clientId, { toPostalCode: postal, weightKg: 0.5 });
+  if (!quote) throw new Error("Sem cotação para etiqueta de devolução");
+
+  const provider = getCarrierProvider(quote.providerId);
+  const token = await getCarrierToken(clientId, quote.providerId);
+  if (!provider || !token) throw new Error("Transportadora não configurada");
+
+  const label = await provider.purchaseLabel(quote.externalId, token);
+
+  await supabaseAdmin
+    .from("return_requests")
+    .update({
+      return_label_url: label.labelUrl ?? null,
+      tracking_code: label.trackingCode,
+      status: "in_transit",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", returnRequestId);
+
+  return label.trackingCode;
+}
+
+export async function markReturnReceived(returnRequestId: string): Promise<void> {
+  await supabaseAdmin
+    .from("return_requests")
+    .update({ status: "received", updated_at: new Date().toISOString() })
+    .eq("id", returnRequestId);
+}
+
+export async function listReturnRequests(clientId: string) {
+  const { data, error } = await supabaseAdmin
+    .from("return_requests")
+    .select("id, order_id, reason, status, tracking_code, refund_cents, created_at")
+    .eq("client_id", clientId)
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  if (error) throw new Error(error.message);
+  return data ?? [];
 }
 
 export async function inspectReturn(input: {

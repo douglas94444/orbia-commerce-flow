@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { getSkuLocation, listWarehouseLocations } from "../wms/warehouse.server";
+import { getSkuLocationsFefo, listWarehouseLocations } from "../wms/warehouse.server";
 import { recordFulfillmentUsage } from "../forecast/volume-forecast.server";
 import { optimizePickRoute } from "./route-optimizer.server";
 
@@ -45,7 +45,7 @@ export async function generatePickWave(clientId: string): Promise<string | null>
 
     const linesWithLoc = await Promise.all(
       (items ?? []).map(async (item: { id: string; sku: string; qty: number }) => {
-        const loc = await getSkuLocation(clientId, item.sku);
+        const loc = (await getSkuLocationsFefo(clientId, item.sku, 1))[0];
         return {
           orderItemId: item.id,
           sku: item.sku,

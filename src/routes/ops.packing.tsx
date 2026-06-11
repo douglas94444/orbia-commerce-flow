@@ -17,16 +17,29 @@ function OpsPackingPage() {
   const [sessionId, setSessionId] = useState("");
   const [sku, setSku] = useState("");
   const [qty, setQty] = useState(1);
+  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
 
   const startPacking = useStartPacking();
   const confirmItem = useConfirmPackingItem();
   const complete = useCompletePacking();
 
+  const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setPhotoUrls((prev) => [...prev, reader.result as string]);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="font-display text-xl font-semibold">Packing</h1>
-        <p className="text-sm text-muted-foreground">Checklist de itens por pedido</p>
+        <p className="text-sm text-muted-foreground">Checklist + foto de evidência</p>
       </div>
 
       <div className="space-y-3 rounded-xl border border-border p-4">
@@ -66,10 +79,20 @@ function OpsPackingPage() {
           >
             Confirmar item
           </Button>
+
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground">Foto evidência</label>
+            <Input type="file" accept="image/*" capture="environment" onChange={handlePhotoCapture} />
+            {photoUrls.length > 0 && (
+              <p className="mt-1 text-xs text-success">{photoUrls.length} foto(s) anexada(s)</p>
+            )}
+          </div>
+
           <Button
             className="w-full"
             variant="default"
-            onClick={() => complete.mutate(sessionId)}
+            onClick={() => complete.mutate({ sessionId, photoUrls })}
+            disabled={complete.isPending}
           >
             Fechar embalagem
           </Button>

@@ -30,6 +30,12 @@ export async function pushOrderStatusToChannel(
     } else if (channel === "shopee" && status === "shipped") {
       const { updateShopeeOrderStatus } = await import("@/integrations/shopee/orders");
       await updateShopeeOrderStatus(externalOrderId, "SHIPPED", token);
+    } else if (channel === "amazon" && status === "shipped") {
+      const { updateAmazonShipmentStatus } = await import("@/integrations/amazon/orders");
+      await updateAmazonShipmentStatus(externalOrderId, "Shipped", token);
+    } else if (channel === "tiktok" && status === "shipped") {
+      const { updateTiktokShipmentStatus } = await import("@/integrations/tiktok/orders");
+      await updateTiktokShipmentStatus(externalOrderId, "IN_TRANSIT", token);
     }
 
     await logIntegration({

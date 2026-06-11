@@ -86,25 +86,61 @@ export async function upsertWarehouseLocation(
   return data.id as string;
 }
 
+export interface SkuLocationPick {
+  locationId: string;
+  binCode: string;
+  qty: number;
+  lotId: string | null;
+  expiresAt: string | null;
+}
+
+/** FEFO: primeiro lote a vencer, depois rota do armazém. */
 export async function getSkuLocation(
   clientId: string,
   sku: string,
-): Promise<{ locationId: string; binCode: string; qty: number } | null> {
-  const { data } = await supabaseAdmin
+): Promise<SkuLocationPick | null> {
+  const picks = await getSkuLocationsFefo(clientId, sku, 1);
+  return picks[0] ?? null;
+}
+
+export async function getSkuLocationsFefo(
+  clientId: string,
+  sku: string,
+  limit = 5,
+): Promise<SkuLocationPick[]> {
+  const { data, error } = await supabaseAdmin
     .from("inventory_locations")
-    .select("location_id, qty, warehouse_locations(bin_code)")
+    .select(
+      "location_id, qty, reserved_qty, lot_id, product_lots(expires_at), warehouse_locations(bin_code, route_order)",
+    )
     .eq("client_id", clientId)
     .eq("sku", sku)
-    .gt("qty", 0)
-    .order("qty", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .gt("qty", 0);
 
-  if (!data) return null;
-  const loc = data.warehouse_locations as { bin_code: string } | null;
-  return {
-    locationId: data.location_id as string,
-    binCode: loc?.bin_code ?? "",
-    qty: data.qty as number,
-  };
+  if (error) throw new Error(error.message);
+  if (!data?.length) return [];
+
+  const rows = data
+    .map((row) => {
+      const loc = row.warehouse_locations as { bin_code: string; route_order: number } | null;
+      const lot = row.product_lots as { expires_at: string | null } | null;
+      const available = (row.qty as number) - ((row.reserved_qty as number) ?? 0);
+      return {
+        locationId: row.location_id as string,
+        binCode: loc?.bin_code ?? "",
+        qty: available,
+        lotId: (row.lot_id as string | null) ?? null,
+        expiresAt: lot?.expires_at ?? null,
+        routeOrder: loc?.route_order ?? 9999,
+      };
+    })
+    .filter((r) => r.qty > 0)
+    .sort((a, b) => {
+      if (a.expiresAt && b.expiresAt) return a.expiresAt.localeCompare(b.expiresAt);
+      if (a.expiresAt) return -1;
+      if (b.expiresAt) return 1;
+      return a.routeOrder - b.routeOrder;
+    });
+
+  return rows.slice(0, limit).map(({ routeOrder: _, ...rest }) => rest);
 }

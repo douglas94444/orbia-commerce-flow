@@ -47,10 +47,12 @@ import { Route as ApiWebhooksMelhorEnvioRouteImport } from './routes/api/webhook
 import { Route as ApiCronRunRouteImport } from './routes/api/cron/run'
 import { Route as DashboardLogisticsWarehouseRouteImport } from './routes/_dashboard.logistics.warehouse'
 import { Route as DashboardLogisticsSlaRouteImport } from './routes/_dashboard.logistics.sla'
+import { Route as DashboardLogisticsReturnsRouteImport } from './routes/_dashboard.logistics.returns'
 import { Route as DashboardLogisticsReceivingRouteImport } from './routes/_dashboard.logistics.receiving'
 import { Route as DashboardLogisticsProductsRouteImport } from './routes/_dashboard.logistics.products'
 import { Route as DashboardLogisticsPickingRouteImport } from './routes/_dashboard.logistics.picking'
 import { Route as DashboardLogisticsPackingRouteImport } from './routes/_dashboard.logistics.packing'
+import { Route as DashboardLogisticsIncidentsRouteImport } from './routes/_dashboard.logistics.incidents'
 import { Route as DashboardFiscalConfigRouteImport } from './routes/_dashboard.fiscal.config'
 import { Route as DashboardClientsIdRouteImport } from './routes/_dashboard.clients.$id'
 import { Route as ApiOauthWhatsappCallbackRouteImport } from './routes/api/oauth/whatsapp/callback'
@@ -252,6 +254,12 @@ const DashboardLogisticsSlaRoute = DashboardLogisticsSlaRouteImport.update({
   path: '/sla',
   getParentRoute: () => DashboardLogisticsRoute,
 } as any)
+const DashboardLogisticsReturnsRoute =
+  DashboardLogisticsReturnsRouteImport.update({
+    id: '/returns',
+    path: '/returns',
+    getParentRoute: () => DashboardLogisticsRoute,
+  } as any)
 const DashboardLogisticsReceivingRoute =
   DashboardLogisticsReceivingRouteImport.update({
     id: '/receiving',
@@ -274,6 +282,12 @@ const DashboardLogisticsPackingRoute =
   DashboardLogisticsPackingRouteImport.update({
     id: '/packing',
     path: '/packing',
+    getParentRoute: () => DashboardLogisticsRoute,
+  } as any)
+const DashboardLogisticsIncidentsRoute =
+  DashboardLogisticsIncidentsRouteImport.update({
+    id: '/incidents',
+    path: '/incidents',
     getParentRoute: () => DashboardLogisticsRoute,
   } as any)
 const DashboardFiscalConfigRoute = DashboardFiscalConfigRouteImport.update({
@@ -359,10 +373,12 @@ export interface FileRoutesByFullPath {
   '/ops/': typeof OpsIndexRoute
   '/clients/$id': typeof DashboardClientsIdRoute
   '/fiscal/config': typeof DashboardFiscalConfigRoute
+  '/logistics/incidents': typeof DashboardLogisticsIncidentsRoute
   '/logistics/packing': typeof DashboardLogisticsPackingRoute
   '/logistics/picking': typeof DashboardLogisticsPickingRoute
   '/logistics/products': typeof DashboardLogisticsProductsRoute
   '/logistics/receiving': typeof DashboardLogisticsReceivingRoute
+  '/logistics/returns': typeof DashboardLogisticsReturnsRoute
   '/logistics/sla': typeof DashboardLogisticsSlaRoute
   '/logistics/warehouse': typeof DashboardLogisticsWarehouseRoute
   '/api/cron/run': typeof ApiCronRunRoute
@@ -411,10 +427,12 @@ export interface FileRoutesByTo {
   '/ops': typeof OpsIndexRoute
   '/clients/$id': typeof DashboardClientsIdRoute
   '/fiscal/config': typeof DashboardFiscalConfigRoute
+  '/logistics/incidents': typeof DashboardLogisticsIncidentsRoute
   '/logistics/packing': typeof DashboardLogisticsPackingRoute
   '/logistics/picking': typeof DashboardLogisticsPickingRoute
   '/logistics/products': typeof DashboardLogisticsProductsRoute
   '/logistics/receiving': typeof DashboardLogisticsReceivingRoute
+  '/logistics/returns': typeof DashboardLogisticsReturnsRoute
   '/logistics/sla': typeof DashboardLogisticsSlaRoute
   '/logistics/warehouse': typeof DashboardLogisticsWarehouseRoute
   '/api/cron/run': typeof ApiCronRunRoute
@@ -466,10 +484,12 @@ export interface FileRoutesById {
   '/ops/': typeof OpsIndexRoute
   '/_dashboard/clients/$id': typeof DashboardClientsIdRoute
   '/_dashboard/fiscal/config': typeof DashboardFiscalConfigRoute
+  '/_dashboard/logistics/incidents': typeof DashboardLogisticsIncidentsRoute
   '/_dashboard/logistics/packing': typeof DashboardLogisticsPackingRoute
   '/_dashboard/logistics/picking': typeof DashboardLogisticsPickingRoute
   '/_dashboard/logistics/products': typeof DashboardLogisticsProductsRoute
   '/_dashboard/logistics/receiving': typeof DashboardLogisticsReceivingRoute
+  '/_dashboard/logistics/returns': typeof DashboardLogisticsReturnsRoute
   '/_dashboard/logistics/sla': typeof DashboardLogisticsSlaRoute
   '/_dashboard/logistics/warehouse': typeof DashboardLogisticsWarehouseRoute
   '/api/cron/run': typeof ApiCronRunRoute
@@ -521,10 +541,12 @@ export interface FileRouteTypes {
     | '/ops/'
     | '/clients/$id'
     | '/fiscal/config'
+    | '/logistics/incidents'
     | '/logistics/packing'
     | '/logistics/picking'
     | '/logistics/products'
     | '/logistics/receiving'
+    | '/logistics/returns'
     | '/logistics/sla'
     | '/logistics/warehouse'
     | '/api/cron/run'
@@ -573,10 +595,12 @@ export interface FileRouteTypes {
     | '/ops'
     | '/clients/$id'
     | '/fiscal/config'
+    | '/logistics/incidents'
     | '/logistics/packing'
     | '/logistics/picking'
     | '/logistics/products'
     | '/logistics/receiving'
+    | '/logistics/returns'
     | '/logistics/sla'
     | '/logistics/warehouse'
     | '/api/cron/run'
@@ -627,10 +651,12 @@ export interface FileRouteTypes {
     | '/ops/'
     | '/_dashboard/clients/$id'
     | '/_dashboard/fiscal/config'
+    | '/_dashboard/logistics/incidents'
     | '/_dashboard/logistics/packing'
     | '/_dashboard/logistics/picking'
     | '/_dashboard/logistics/products'
     | '/_dashboard/logistics/receiving'
+    | '/_dashboard/logistics/returns'
     | '/_dashboard/logistics/sla'
     | '/_dashboard/logistics/warehouse'
     | '/api/cron/run'
@@ -947,6 +973,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardLogisticsSlaRouteImport
       parentRoute: typeof DashboardLogisticsRoute
     }
+    '/_dashboard/logistics/returns': {
+      id: '/_dashboard/logistics/returns'
+      path: '/returns'
+      fullPath: '/logistics/returns'
+      preLoaderRoute: typeof DashboardLogisticsReturnsRouteImport
+      parentRoute: typeof DashboardLogisticsRoute
+    }
     '/_dashboard/logistics/receiving': {
       id: '/_dashboard/logistics/receiving'
       path: '/receiving'
@@ -973,6 +1006,13 @@ declare module '@tanstack/react-router' {
       path: '/packing'
       fullPath: '/logistics/packing'
       preLoaderRoute: typeof DashboardLogisticsPackingRouteImport
+      parentRoute: typeof DashboardLogisticsRoute
+    }
+    '/_dashboard/logistics/incidents': {
+      id: '/_dashboard/logistics/incidents'
+      path: '/incidents'
+      fullPath: '/logistics/incidents'
+      preLoaderRoute: typeof DashboardLogisticsIncidentsRouteImport
       parentRoute: typeof DashboardLogisticsRoute
     }
     '/_dashboard/fiscal/config': {
@@ -1072,19 +1112,23 @@ const DashboardFiscalRouteWithChildren = DashboardFiscalRoute._addFileChildren(
 )
 
 interface DashboardLogisticsRouteChildren {
+  DashboardLogisticsIncidentsRoute: typeof DashboardLogisticsIncidentsRoute
   DashboardLogisticsPackingRoute: typeof DashboardLogisticsPackingRoute
   DashboardLogisticsPickingRoute: typeof DashboardLogisticsPickingRoute
   DashboardLogisticsProductsRoute: typeof DashboardLogisticsProductsRoute
   DashboardLogisticsReceivingRoute: typeof DashboardLogisticsReceivingRoute
+  DashboardLogisticsReturnsRoute: typeof DashboardLogisticsReturnsRoute
   DashboardLogisticsSlaRoute: typeof DashboardLogisticsSlaRoute
   DashboardLogisticsWarehouseRoute: typeof DashboardLogisticsWarehouseRoute
 }
 
 const DashboardLogisticsRouteChildren: DashboardLogisticsRouteChildren = {
+  DashboardLogisticsIncidentsRoute: DashboardLogisticsIncidentsRoute,
   DashboardLogisticsPackingRoute: DashboardLogisticsPackingRoute,
   DashboardLogisticsPickingRoute: DashboardLogisticsPickingRoute,
   DashboardLogisticsProductsRoute: DashboardLogisticsProductsRoute,
   DashboardLogisticsReceivingRoute: DashboardLogisticsReceivingRoute,
+  DashboardLogisticsReturnsRoute: DashboardLogisticsReturnsRoute,
   DashboardLogisticsSlaRoute: DashboardLogisticsSlaRoute,
   DashboardLogisticsWarehouseRoute: DashboardLogisticsWarehouseRoute,
 }

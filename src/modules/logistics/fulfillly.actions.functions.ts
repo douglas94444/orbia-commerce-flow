@@ -25,7 +25,18 @@ import {
   createReturnRequest,
   approveReturnRequest,
   inspectReturn,
+  listReturnRequests,
+  markReturnReceived,
 } from "./returns/returns.server";
+import { predictStockRupture } from "./wms/stock-rupture.server";
+import {
+  listDeliveryIncidents,
+  buildIncidentHeatMap,
+} from "./shipping/delivery-incidents.server";
+import {
+  generateLabelsForWave,
+  buildDispatchManifest,
+} from "./shipping/batch-labels.server";
 
 async function getClientIdForUser(
   userId: string,
@@ -256,3 +267,64 @@ export const approveReturnFn = createServerFn({ method: "POST" })
     await approveReturnRequest(data.returnRequestId, context.userId);
     return { ok: true };
   });
+
+export const listReturnsFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return listReturnRequests(clientId);
+  });
+
+export const markReturnReceivedFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ returnRequestId: z.string().uuid() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data }) => {
+    await markReturnReceived(data.returnRequestId);
+    return { ok: true };
+  });
+
+const inspectReturnSchema = z.object({
+  returnRequestId: z.string().uuid(),
+  destination: z.enum(["reintegrate", "quarantine", "discard"]),
+  notes: z.string().optional(),
+  photoUrls: z.array(z.string()).optional(),
+});
+
+export const inspectReturnFn = createServerFn({ method: "POST" })
+  .inputValidator(inspectReturnSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await inspectReturn({
+      returnRequestId: data.returnRequestId,
+      inspectorId: context.userId,
+      destination: data.destination,
+      notes: data.notes,
+      photoUrls: data.photoUrls,
+    });
+    return { ok: true };
+  });
+
+export const getStockRuptureFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return predictStockRupture(clientId);
+  });
+
+export const getDeliveryIncidentsFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    const incidents = await listDeliveryIncidents(clientId);
+    return { incidents, heatMap: buildIncidentHeatMap(incidents) };
+  });
+
+export const generateWaveLabelsFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ waveId: z.string().uuid() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data }) => generateLabelsForWave(data.waveId));
+
+export const getDispatchManifestFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ waveId: z.string().uuid() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data }) => buildDispatchManifest(data.waveId));

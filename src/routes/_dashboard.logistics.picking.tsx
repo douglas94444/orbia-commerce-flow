@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageIntro, Panel } from "@/components/dashboard/panel";
-import { useGeneratePickWave } from "@/modules/logistics/hooks/use-fulfillly";
+import { useGeneratePickWave, useGenerateWaveLabels } from "@/modules/logistics/hooks/use-fulfillly";
+import { Input } from "@/components/ui/input";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2, Smartphone } from "lucide-react";
 
@@ -10,7 +12,9 @@ export const Route = createFileRoute("/_dashboard/logistics/picking")({
 });
 
 function PickingPage() {
+  const [waveId, setWaveId] = useState("");
   const generateWave = useGeneratePickWave();
+  const generateLabels = useGenerateWaveLabels();
 
   return (
     <div className="space-y-6">
@@ -37,6 +41,24 @@ function PickingPage() {
           {generateWave.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
           Gerar onda de picking
         </Button>
+      </Panel>
+
+      <Panel title="Impressão em lote / manifesto">
+        <div className="flex flex-wrap gap-2">
+          <Input
+            className="max-w-xs"
+            placeholder="ID da onda"
+            value={waveId}
+            onChange={(e) => setWaveId(e.target.value)}
+          />
+          <Button
+            variant="outline"
+            disabled={!waveId || generateLabels.isPending}
+            onClick={() => generateLabels.mutate(waveId)}
+          >
+            Gerar etiquetas da onda
+          </Button>
+        </div>
       </Panel>
     </div>
   );

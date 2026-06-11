@@ -131,14 +131,59 @@ onDomainEvent("order.delivery_problem", async (payload) => {
   }
 });
 
+onDomainEvent("return.approved", async (payload) => {
+  const returnRequestId = String(payload.returnRequestId ?? "");
+  const clientId = String(payload.clientId ?? "");
+  if (!returnRequestId || !clientId) return;
+
+  try {
+    const { generateReturnLabel } = await import("@/modules/logistics/returns/returns.server");
+    await generateReturnLabel(returnRequestId);
+  } catch (err) {
+    console.error("[returns] return.approved label:", err);
+  }
+});
+
 onDomainEvent("return.inspected", async (payload) => {
   const clientId = String(payload.clientId ?? "");
+  const returnRequestId = String(payload.returnRequestId ?? "");
+  const destination = String(payload.destination ?? "");
   if (!clientId) return;
 
   const { recordFulfillmentUsage } = await import(
     "@/modules/logistics/forecast/volume-forecast.server"
   );
   await recordFulfillmentUsage(clientId, "returns_handled");
+
+  if (destination === "reintegrate" && returnRequestId) {
+    try {
+      const { emitNfeForReturn } = await import("@/modules/fiscal/emit-return-nfe.server");
+      await emitNfeForReturn(returnRequestId);
+    } catch (err) {
+      console.error("[fiscal] return NF-e:", err);
+    }
+
+    const { data: req } = await supabaseAdmin
+      .from("return_requests")
+      .select("refund_cents, orders(value_cents)")
+      .eq("id", returnRequestId)
+      .maybeSingle();
+
+    const refundCents =
+      (req?.refund_cents as number | null) ??
+      ((req?.orders as { value_cents: number } | null)?.value_cents ?? 0);
+
+    if (refundCents > 0) {
+      try {
+        const { processReturnRefund } = await import(
+          "@/modules/billing/fulfillment-billing.server"
+        );
+        await processReturnRefund(clientId, returnRequestId, refundCents);
+      } catch (err) {
+        console.error("[billing] return refund:", err);
+      }
+    }
+  }
 });
 
 onDomainEvent("review.negative", async (payload) => {

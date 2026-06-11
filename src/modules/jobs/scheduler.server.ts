@@ -143,11 +143,21 @@ async function runJob(name: Exclude<CronJobName, "all">): Promise<JobResult> {
           .select("id")
           .eq("status", "active");
         let critical = 0;
+        let ruptureRisk = 0;
+        const { predictStockRupture } = await import(
+          "@/modules/logistics/wms/stock-rupture.server"
+        );
+        const { chargeFulfillmentOverage } = await import(
+          "@/modules/billing/fulfillment-billing.server"
+        );
         for (const c of clients ?? []) {
           const skus = await checkMinStockAlerts(c.id);
           critical += skus.length;
+          const forecasts = await predictStockRupture(c.id);
+          ruptureRisk += forecasts.filter((f) => f.risk === "critico").length;
+          await chargeFulfillmentOverage(c.id).catch(() => null);
         }
-        metadata = { critical };
+        metadata = { critical, ruptureRisk };
         break;
       }
     }
