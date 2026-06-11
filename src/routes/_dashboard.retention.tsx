@@ -10,7 +10,10 @@ import {
   useToggleAutomation,
   useLtvAnalytics,
   useTemplateLibrary,
+  useSimulateAutomation,
+  useApplyTemplate,
 } from '@/modules/retention/hooks/use-retention'
+import { Button } from '@/components/ui/button'
 import { FlowEditor } from '@/modules/retention/flow-editor/flow-editor'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
@@ -27,6 +30,8 @@ function RetentionPage() {
   const { data: ltvAnalytics } = useLtvAnalytics()
   const { data: templates = [] } = useTemplateLibrary()
   const { mutate: toggle, isPending: toggling } = useToggleAutomation()
+  const { mutate: simulate, isPending: simulating } = useSimulateAutomation()
+  const { mutate: applyTemplate, isPending: applyingTpl } = useApplyTemplate()
 
   const loading = loadingAuto || loadingStats
 
@@ -225,7 +230,22 @@ function RetentionPage() {
         </TabsContent>
 
         <TabsContent value="editor" className="mt-4 space-y-4">
-          <Panel title="Editor visual de fluxos" subtitle="Arraste e solte — salva em automation_sequences">
+          <Panel title="Simulador de fluxo" subtitle="Estimativa com benchmarks Orbia">
+            <div className="flex flex-wrap gap-2">
+              {['carrinho_abandonado', 'reativacao_30d', 'pedido_entregue'].map((tr) => (
+                <Button
+                  key={tr}
+                  size="sm"
+                  variant="outline"
+                  disabled={simulating}
+                  onClick={() => simulate(tr)}
+                >
+                  Simular {tr.replace(/_/g, ' ')}
+                </Button>
+              ))}
+            </div>
+          </Panel>
+          <Panel title="Editor visual de fluxos" subtitle="Delay, condição e canais — salva em automation_sequences">
             <FlowEditor trigger="carrinho_abandonado" name="Carrinho abandonado" />
           </Panel>
           {templates.length > 0 && (
@@ -239,6 +259,15 @@ function RetentionPage() {
                     </div>
                     <p className="mt-2 font-medium">{t.name}</p>
                     <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{t.body_preview}</p>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="mt-3"
+                      disabled={applyingTpl}
+                      onClick={() => applyTemplate({ templateId: t.id, sequenceName: t.name })}
+                    >
+                      Aplicar template
+                    </Button>
                   </div>
                 ))}
               </div>

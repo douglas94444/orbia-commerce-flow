@@ -12,6 +12,12 @@ export interface CohortRow {
   month3: number;
 }
 
+export interface LtvCohortRow {
+  cohort: string;
+  customers: number;
+  avgLtv: number;
+}
+
 export interface PortfolioAnalytics {
   gmv30d: number;
   avgRoas: number;
@@ -22,6 +28,7 @@ export interface PortfolioAnalytics {
   gmvRoasSeries: Array<{ day: string; gmv: number; roas: number }>;
   channelRoas: Array<{ channel: string; roas: number }>;
   cohortRetention: CohortRow[];
+  ltvByCohort: LtvCohortRow[];
 }
 
 export const getPortfolioAnalytics = createServerFn({ method: "GET" })
@@ -29,10 +36,10 @@ export const getPortfolioAnalytics = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<PortfolioAnalytics> => {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-    const [ordersResult, campaignsResult, nfeResult] = await Promise.all([
+    const [ordersResult, campaignsResult, nfeResult, customersResult] = await Promise.all([
       context.supabase
         .from("orders")
-        .select("client_id, value_cents, created_at, status, channel")
+        .select("client_id, value_cents, created_at, status, channel, metadata")
         .gte("created_at", thirtyDaysAgo),
       context.supabase.from("campaigns").select("platform, spend_cents, revenue_cents, roas"),
       context.supabase
@@ -40,6 +47,9 @@ export const getPortfolioAnalytics = createServerFn({ method: "GET" })
         .select("id")
         .eq("status", "autorizada")
         .gte("created_at", thirtyDaysAgo),
+      context.supabase
+        .from("customers")
+        .select("ltv_cents, acquisition_channel, created_at"),
     ]);
 
     const orders = ordersResult.data ?? [];
@@ -117,6 +127,7 @@ export const getPortfolioAnalytics = createServerFn({ method: "GET" })
     }
 
     const cohortRetention = buildCohortRetention(orders);
+    const ltvByCohort = buildLtvByCohort(customersResult.data ?? []);
 
     return {
       gmv30d,
@@ -128,8 +139,30 @@ export const getPortfolioAnalytics = createServerFn({ method: "GET" })
       gmvRoasSeries,
       channelRoas,
       cohortRetention,
+      ltvByCohort,
     };
   });
+
+function buildLtvByCohort(
+  customers: Array<{ ltv_cents: number; acquisition_channel: string | null; created_at: string }>,
+): LtvCohortRow[] {
+  const map = new Map<string, { total: number; count: number }>();
+  for (const c of customers) {
+    const cohort = c.created_at.slice(0, 7);
+    const cur = map.get(cohort) ?? { total: 0, count: 0 };
+    cur.total += c.ltv_cents ?? 0;
+    cur.count += 1;
+    map.set(cohort, cur);
+  }
+  return [...map.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-6)
+    .map(([cohort, v]) => ({
+      cohort,
+      customers: v.count,
+      avgLtv: v.count > 0 ? Math.round(v.total / v.count / 100) : 0,
+    }));
+}
 
 function buildCohortRetention(
   orders: Array<{ client_id?: string; created_at: string; value_cents: number | null }>,

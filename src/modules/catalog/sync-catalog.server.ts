@@ -66,17 +66,8 @@ async function upsertCatalogRows(
     );
     listings += 1;
 
-    await supabaseAdmin.from("inventory").upsert(
-      {
-        client_id: clientId,
-        sku: row.sku,
-        product: row.name,
-        units: row.stockQty,
-        reserved: 0,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "client_id,sku" },
-    );
+    const { upsertInventoryWithBackInStockNotify } = await import("./stock-notify.server");
+    await upsertInventoryWithBackInStockNotify(clientId, row.sku, row.name, row.stockQty);
   }
 
   return { products, listings };

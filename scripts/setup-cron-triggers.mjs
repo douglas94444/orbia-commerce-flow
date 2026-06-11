@@ -5,8 +5,6 @@
  *   node scripts/setup-cron-triggers.mjs [--run-all]
  *
  * Requer APP_URL + CRON_SECRET no .env.
- * Cloudflare Cron deve ser configurado manualmente no Dashboard:
- *   POST {APP_URL}/api/cron/run  Authorization: Bearer {CRON_SECRET}
  */
 
 import { readFileSync } from "node:fs";
@@ -24,12 +22,14 @@ try {
 }
 
 const TRIGGERS = [
-  { cron: "0 6 * * *", jobs: ["health-recalc", "sync-campaigns"] },
-  { cron: "0 */6 * * *", jobs: ["sync-catalog", "process-outbox"] },
+  { cron: "*/15 * * * *", jobs: ["process-automation-enrollments", "process-outbox"] },
+  { cron: "*/5 * * * *", jobs: ["process-outbox"] },
+  { cron: "0 6 * * *", jobs: ["health-recalc", "sync-campaigns", "retention-crons", "attribute-conversions"] },
+  { cron: "0 */6 * * *", jobs: ["sync-catalog", "compute-rfm"] },
   { cron: "0 3 * * *", jobs: ["cleanup-oauth"] },
 ];
 
-console.log("Cloudflare Cron Triggers sugeridos:\n");
+console.log("Cloudflare Cron Triggers (wrangler.toml + server.ts scheduled handler):\n");
 for (const t of TRIGGERS) {
   console.log(`  ${t.cron}`);
   for (const job of t.jobs) {
@@ -40,7 +40,7 @@ for (const t of TRIGGERS) {
 
 const runAll = process.argv.includes("--run-all");
 if (!runAll) {
-  console.log("Passe --run-all para executar health-recalc agora (requer APP_URL + CRON_SECRET).");
+  console.log("Passe --run-all para executar process-automation-enrollments (requer APP_URL + CRON_SECRET).");
   process.exit(0);
 }
 
@@ -49,14 +49,15 @@ if (!process.env.APP_URL || !process.env.CRON_SECRET) {
   process.exit(1);
 }
 
-const res = await fetch(`${process.env.APP_URL}/api/cron/run`, {
-  method: "POST",
-  headers: {
-    Authorization: `Bearer ${process.env.CRON_SECRET}`,
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({ job: "health-recalc" }),
-});
-
-const body = await res.text();
-console.log(`health-recalc: ${res.status}`, body);
+for (const job of ["process-automation-enrollments", "retention-crons"]) {
+  const res = await fetch(`${process.env.APP_URL}/api/cron/run`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.CRON_SECRET}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ job }),
+  });
+  const body = await res.text();
+  console.log(`${job}: ${res.status}`, body);
+}

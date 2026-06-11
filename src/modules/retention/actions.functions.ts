@@ -135,7 +135,7 @@ export const getRetentionStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<RetentionStats> => {
     const [customersResult, sequencesResult, logsResult] = await Promise.all([
-      context.supabase.from("customers").select("rfm_segment, ltv_cents, order_count, cold_list_at, last_order_at"),
+      context.supabase.from("customers").select("id, rfm_segment, ltv_cents, order_count, cold_list_at, last_order_at"),
       context.supabase.from("automation_sequences").select("sent_30d, recovered_cents"),
       supabaseAdmin
         .from("message_delivery_log")
@@ -185,8 +185,26 @@ export const getRetentionStats = createServerFn({ method: "GET" })
       channelMap.set(log.channel, cur);
     }
 
-    const multiOrder = customers.filter((c) => (c.order_count ?? 0) >= 2);
-    const avgDaysToSecondOrder = multiOrder.length > 0 ? 45 : null;
+    const { data: prefs } = await supabaseAdmin
+      .from("customer_contact_prefs")
+      .select("customer_id, first_purchase_at")
+      .not("first_purchase_at", "is", null);
+
+    const secondOrderDays: number[] = [];
+    for (const c of customers.filter((cu) => (cu.order_count ?? 0) >= 2)) {
+      const pref = (prefs ?? []).find((p) => p.customer_id === (c as { id?: string }).id);
+      if (c.last_order_at && pref?.first_purchase_at) {
+        const days = Math.round(
+          (new Date(c.last_order_at).getTime() - new Date(pref.first_purchase_at).getTime()) /
+            86_400_000,
+        );
+        if (days > 0) secondOrderDays.push(days);
+      }
+    }
+    const avgDaysToSecondOrder =
+      secondOrderDays.length > 0
+        ? Math.round(secondOrderDays.reduce((a, b) => a + b, 0) / secondOrderDays.length)
+        : null;
 
     const recentDeliveries: DeliveryLogEntry[] = (logsResult.data ?? []).map((l) => ({
       id: l.id,
@@ -416,4 +434,130 @@ export const getTemplateLibrary = createServerFn({ method: "GET" })
       .select("id, vertical, trigger, channel, name, template_key, body_preview")
       .order("vertical");
     return data ?? [];
+  });
+
+const reviewSchema = z.object({
+  orderId: z.string().uuid(),
+  rating: z.number().min(1).max(5),
+  comment: z.string().optional(),
+});
+
+export const submitOrderReview = createServerFn({ method: "POST" })
+  .inputValidator(reviewSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await resolveClientId(context.supabase);
+    const { submitOrderReview: submit } = await import("./reviews.server");
+    return submit({
+      clientId,
+      orderId: data.orderId,
+      rating: data.rating,
+      comment: data.comment,
+    });
+  });
+
+const wishlistSchema = z.object({
+  productSku: z.string(),
+  productName: z.string().optional(),
+  productImage: z.string().optional(),
+  customerId: z.string().uuid().optional(),
+});
+
+export const trackWishlistItem = createServerFn({ method: "POST" })
+  .inputValidator(wishlistSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await resolveClientId(context.supabase);
+    let wishQuery = supabaseAdmin
+      .from("wishlist_items")
+      .select("id, view_count")
+      .eq("client_id", clientId)
+      .eq("product_sku", data.productSku);
+    wishQuery = data.customerId
+      ? wishQuery.eq("customer_id", data.customerId)
+      : wishQuery.is("customer_id", null);
+    const { data: existing } = await wishQuery.maybeSingle();
+
+    if (existing) {
+      await supabaseAdmin
+        .from("wishlist_items")
+        .update({
+          view_count: existing.view_count + 1,
+          product_name: data.productName,
+          product_image: data.productImage,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existing.id);
+    } else {
+      await supabaseAdmin.from("wishlist_items").insert({
+        client_id: clientId,
+        customer_id: data.customerId ?? null,
+        product_sku: data.productSku,
+        product_name: data.productName,
+        product_image: data.productImage,
+      });
+    }
+    return { success: true };
+  });
+
+const abSchema = z.object({
+  stepId: z.string().uuid(),
+  variantAKey: z.string(),
+  variantBKey: z.string(),
+  trafficSplit: z.number().min(10).max(90).optional(),
+});
+
+export const createAbExperiment = createServerFn({ method: "POST" })
+  .inputValidator(abSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data }) => {
+    const { data: row, error } = await supabaseAdmin
+      .from("ab_experiments")
+      .insert({
+        step_id: data.stepId,
+        variant_a_key: data.variantAKey,
+        variant_b_key: data.variantBKey,
+        traffic_split: data.trafficSplit ?? 50,
+      })
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    return { id: row.id };
+  });
+
+const applyTemplateSchema = z.object({
+  templateId: z.string().uuid(),
+  sequenceName: z.string().optional(),
+});
+
+export const applyTemplateFromLibrary = createServerFn({ method: "POST" })
+  .inputValidator(applyTemplateSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await resolveClientId(context.supabase);
+    const { data: tpl, error } = await supabaseAdmin
+      .from("automation_template_library")
+      .select("trigger, channel, name, template_key")
+      .eq("id", data.templateId)
+      .single();
+    if (error || !tpl) throw new Error("Template não encontrado");
+
+    const { data: seq } = await supabaseAdmin
+      .from("automation_sequences")
+      .insert({
+        client_id: clientId,
+        name: data.sequenceName ?? tpl.name,
+        trigger: tpl.trigger,
+      })
+      .select("id")
+      .single();
+
+    await supabaseAdmin.from("automation_steps").insert({
+      sequence_id: seq!.id,
+      channel: tpl.channel,
+      template_key: tpl.template_key,
+      sort_order: 0,
+    });
+
+    return { sequenceId: seq!.id };
   });

@@ -144,6 +144,49 @@ export async function ensureDefaultSequences(clientId: string): Promise<void> {
       trigger: "avaliacao_negativa",
       steps: [{ channel: "whatsapp", delay: 0, key: "avaliacao_negativa" }],
     },
+    {
+      name: "1º aniversário de cliente",
+      trigger: "aniversario_cliente",
+      steps: [{ channel: "whatsapp", delay: 0, key: "aniversario" }],
+    },
+    {
+      name: "Boleto gerado",
+      trigger: "boleto_gerado",
+      steps: [{ channel: "whatsapp", delay: 60, key: "boleto_lembrete" }],
+    },
+    {
+      name: "Boleto vence em 24h",
+      trigger: "boleto_vencimento",
+      steps: [{ channel: "whatsapp", delay: 0, key: "boleto_lembrete" }],
+    },
+    {
+      name: "Boleto expirado",
+      trigger: "boleto_expirado",
+      steps: [
+        { channel: "whatsapp", delay: 0, key: "boleto_lembrete" },
+        { channel: "sms", delay: 60, key: "boleto_lembrete" },
+      ],
+    },
+    {
+      name: "Produto favorito em estoque",
+      trigger: "estoque_favorito",
+      steps: [{ channel: "whatsapp", delay: 0, key: "estoque_favorito" }],
+    },
+    {
+      name: "Cupom fidelidade",
+      trigger: "fidelidade_cupom",
+      steps: [{ channel: "whatsapp", delay: 0, key: "fidelidade_pontos" }],
+    },
+    {
+      name: "Pontos expirando",
+      trigger: "fidelidade_expira",
+      steps: [{ channel: "whatsapp", delay: 0, key: "fidelidade_pontos" }],
+    },
+    {
+      name: "Próximo nível fidelidade",
+      trigger: "fidelidade_tier",
+      steps: [{ channel: "whatsapp", delay: 0, key: "fidelidade_pontos" }],
+    },
   ];
 
   for (const def of defaults) {

@@ -52,28 +52,41 @@ export default {
     }
   },
 
-  // Cloudflare Workers scheduled handler — fires cron triggers defined in wrangler.toml
-  async scheduled(_event: { cron: string }, env: Record<string, string>, _ctx: unknown) {
+  // Cloudflare Workers scheduled handler — maps wrangler.toml crons to specific jobs
+  async scheduled(event: { cron: string }, env: Record<string, string>, _ctx: unknown) {
     const secret = env.CRON_SECRET;
     if (!secret) {
       console.error("[cron] CRON_SECRET not set — skipping scheduled run");
       return;
     }
     const appUrl = env.APP_URL ?? env.VITE_APP_URL ?? "http://localhost:5173";
-    try {
-      const res = await fetch(`${appUrl}/api/cron/run`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${secret}`,
-        },
-        body: JSON.stringify({ job: "all" }),
-      });
-      if (!res.ok) {
-        console.error(`[cron] Run failed with status ${res.status}`);
+
+    const CRON_JOBS: Record<string, string[]> = {
+      "*/15 * * * *": ["process-automation-enrollments", "process-outbox"],
+      "*/5 * * * *": ["process-outbox"],
+      "0 6 * * *": ["health-recalc", "sync-campaigns", "retention-crons", "attribute-conversions"],
+      "0 */6 * * *": ["sync-catalog", "compute-rfm"],
+      "0 3 * * *": ["cleanup-oauth"],
+    };
+
+    const jobs = CRON_JOBS[event.cron] ?? ["process-automation-enrollments"];
+
+    for (const job of jobs) {
+      try {
+        const res = await fetch(`${appUrl}/api/cron/run`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${secret}`,
+          },
+          body: JSON.stringify({ job }),
+        });
+        if (!res.ok) {
+          console.error(`[cron] Job ${job} failed with status ${res.status}`);
+        }
+      } catch (err) {
+        console.error(`[cron] Job ${job} error:`, err);
       }
-    } catch (err) {
-      console.error("[cron] Scheduled run error:", err);
     }
   },
 };

@@ -60,14 +60,44 @@ export const Route = createFileRoute("/api/webhooks/whatsapp")({
           }
         }
 
-        for (const msg of inbound) {
-          const { data: connections } = await supabaseAdmin
+        const body = payload as Record<string, unknown>;
+        const entries = (body.entry ?? []) as Array<Record<string, unknown>>;
+        let phoneNumberId = "";
+        for (const e of entries) {
+          const changes = (e.changes ?? []) as Array<Record<string, unknown>>;
+          for (const change of changes) {
+            const value = change.value as Record<string, unknown> | undefined;
+            const meta = value?.metadata as Record<string, unknown> | undefined;
+            if (meta?.phone_number_id) {
+              phoneNumberId = String(meta.phone_number_id);
+              break;
+            }
+          }
+        }
+
+        let clientId: string | null = null;
+        if (phoneNumberId) {
+          const { data: conn } = await supabaseAdmin
+            .from("oauth_connections")
+            .select("client_id, metadata")
+            .eq("provider", "whatsapp")
+            .eq("is_active", true)
+            .contains("metadata", { phone_number_id: phoneNumberId })
+            .maybeSingle();
+          clientId = conn?.client_id ?? null;
+        }
+        if (!clientId) {
+          const { data: fallback } = await supabaseAdmin
             .from("oauth_connections")
             .select("client_id")
             .eq("provider", "whatsapp")
             .eq("is_active", true)
-            .limit(1);
-          const clientId = connections?.[0]?.client_id;
+            .limit(1)
+            .maybeSingle();
+          clientId = fallback?.client_id ?? null;
+        }
+
+        for (const msg of inbound) {
           if (clientId && msg.text) {
             await handleInboundWhatsApp({ clientId, from: msg.from, text: msg.text });
           }

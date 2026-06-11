@@ -99,6 +99,17 @@ async function evaluateCondition(
     return c?.rfm_segment === segment;
   }
 
+  if (condition.startsWith("acquisition_channel:")) {
+    const channel = condition.split(":")[1];
+    if (!enrollment.customer_id) return false;
+    const { data: c } = await supabaseAdmin
+      .from("customers")
+      .select("acquisition_channel")
+      .eq("id", enrollment.customer_id)
+      .single();
+    return c?.acquisition_channel === channel;
+  }
+
   return true;
 }
 
@@ -142,7 +153,13 @@ async function processEnrollment(
 
   const storeName = await getStoreName(enrollment.client_id);
   const abVariant = await pickAbVariant(step.id);
-  const templateKey = abVariant ?? step.template_key;
+  const stepMeta = step.metadata ?? {};
+  const acChannel = String(enrollment.context.acquisition_channel ?? "");
+  const variantFromMeta =
+    acChannel && stepMeta[`template_${acChannel}`]
+      ? String(stepMeta[`template_${acChannel}`])
+      : null;
+  const templateKey = abVariant ?? variantFromMeta ?? step.template_key;
 
   const result = await sendChannelMessage(step.channel, {
     clientId: enrollment.client_id,

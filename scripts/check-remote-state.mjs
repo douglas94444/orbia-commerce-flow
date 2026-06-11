@@ -87,3 +87,15 @@ console.log('migration 022 (receivables):', recvErr ? `MISSING (${recvErr.messag
 
 const { error: pricingErr } = await sb.from('pricing_recommendations').select('id').limit(1)
 console.log('migration 022 (pricing_recommendations):', pricingErr ? `MISSING (${pricingErr.message})` : 'ok')
+
+const { error: seqErr } = await sb.from('automation_sequences').select('id').limit(1)
+console.log('migration 024 (automation_sequences):', seqErr ? `MISSING (${seqErr.message})` : 'ok')
+
+const { error: cartErr } = await sb.from('abandoned_carts').select('id').limit(1)
+console.log('migration 025 (abandoned_carts):', cartErr ? `MISSING (${cartErr.message})` : 'ok')
+
+const { error: loyaltyErr } = await sb.from('loyalty_accounts').select('id').limit(1)
+console.log('migration 026 (loyalty_accounts):', loyaltyErr ? `MISSING (${loyaltyErr.message})` : 'ok')
+
+const { error: abErr } = await sb.from('ab_experiments').select('id').limit(1)
+console.log('migration 027 (ab_experiments):', abErr ? `MISSING (${abErr.message})` : 'ok')

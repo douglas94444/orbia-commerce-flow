@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useEffect } from 'react'
 import { User, UserPlus, MessageSquare } from 'lucide-react'
-import { useWhatsAppTemplates } from '@/modules/retention/hooks/use-retention'
+import { useWhatsAppTemplates, useUpdateQuietHours } from '@/modules/retention/hooks/use-retention'
 import { PageIntro, Panel } from '@/components/dashboard/panel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -57,6 +57,9 @@ function PortalSettingsPage() {
   const { data: subscription } = useClientSubscription()
   const mpCheckout = useStartMercadoPagoCheckout()
   const { data: waTemplates = [] } = useWhatsAppTemplates()
+  const { mutate: saveQuietHours, isPending: savingHours } = useUpdateQuietHours()
+  const [quietStart, setQuietStart] = useState(22)
+  const [quietEnd, setQuietEnd] = useState(8)
 
   async function handleInvite() {
     if (!inviteEmail) return
@@ -135,8 +138,26 @@ function PortalSettingsPage() {
 
       <Panel title="WhatsApp (Meta)" subtitle="Templates e compliance" action={<MessageSquare className="size-4 text-muted-foreground" />}>
         <p className="mb-3 text-sm text-muted-foreground">
-          Horário de envio: 8h–22h (configurável). Clientes que respondem PARAR são removidos automaticamente de todos os fluxos.
+          Clientes que respondem PARAR são removidos automaticamente de todos os fluxos.
         </p>
+        <div className="mb-4 flex flex-wrap items-end gap-3">
+          <div className="space-y-1">
+            <Label>Início quiet hours (h)</Label>
+            <Input type="number" min={0} max={23} value={quietStart} onChange={(e) => setQuietStart(Number(e.target.value))} className="w-24" />
+          </div>
+          <div className="space-y-1">
+            <Label>Fim quiet hours (h)</Label>
+            <Input type="number" min={0} max={23} value={quietEnd} onChange={(e) => setQuietEnd(Number(e.target.value))} className="w-24" />
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            disabled={savingHours}
+            onClick={() => saveQuietHours({ quietHoursStart: quietStart, quietHoursEnd: quietEnd })}
+          >
+            Salvar horário
+          </Button>
+        </div>
         {waTemplates.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nenhum template registrado. Conecte WhatsApp Business via OAuth.</p>
         ) : (

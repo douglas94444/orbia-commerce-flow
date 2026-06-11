@@ -5,6 +5,11 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { logJob } from "@/shared/lib/logger";
 import { ingestStoreWebhook } from "@/modules/logistics/order-ingestion.server";
 import { handleMelhorEnvioWebhook } from "@/modules/logistics/shipping.server";
+import {
+  isCartAbandonmentEvent,
+  parseAbandonedCartFromWebhook,
+  emitCartAbandoned,
+} from "@/modules/retention/cart-abandonment.server";
 
 export interface WebhookEventRow {
   id: string;
@@ -137,6 +142,18 @@ export async function processWebhookEventInternal(
 async function routeWebhookEvent(event: WebhookEventRow) {
   const { provider, event_type, payload, client_id } = event;
 
+  if (
+    (provider === "nuvemshop" || provider === "shopify") &&
+    isCartAbandonmentEvent(event_type) &&
+    client_id
+  ) {
+    const cart = parseAbandonedCartFromWebhook(provider, payload, client_id);
+    if (cart) {
+      await emitCartAbandoned(cart);
+      return;
+    }
+  }
+
   switch (provider) {
     case "mercado_livre":
     case "shopee":
@@ -144,10 +161,43 @@ async function routeWebhookEvent(event: WebhookEventRow) {
     case "shopify":
       await ingestStoreWebhook(provider, event_type, payload, client_id);
       break;
+    case "pagar_me":
+      await handlePagarMeWebhook(payload, client_id);
+      break;
     case "melhor_envio":
       await handleMelhorEnvioWebhook(payload);
       break;
     default:
       console.warn(`[webhook] Unhandled provider: ${provider}`);
+  }
+}
+
+async function handlePagarMeWebhook(payload: unknown, clientId: string | null): Promise<void> {
+  const body = payload as Record<string, unknown>;
+  const type = String(body.type ?? body.event ?? "").toLowerCase();
+  const data = (body.data ?? body) as Record<string, unknown>;
+  const charge = (data.charge ?? data) as Record<string, unknown>;
+  const paymentMethod = String(charge.payment_method ?? data.payment_method ?? "").toLowerCase();
+
+  if (!clientId) return;
+
+  if (type.includes("boleto") || paymentMethod === "boleto") {
+    const metadata = (charge.metadata ?? data.metadata ?? {}) as Record<string, unknown>;
+    const orderId = String(metadata.order_id ?? "");
+    const customerId = String(metadata.customer_id ?? "");
+    const lastTx = (charge.last_transaction ?? {}) as Record<string, unknown>;
+    const boletoUrl = String(lastTx.url ?? lastTx.pdf ?? "");
+    const dueAt = String(lastTx.due_at ?? new Date(Date.now() + 3 * 86_400_000).toISOString());
+
+    if (boletoUrl && orderId) {
+      const { emitDomainEvent } = await import("@/shared/lib/domain-events.server");
+      await emitDomainEvent("boleto.generated", {
+        clientId,
+        orderId,
+        customerId,
+        boletoUrl,
+        dueAt,
+      });
+    }
   }
 }

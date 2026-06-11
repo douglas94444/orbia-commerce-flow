@@ -160,6 +160,38 @@ export async function processBoletoReminders(): Promise<{ reminded: number }> {
     .lt("due_at", new Date().toISOString());
 
   for (const b of expired.data ?? []) {
+    let newBoletoUrl = "";
+    if (b.order_id && b.customer_id) {
+      try {
+        const { data: order } = await supabaseAdmin
+          .from("orders")
+          .select("value_cents, metadata")
+          .eq("id", b.order_id)
+          .single();
+        const meta = (order?.metadata ?? {}) as Record<string, unknown>;
+        const { regenerateBoletoCharge } = await import("@/integrations/pagar-me/boleto.server");
+        const regen = await regenerateBoletoCharge({
+          orderId: b.order_id,
+          clientId: b.client_id,
+          amountCents: order?.value_cents ?? 0,
+          customerEmail: String(meta.customer_email ?? ""),
+          customerName: String(meta.customer_name ?? "Cliente"),
+          customerDocument: String(meta.customer_document ?? meta.customer_cpf ?? "00000000000"),
+        });
+        newBoletoUrl = regen.boletoUrl;
+        await supabaseAdmin.from("boleto_reminders").insert({
+          client_id: b.client_id,
+          order_id: b.order_id,
+          customer_id: b.customer_id,
+          boleto_url: regen.boletoUrl,
+          due_at: regen.dueAt,
+          status: "regenerated",
+        });
+      } catch (err) {
+        console.error("[boleto] regenerate failed:", err);
+      }
+    }
+
     await supabaseAdmin
       .from("boleto_reminders")
       .update({ status: "expired", updated_at: new Date().toISOString() })
@@ -169,7 +201,7 @@ export async function processBoletoReminders(): Promise<{ reminded: number }> {
       clientId: b.client_id,
       trigger: "boleto_expirado",
       customerId: b.customer_id,
-      context: { order_id: b.order_id, regenerate: true },
+      context: { order_id: b.order_id, regenerate: true, boleto_url: newBoletoUrl },
     });
   }
 
@@ -186,13 +218,14 @@ export async function processWishlistAlerts(): Promise<{ notified: number }> {
   let notified = 0;
   for (const item of items ?? []) {
     const { data: product } = await supabaseAdmin
-      .from("product_catalog")
-      .select("stock_quantity, price_cents")
+      .from("inventory")
+      .select("units, reserved")
       .eq("client_id", item.client_id)
       .eq("sku", item.product_sku)
       .maybeSingle();
 
-    if (!product || (product.stock_quantity ?? 0) <= 0) continue;
+    const available = (product?.units ?? 0) - (product?.reserved ?? 0);
+    if (!product || available <= 0) continue;
 
     await enrollInSequence({
       clientId: item.client_id,
@@ -259,6 +292,35 @@ export async function handleNegativeReview(input: {
   rating: number;
   comment?: string;
 }): Promise<void> {
+  const { data: staff } = await supabaseAdmin
+    .from("profiles")
+    .select("id")
+    .in("role", ["orbia_admin", "orbia_staff"])
+    .limit(1)
+    .maybeSingle();
+
+  let ticketId: string | null = null;
+  if (staff?.id) {
+    const { data: ticket } = await supabaseAdmin
+      .from("cs_activities")
+      .insert({
+        client_id: input.clientId,
+        staff_id: staff.id,
+        kind: "contact",
+        notes: `Avaliação ${input.rating} estrelas — pedido ${input.orderId.slice(0, 8)}. ${input.comment ?? ""}`.trim(),
+        metadata: {
+          order_id: input.orderId,
+          customer_id: input.customerId,
+          rating: input.rating,
+          auto: true,
+          source: "negative_review",
+        },
+      })
+      .select("id")
+      .single();
+    ticketId = ticket?.id ?? null;
+  }
+
   const { data: review } = await supabaseAdmin
     .from("cs_reviews")
     .insert({
@@ -267,6 +329,8 @@ export async function handleNegativeReview(input: {
       customer_id: input.customerId,
       rating: input.rating,
       comment: input.comment ?? null,
+      ticket_id: ticketId,
+      handled_at: ticketId ? new Date().toISOString() : null,
     })
     .select("id")
     .single();

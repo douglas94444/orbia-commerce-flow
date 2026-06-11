@@ -33,6 +33,8 @@ import { Route as DashboardAnalyticsRouteImport } from './routes/_dashboard.anal
 import { Route as ApiWebhooksWhatsappRouteImport } from './routes/api/webhooks/whatsapp'
 import { Route as ApiWebhooksShopifyRouteImport } from './routes/api/webhooks/shopify'
 import { Route as ApiWebhooksShopeeRouteImport } from './routes/api/webhooks/shopee'
+import { Route as ApiWebhooksResendRouteImport } from './routes/api/webhooks/resend'
+import { Route as ApiWebhooksPagarMeRouteImport } from './routes/api/webhooks/pagar-me'
 import { Route as ApiWebhooksNuvemshopRouteImport } from './routes/api/webhooks/nuvemshop'
 import { Route as ApiWebhooksMercadoPagoRouteImport } from './routes/api/webhooks/mercado-pago'
 import { Route as ApiWebhooksMercadoLivreRouteImport } from './routes/api/webhooks/mercado-livre'
@@ -168,6 +170,16 @@ const ApiWebhooksShopeeRoute = ApiWebhooksShopeeRouteImport.update({
   path: '/api/webhooks/shopee',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiWebhooksResendRoute = ApiWebhooksResendRouteImport.update({
+  id: '/api/webhooks/resend',
+  path: '/api/webhooks/resend',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWebhooksPagarMeRoute = ApiWebhooksPagarMeRouteImport.update({
+  id: '/api/webhooks/pagar-me',
+  path: '/api/webhooks/pagar-me',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiWebhooksNuvemshopRoute = ApiWebhooksNuvemshopRouteImport.update({
   id: '/api/webhooks/nuvemshop',
   path: '/api/webhooks/nuvemshop',
@@ -276,6 +288,8 @@ export interface FileRoutesByFullPath {
   '/api/webhooks/mercado-livre': typeof ApiWebhooksMercadoLivreRoute
   '/api/webhooks/mercado-pago': typeof ApiWebhooksMercadoPagoRoute
   '/api/webhooks/nuvemshop': typeof ApiWebhooksNuvemshopRoute
+  '/api/webhooks/pagar-me': typeof ApiWebhooksPagarMeRoute
+  '/api/webhooks/resend': typeof ApiWebhooksResendRoute
   '/api/webhooks/shopee': typeof ApiWebhooksShopeeRoute
   '/api/webhooks/shopify': typeof ApiWebhooksShopifyRoute
   '/api/webhooks/whatsapp': typeof ApiWebhooksWhatsappRoute
@@ -316,6 +330,8 @@ export interface FileRoutesByTo {
   '/api/webhooks/mercado-livre': typeof ApiWebhooksMercadoLivreRoute
   '/api/webhooks/mercado-pago': typeof ApiWebhooksMercadoPagoRoute
   '/api/webhooks/nuvemshop': typeof ApiWebhooksNuvemshopRoute
+  '/api/webhooks/pagar-me': typeof ApiWebhooksPagarMeRoute
+  '/api/webhooks/resend': typeof ApiWebhooksResendRoute
   '/api/webhooks/shopee': typeof ApiWebhooksShopeeRoute
   '/api/webhooks/shopify': typeof ApiWebhooksShopifyRoute
   '/api/webhooks/whatsapp': typeof ApiWebhooksWhatsappRoute
@@ -358,6 +374,8 @@ export interface FileRoutesById {
   '/api/webhooks/mercado-livre': typeof ApiWebhooksMercadoLivreRoute
   '/api/webhooks/mercado-pago': typeof ApiWebhooksMercadoPagoRoute
   '/api/webhooks/nuvemshop': typeof ApiWebhooksNuvemshopRoute
+  '/api/webhooks/pagar-me': typeof ApiWebhooksPagarMeRoute
+  '/api/webhooks/resend': typeof ApiWebhooksResendRoute
   '/api/webhooks/shopee': typeof ApiWebhooksShopeeRoute
   '/api/webhooks/shopify': typeof ApiWebhooksShopifyRoute
   '/api/webhooks/whatsapp': typeof ApiWebhooksWhatsappRoute
@@ -400,6 +418,8 @@ export interface FileRouteTypes {
     | '/api/webhooks/mercado-livre'
     | '/api/webhooks/mercado-pago'
     | '/api/webhooks/nuvemshop'
+    | '/api/webhooks/pagar-me'
+    | '/api/webhooks/resend'
     | '/api/webhooks/shopee'
     | '/api/webhooks/shopify'
     | '/api/webhooks/whatsapp'
@@ -440,6 +460,8 @@ export interface FileRouteTypes {
     | '/api/webhooks/mercado-livre'
     | '/api/webhooks/mercado-pago'
     | '/api/webhooks/nuvemshop'
+    | '/api/webhooks/pagar-me'
+    | '/api/webhooks/resend'
     | '/api/webhooks/shopee'
     | '/api/webhooks/shopify'
     | '/api/webhooks/whatsapp'
@@ -481,6 +503,8 @@ export interface FileRouteTypes {
     | '/api/webhooks/mercado-livre'
     | '/api/webhooks/mercado-pago'
     | '/api/webhooks/nuvemshop'
+    | '/api/webhooks/pagar-me'
+    | '/api/webhooks/resend'
     | '/api/webhooks/shopee'
     | '/api/webhooks/shopify'
     | '/api/webhooks/whatsapp'
@@ -504,6 +528,8 @@ export interface RootRouteChildren {
   ApiWebhooksMercadoLivreRoute: typeof ApiWebhooksMercadoLivreRoute
   ApiWebhooksMercadoPagoRoute: typeof ApiWebhooksMercadoPagoRoute
   ApiWebhooksNuvemshopRoute: typeof ApiWebhooksNuvemshopRoute
+  ApiWebhooksPagarMeRoute: typeof ApiWebhooksPagarMeRoute
+  ApiWebhooksResendRoute: typeof ApiWebhooksResendRoute
   ApiWebhooksShopeeRoute: typeof ApiWebhooksShopeeRoute
   ApiWebhooksShopifyRoute: typeof ApiWebhooksShopifyRoute
   ApiWebhooksWhatsappRoute: typeof ApiWebhooksWhatsappRoute
@@ -685,6 +711,20 @@ declare module '@tanstack/react-router' {
       path: '/api/webhooks/shopee'
       fullPath: '/api/webhooks/shopee'
       preLoaderRoute: typeof ApiWebhooksShopeeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/webhooks/resend': {
+      id: '/api/webhooks/resend'
+      path: '/api/webhooks/resend'
+      fullPath: '/api/webhooks/resend'
+      preLoaderRoute: typeof ApiWebhooksResendRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/webhooks/pagar-me': {
+      id: '/api/webhooks/pagar-me'
+      path: '/api/webhooks/pagar-me'
+      fullPath: '/api/webhooks/pagar-me'
+      preLoaderRoute: typeof ApiWebhooksPagarMeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/webhooks/nuvemshop': {
@@ -881,6 +921,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiWebhooksMercadoLivreRoute: ApiWebhooksMercadoLivreRoute,
   ApiWebhooksMercadoPagoRoute: ApiWebhooksMercadoPagoRoute,
   ApiWebhooksNuvemshopRoute: ApiWebhooksNuvemshopRoute,
+  ApiWebhooksPagarMeRoute: ApiWebhooksPagarMeRoute,
+  ApiWebhooksResendRoute: ApiWebhooksResendRoute,
   ApiWebhooksShopeeRoute: ApiWebhooksShopeeRoute,
   ApiWebhooksShopifyRoute: ApiWebhooksShopifyRoute,
   ApiWebhooksWhatsappRoute: ApiWebhooksWhatsappRoute,

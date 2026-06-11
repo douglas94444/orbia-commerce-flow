@@ -69,6 +69,25 @@ function AnalyticsPage() {
           <ChannelRoasChart data={isLoading ? undefined : data?.channelRoas} />
         </Panel>
 
+        <Panel title="LTV por cohort de aquisição" subtitle="LTV médio por mês da primeira compra">
+          {isLoading ? (
+            <div className="h-32 animate-pulse rounded-xl bg-muted/40" />
+          ) : !data?.ltvByCohort?.length ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Sem dados de clientes ainda.</p>
+          ) : (
+            <div className="space-y-2">
+              {data.ltvByCohort.map((row) => (
+                <div key={row.cohort} className="flex justify-between text-sm border-b border-border/50 pb-2">
+                  <span>{row.cohort}</span>
+                  <span className="font-mono">
+                    {formatBRL(row.avgLtv)} <span className="text-muted-foreground">({row.customers})</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </Panel>
+
         <Panel title="Retenção por cohort" subtitle="Clientes ativos por mês desde primeira compra">
           {isLoading ? (
             <div className="h-32 animate-pulse rounded-xl bg-muted/40" />

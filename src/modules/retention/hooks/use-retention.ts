@@ -8,6 +8,8 @@ import {
   getTemplateLibrary,
   getWhatsAppTemplates,
   simulateAutomation,
+  applyTemplateFromLibrary,
+  updateQuietHours,
 } from "../actions.functions";
 
 export const AUTOMATIONS_KEY = ["automations"] as const;
@@ -75,6 +77,28 @@ export function useSimulateAutomation() {
         `Simulação: ${data.impactedCustomers} clientes, receita esperada ${(data.expectedRevenueCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`,
       );
     },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useApplyTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { templateId: string; sequenceName?: string }) =>
+      applyTemplateFromLibrary({ data: vars }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: AUTOMATIONS_KEY });
+      toast.success("Template aplicado como novo fluxo.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useUpdateQuietHours() {
+  return useMutation({
+    mutationFn: (vars: { quietHoursStart: number; quietHoursEnd: number }) =>
+      updateQuietHours({ data: vars }),
+    onSuccess: () => toast.success("Horário de envio atualizado."),
     onError: (e: Error) => toast.error(e.message),
   });
 }

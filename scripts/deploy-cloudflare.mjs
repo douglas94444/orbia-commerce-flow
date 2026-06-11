@@ -23,10 +23,12 @@
  *
  * After deploy: node scripts/set-worker-secrets.mjs
  *
- * Cloudflare Cron Triggers (configure in Dashboard → Triggers):
- *   0 6 * * *   — POST /api/cron/run { "job": "health-recalc" } then { "job": "sync-campaigns" }
- *   0 0,6,12,18 * * * — POST /api/cron/run { "job": "sync-catalog" } + { "job": "process-outbox" }
- *   0 3 * * *   — POST /api/cron/run { "job": "cleanup-oauth" }
+ * Cloudflare Cron Triggers (wrangler.toml — mapped in src/server.ts scheduled):
+ *   every 15 min — process-automation-enrollments, process-outbox
+ *   every 5 min  — process-outbox
+ *   0 6 * * *    — health-recalc, sync-campaigns, retention-crons, attribute-conversions
+ *   0 0,6,12,18 * * * — sync-catalog, compute-rfm
+ *   0 3 * * *    — cleanup-oauth
  * Header: Authorization: Bearer {CRON_SECRET}
  */
 
