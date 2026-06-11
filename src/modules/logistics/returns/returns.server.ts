@@ -110,11 +110,22 @@ export async function generateReturnLabel(returnRequestId: string): Promise<stri
   return label.trackingCode;
 }
 
-export async function markReturnReceived(returnRequestId: string): Promise<void> {
+export async function markReturnReceived(returnRequestId: string): Promise<string> {
+  const { data: req } = await supabaseAdmin
+    .from("return_requests")
+    .select("client_id")
+    .eq("id", returnRequestId)
+    .single();
+
+  if (!req) throw new Error("Solicitação não encontrada");
+
   await supabaseAdmin
     .from("return_requests")
     .update({ status: "received", updated_at: new Date().toISOString() })
     .eq("id", returnRequestId);
+
+  const { createReturnReceivingAppointment } = await import("../receiving/receiving.server");
+  return createReturnReceivingAppointment(req.client_id as string, returnRequestId);
 }
 
 export async function listReturnRequests(clientId: string) {

@@ -29,6 +29,12 @@ import {
   startReceivingSession,
   confirmReceivingLine,
   completeReceivingSession,
+  listReceivingAppointments,
+  listOpsReceivingAppointments,
+  getReceivingSessionContext,
+  uploadReceivingPhoto,
+  listReceivingReports,
+  exportReceivingReportCsv,
 } from "./receiving/receiving.server";
 import { generatePickWave, confirmPickLine, completePickTask } from "./picking/wave-generator.server";
 import {
@@ -224,6 +230,8 @@ const receiveLineSchema = z.object({
   receivedQty: z.number(),
   barcodeScanned: z.string().optional(),
   locationId: z.string().uuid().optional(),
+  photoUrl: z.string().optional(),
+  photoDataUrl: z.string().optional(),
   lotCode: z.string().optional(),
   expiresAt: z.string().optional(),
 });
@@ -241,6 +249,15 @@ export const confirmReceivingLineFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
     const clientId = await getClientIdForUser(context.userId, context.supabase);
+    let photoUrl = data.photoUrl;
+    if (data.photoDataUrl) {
+      photoUrl = await uploadReceivingPhoto(
+        clientId,
+        data.sessionId,
+        data.sku,
+        data.photoDataUrl,
+      );
+    }
     await confirmReceivingLine(
       clientId,
       data.sessionId,
@@ -250,12 +267,57 @@ export const confirmReceivingLineFn = createServerFn({ method: "POST" })
         receivedQty: data.receivedQty,
         barcodeScanned: data.barcodeScanned,
         locationId: data.locationId,
+        photoUrl,
         lotCode: data.lotCode,
         expiresAt: data.expiresAt,
       },
       context.userId,
     );
     return { ok: true };
+  });
+
+export const completeReceivingSessionFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ sessionId: z.string().uuid() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    await completeReceivingSession(clientId, data.sessionId);
+    return { ok: true };
+  });
+
+export const listReceivingAppointmentsFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return listReceivingAppointments(clientId);
+  });
+
+export const listOpsReceivingAppointmentsFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return listOpsReceivingAppointments(clientId);
+  });
+
+export const getReceivingSessionContextFn = createServerFn({ method: "GET" })
+  .inputValidator(z.object({ sessionId: z.string().uuid() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data }) => getReceivingSessionContext(data.sessionId));
+
+export const listReceivingReportsFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ from: z.string().optional(), to: z.string().optional() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return listReceivingReports(clientId, data.from, data.to);
+  });
+
+export const exportReceivingReportFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ from: z.string().optional(), to: z.string().optional() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return { csv: await exportReceivingReportCsv(clientId, data.from, data.to) };
   });
 
 export const getOpsTasksFn = createServerFn({ method: "GET" })
@@ -267,9 +329,10 @@ export const getOpsTasksFn = createServerFn({ method: "GET" })
       getOpsPickQueue(clientId),
       supabaseAdmin
         .from("receiving_appointments")
-        .select("id, scheduled_at, status")
+        .select("id, scheduled_at, status, expected_items, appointment_type")
         .eq("client_id", clientId)
-        .eq("status", "scheduled")
+        .in("status", ["scheduled", "in_progress"])
+        .order("scheduled_at")
         .limit(10),
     ]);
 
@@ -317,8 +380,8 @@ export const markReturnReceivedFn = createServerFn({ method: "POST" })
   .inputValidator(z.object({ returnRequestId: z.string().uuid() }))
   .middleware([requireSupabaseAuth])
   .handler(async ({ data }) => {
-    await markReturnReceived(data.returnRequestId);
-    return { ok: true };
+    const appointmentId = await markReturnReceived(data.returnRequestId);
+    return { ok: true, appointmentId };
   });
 
 const inspectReturnSchema = z.object({

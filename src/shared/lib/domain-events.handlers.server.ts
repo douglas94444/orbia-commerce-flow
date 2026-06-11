@@ -227,6 +227,45 @@ onDomainEvent("return.inspected", async (payload) => {
   }
 });
 
+onDomainEvent("receiving.completed", async (payload) => {
+  const clientId = String(payload.clientId ?? "");
+  const sessionId = String(payload.sessionId ?? "");
+  if (!clientId || !sessionId) return;
+
+  const { data: lines } = await supabaseAdmin
+    .from("receiving_lines")
+    .select("sku, expected_qty, received_qty, has_divergence")
+    .eq("session_id", sessionId);
+
+  const allLines = lines ?? [];
+  const divergences = allLines.filter((l) => l.has_divergence);
+  const { getServerConfig } = await import("@/lib/config.server");
+  const appUrl = getServerConfig().appUrl;
+
+  let message = `✅ Recebimento concluído no Fulfillly.\n${allLines.length} SKU(s) conferidos`;
+  if (divergences.length > 0) {
+    message += `, ${divergences.length} com divergência:\n`;
+    for (const d of divergences.slice(0, 5)) {
+      message += `• ${d.sku}: esperado ${d.expected_qty}, recebido ${d.received_qty}\n`;
+    }
+    if (divergences.length > 5) {
+      message += `… e mais ${divergences.length - 5} item(ns)\n`;
+    }
+  } else {
+    message += ", sem divergências.";
+  }
+  message += `\nDetalhes: ${appUrl}/logistics/receiving`;
+
+  try {
+    const { sendWhatsAppToClient } = await import(
+      "@/modules/logistics/notifications/whatsapp-alerts.server"
+    );
+    await sendWhatsAppToClient(clientId, message);
+  } catch (err) {
+    console.error("[receiving] receiving.completed notification:", err);
+  }
+});
+
 onDomainEvent("review.negative", async (payload) => {
   const { handleNegativeReview } = await import("@/modules/retention/trigger-crons.server");
   await handleNegativeReview({

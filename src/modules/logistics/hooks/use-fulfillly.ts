@@ -49,6 +49,12 @@ import {
   listStockTurnoverFn,
   listRecentStockSyncsFn,
   startReceivingSessionFn,
+  completeReceivingSessionFn,
+  listOpsReceivingAppointmentsFn,
+  getReceivingSessionContextFn,
+  listReceivingAppointmentsFn,
+  listReceivingReportsFn,
+  exportReceivingReportFn,
 } from "../fulfillly.actions.functions";
 
 export function useWarehouseLocations() {
@@ -191,7 +197,9 @@ export function useMarkReturnReceived() {
     mutationFn: (returnRequestId: string) => markReturnReceivedFn({ data: { returnRequestId } }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["returns"] });
-      toast.success("Devolução recebida");
+      qc.invalidateQueries({ queryKey: ["ops-receiving-appointments"] });
+      qc.invalidateQueries({ queryKey: ["receiving-appointments"] });
+      toast.success("Devolução recebida — agendamento de conferência criado");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -247,11 +255,14 @@ export function useConfirmReceivingLine() {
       receivedQty: number;
       barcodeScanned?: string;
       locationId?: string;
+      photoUrl?: string;
+      photoDataUrl?: string;
       lotCode?: string;
       expiresAt?: string;
     }) => confirmReceivingLineFn({ data: input }),
-    onSuccess: () => {
+    onSuccess: (_res, vars) => {
       qc.invalidateQueries({ queryKey: ["ops-tasks"] });
+      qc.invalidateQueries({ queryKey: ["receiving-session", vars.sessionId] });
       toast.success("Linha conferida");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -427,9 +438,75 @@ export function useRecentStockSyncs() {
 }
 
 export function useStartReceivingSession() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (appointmentId: string | null) =>
       startReceivingSessionFn({ data: { appointmentId } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["ops-receiving-appointments"] });
+      qc.invalidateQueries({ queryKey: ["ops-tasks"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useCompleteReceivingSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (sessionId: string) => completeReceivingSessionFn({ data: { sessionId } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["ops-tasks"] });
+      qc.invalidateQueries({ queryKey: ["receiving-appointments"] });
+      qc.invalidateQueries({ queryKey: ["receiving-reports"] });
+      toast.success("Recebimento concluído");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useOpsReceivingAppointments() {
+  return useQuery({
+    queryKey: ["ops-receiving-appointments"],
+    queryFn: () => listOpsReceivingAppointmentsFn(),
+    refetchInterval: 30_000,
+  });
+}
+
+export function useReceivingSessionContext(sessionId: string | null) {
+  return useQuery({
+    queryKey: ["receiving-session", sessionId],
+    queryFn: () => getReceivingSessionContextFn({ data: { sessionId: sessionId! } }),
+    enabled: !!sessionId,
+  });
+}
+
+export function useReceivingAppointments() {
+  return useQuery({
+    queryKey: ["receiving-appointments"],
+    queryFn: () => listReceivingAppointmentsFn(),
+  });
+}
+
+export function useReceivingReports(from?: string, to?: string) {
+  return useQuery({
+    queryKey: ["receiving-reports", from, to],
+    queryFn: () => listReceivingReportsFn({ data: { from, to } }),
+  });
+}
+
+export function useExportReceivingReport() {
+  return useMutation({
+    mutationFn: (input: { from?: string; to?: string }) => exportReceivingReportFn({ data: input }),
+    onSuccess: (res) => {
+      const blob = new Blob([res.csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `recebimentos-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Relatório exportado");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 }
@@ -518,6 +595,8 @@ export function useCreateReceivingAppointment() {
     }) => createReceivingAppointmentFn({ data: input }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["ops-tasks"] });
+      qc.invalidateQueries({ queryKey: ["receiving-appointments"] });
+      qc.invalidateQueries({ queryKey: ["ops-receiving-appointments"] });
       toast.success("Recebimento agendado");
     },
     onError: (e: Error) => toast.error(e.message),
