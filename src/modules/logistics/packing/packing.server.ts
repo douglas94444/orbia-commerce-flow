@@ -94,17 +94,52 @@ export async function confirmPackingItem(
     .eq("id", item.id);
 }
 
+async function uploadPackingEvidence(
+  clientId: string,
+  sessionId: string,
+  photoUrls: string[],
+): Promise<string[]> {
+  const stored: string[] = [];
+
+  for (let i = 0; i < photoUrls.length; i += 1) {
+    const url = photoUrls[i];
+    const match = url.match(/^data:image\/(\w+);base64,(.+)$/);
+    if (!match) {
+      stored.push(url);
+      continue;
+    }
+
+    const ext = match[1] === "jpeg" ? "jpg" : match[1];
+    const buffer = Buffer.from(match[2], "base64");
+    const path = `${clientId}/${sessionId}/${i}.${ext}`;
+
+    const { error } = await supabaseAdmin.storage.from("fulfillment-evidence").upload(path, buffer, {
+      contentType: `image/${match[1]}`,
+      upsert: true,
+    });
+
+    if (error) throw new Error(`Falha no upload da foto: ${error.message}`);
+    stored.push(path);
+  }
+
+  return stored;
+}
+
 export async function completePackingSession(
   sessionId: string,
   photoUrls: string[] = [],
 ): Promise<void> {
   const { data: session } = await supabaseAdmin
     .from("packing_sessions")
-    .select("order_id")
+    .select("order_id, orders(client_id)")
     .eq("id", sessionId)
     .single();
 
   if (!session) throw new Error("Sessão não encontrada");
+
+  const clientId = (session.orders as { client_id: string } | null)?.client_id;
+  const storedPhotos =
+    clientId && photoUrls.length ? await uploadPackingEvidence(clientId, sessionId, photoUrls) : photoUrls;
 
   const { data: items } = await supabaseAdmin
     .from("order_items")
@@ -120,7 +155,7 @@ export async function completePackingSession(
     .from("packing_sessions")
     .update({
       status: "completed",
-      photo_urls: photoUrls,
+      photo_urls: storedPhotos,
       completed_at: new Date().toISOString(),
     })
     .eq("id", sessionId);

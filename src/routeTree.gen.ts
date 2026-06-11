@@ -36,6 +36,7 @@ import { Route as DashboardCatalogRouteImport } from './routes/_dashboard.catalo
 import { Route as DashboardBillingRouteImport } from './routes/_dashboard.billing'
 import { Route as DashboardAnalyticsRouteImport } from './routes/_dashboard.analytics'
 import { Route as ApiWebhooksWhatsappRouteImport } from './routes/api/webhooks/whatsapp'
+import { Route as ApiWebhooksTiktokRouteImport } from './routes/api/webhooks/tiktok'
 import { Route as ApiWebhooksShopifyRouteImport } from './routes/api/webhooks/shopify'
 import { Route as ApiWebhooksShopeeRouteImport } from './routes/api/webhooks/shopee'
 import { Route as ApiWebhooksResendRouteImport } from './routes/api/webhooks/resend'
@@ -44,6 +45,8 @@ import { Route as ApiWebhooksNuvemshopRouteImport } from './routes/api/webhooks/
 import { Route as ApiWebhooksMercadoPagoRouteImport } from './routes/api/webhooks/mercado-pago'
 import { Route as ApiWebhooksMercadoLivreRouteImport } from './routes/api/webhooks/mercado-livre'
 import { Route as ApiWebhooksMelhorEnvioRouteImport } from './routes/api/webhooks/melhor-envio'
+import { Route as ApiWebhooksInstagramRouteImport } from './routes/api/webhooks/instagram'
+import { Route as ApiWebhooksAmazonRouteImport } from './routes/api/webhooks/amazon'
 import { Route as ApiCronRunRouteImport } from './routes/api/cron/run'
 import { Route as DashboardLogisticsWarehouseRouteImport } from './routes/_dashboard.logistics.warehouse'
 import { Route as DashboardLogisticsSlaRouteImport } from './routes/_dashboard.logistics.sla'
@@ -53,6 +56,7 @@ import { Route as DashboardLogisticsProductsRouteImport } from './routes/_dashbo
 import { Route as DashboardLogisticsPickingRouteImport } from './routes/_dashboard.logistics.picking'
 import { Route as DashboardLogisticsPackingRouteImport } from './routes/_dashboard.logistics.packing'
 import { Route as DashboardLogisticsIncidentsRouteImport } from './routes/_dashboard.logistics.incidents'
+import { Route as DashboardLogisticsCarriersRouteImport } from './routes/_dashboard.logistics.carriers'
 import { Route as DashboardFiscalConfigRouteImport } from './routes/_dashboard.fiscal.config'
 import { Route as DashboardClientsIdRouteImport } from './routes/_dashboard.clients.$id'
 import { Route as ApiOauthWhatsappCallbackRouteImport } from './routes/api/oauth/whatsapp/callback'
@@ -198,6 +202,11 @@ const ApiWebhooksWhatsappRoute = ApiWebhooksWhatsappRouteImport.update({
   path: '/api/webhooks/whatsapp',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiWebhooksTiktokRoute = ApiWebhooksTiktokRouteImport.update({
+  id: '/api/webhooks/tiktok',
+  path: '/api/webhooks/tiktok',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiWebhooksShopifyRoute = ApiWebhooksShopifyRouteImport.update({
   id: '/api/webhooks/shopify',
   path: '/api/webhooks/shopify',
@@ -236,6 +245,16 @@ const ApiWebhooksMercadoLivreRoute = ApiWebhooksMercadoLivreRouteImport.update({
 const ApiWebhooksMelhorEnvioRoute = ApiWebhooksMelhorEnvioRouteImport.update({
   id: '/api/webhooks/melhor-envio',
   path: '/api/webhooks/melhor-envio',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWebhooksInstagramRoute = ApiWebhooksInstagramRouteImport.update({
+  id: '/api/webhooks/instagram',
+  path: '/api/webhooks/instagram',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWebhooksAmazonRoute = ApiWebhooksAmazonRouteImport.update({
+  id: '/api/webhooks/amazon',
+  path: '/api/webhooks/amazon',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiCronRunRoute = ApiCronRunRouteImport.update({
@@ -288,6 +307,12 @@ const DashboardLogisticsIncidentsRoute =
   DashboardLogisticsIncidentsRouteImport.update({
     id: '/incidents',
     path: '/incidents',
+    getParentRoute: () => DashboardLogisticsRoute,
+  } as any)
+const DashboardLogisticsCarriersRoute =
+  DashboardLogisticsCarriersRouteImport.update({
+    id: '/carriers',
+    path: '/carriers',
     getParentRoute: () => DashboardLogisticsRoute,
   } as any)
 const DashboardFiscalConfigRoute = DashboardFiscalConfigRouteImport.update({
@@ -373,6 +398,7 @@ export interface FileRoutesByFullPath {
   '/ops/': typeof OpsIndexRoute
   '/clients/$id': typeof DashboardClientsIdRoute
   '/fiscal/config': typeof DashboardFiscalConfigRoute
+  '/logistics/carriers': typeof DashboardLogisticsCarriersRoute
   '/logistics/incidents': typeof DashboardLogisticsIncidentsRoute
   '/logistics/packing': typeof DashboardLogisticsPackingRoute
   '/logistics/picking': typeof DashboardLogisticsPickingRoute
@@ -382,6 +408,8 @@ export interface FileRoutesByFullPath {
   '/logistics/sla': typeof DashboardLogisticsSlaRoute
   '/logistics/warehouse': typeof DashboardLogisticsWarehouseRoute
   '/api/cron/run': typeof ApiCronRunRoute
+  '/api/webhooks/amazon': typeof ApiWebhooksAmazonRoute
+  '/api/webhooks/instagram': typeof ApiWebhooksInstagramRoute
   '/api/webhooks/melhor-envio': typeof ApiWebhooksMelhorEnvioRoute
   '/api/webhooks/mercado-livre': typeof ApiWebhooksMercadoLivreRoute
   '/api/webhooks/mercado-pago': typeof ApiWebhooksMercadoPagoRoute
@@ -390,6 +418,7 @@ export interface FileRoutesByFullPath {
   '/api/webhooks/resend': typeof ApiWebhooksResendRoute
   '/api/webhooks/shopee': typeof ApiWebhooksShopeeRoute
   '/api/webhooks/shopify': typeof ApiWebhooksShopifyRoute
+  '/api/webhooks/tiktok': typeof ApiWebhooksTiktokRoute
   '/api/webhooks/whatsapp': typeof ApiWebhooksWhatsappRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
   '/api/oauth/melhor-envio/callback': typeof ApiOauthMelhorEnvioCallbackRoute
@@ -427,6 +456,7 @@ export interface FileRoutesByTo {
   '/ops': typeof OpsIndexRoute
   '/clients/$id': typeof DashboardClientsIdRoute
   '/fiscal/config': typeof DashboardFiscalConfigRoute
+  '/logistics/carriers': typeof DashboardLogisticsCarriersRoute
   '/logistics/incidents': typeof DashboardLogisticsIncidentsRoute
   '/logistics/packing': typeof DashboardLogisticsPackingRoute
   '/logistics/picking': typeof DashboardLogisticsPickingRoute
@@ -436,6 +466,8 @@ export interface FileRoutesByTo {
   '/logistics/sla': typeof DashboardLogisticsSlaRoute
   '/logistics/warehouse': typeof DashboardLogisticsWarehouseRoute
   '/api/cron/run': typeof ApiCronRunRoute
+  '/api/webhooks/amazon': typeof ApiWebhooksAmazonRoute
+  '/api/webhooks/instagram': typeof ApiWebhooksInstagramRoute
   '/api/webhooks/melhor-envio': typeof ApiWebhooksMelhorEnvioRoute
   '/api/webhooks/mercado-livre': typeof ApiWebhooksMercadoLivreRoute
   '/api/webhooks/mercado-pago': typeof ApiWebhooksMercadoPagoRoute
@@ -444,6 +476,7 @@ export interface FileRoutesByTo {
   '/api/webhooks/resend': typeof ApiWebhooksResendRoute
   '/api/webhooks/shopee': typeof ApiWebhooksShopeeRoute
   '/api/webhooks/shopify': typeof ApiWebhooksShopifyRoute
+  '/api/webhooks/tiktok': typeof ApiWebhooksTiktokRoute
   '/api/webhooks/whatsapp': typeof ApiWebhooksWhatsappRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
   '/api/oauth/melhor-envio/callback': typeof ApiOauthMelhorEnvioCallbackRoute
@@ -484,6 +517,7 @@ export interface FileRoutesById {
   '/ops/': typeof OpsIndexRoute
   '/_dashboard/clients/$id': typeof DashboardClientsIdRoute
   '/_dashboard/fiscal/config': typeof DashboardFiscalConfigRoute
+  '/_dashboard/logistics/carriers': typeof DashboardLogisticsCarriersRoute
   '/_dashboard/logistics/incidents': typeof DashboardLogisticsIncidentsRoute
   '/_dashboard/logistics/packing': typeof DashboardLogisticsPackingRoute
   '/_dashboard/logistics/picking': typeof DashboardLogisticsPickingRoute
@@ -493,6 +527,8 @@ export interface FileRoutesById {
   '/_dashboard/logistics/sla': typeof DashboardLogisticsSlaRoute
   '/_dashboard/logistics/warehouse': typeof DashboardLogisticsWarehouseRoute
   '/api/cron/run': typeof ApiCronRunRoute
+  '/api/webhooks/amazon': typeof ApiWebhooksAmazonRoute
+  '/api/webhooks/instagram': typeof ApiWebhooksInstagramRoute
   '/api/webhooks/melhor-envio': typeof ApiWebhooksMelhorEnvioRoute
   '/api/webhooks/mercado-livre': typeof ApiWebhooksMercadoLivreRoute
   '/api/webhooks/mercado-pago': typeof ApiWebhooksMercadoPagoRoute
@@ -501,6 +537,7 @@ export interface FileRoutesById {
   '/api/webhooks/resend': typeof ApiWebhooksResendRoute
   '/api/webhooks/shopee': typeof ApiWebhooksShopeeRoute
   '/api/webhooks/shopify': typeof ApiWebhooksShopifyRoute
+  '/api/webhooks/tiktok': typeof ApiWebhooksTiktokRoute
   '/api/webhooks/whatsapp': typeof ApiWebhooksWhatsappRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
   '/api/oauth/melhor-envio/callback': typeof ApiOauthMelhorEnvioCallbackRoute
@@ -541,6 +578,7 @@ export interface FileRouteTypes {
     | '/ops/'
     | '/clients/$id'
     | '/fiscal/config'
+    | '/logistics/carriers'
     | '/logistics/incidents'
     | '/logistics/packing'
     | '/logistics/picking'
@@ -550,6 +588,8 @@ export interface FileRouteTypes {
     | '/logistics/sla'
     | '/logistics/warehouse'
     | '/api/cron/run'
+    | '/api/webhooks/amazon'
+    | '/api/webhooks/instagram'
     | '/api/webhooks/melhor-envio'
     | '/api/webhooks/mercado-livre'
     | '/api/webhooks/mercado-pago'
@@ -558,6 +598,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/resend'
     | '/api/webhooks/shopee'
     | '/api/webhooks/shopify'
+    | '/api/webhooks/tiktok'
     | '/api/webhooks/whatsapp'
     | '/api/oauth/google/callback'
     | '/api/oauth/melhor-envio/callback'
@@ -595,6 +636,7 @@ export interface FileRouteTypes {
     | '/ops'
     | '/clients/$id'
     | '/fiscal/config'
+    | '/logistics/carriers'
     | '/logistics/incidents'
     | '/logistics/packing'
     | '/logistics/picking'
@@ -604,6 +646,8 @@ export interface FileRouteTypes {
     | '/logistics/sla'
     | '/logistics/warehouse'
     | '/api/cron/run'
+    | '/api/webhooks/amazon'
+    | '/api/webhooks/instagram'
     | '/api/webhooks/melhor-envio'
     | '/api/webhooks/mercado-livre'
     | '/api/webhooks/mercado-pago'
@@ -612,6 +656,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/resend'
     | '/api/webhooks/shopee'
     | '/api/webhooks/shopify'
+    | '/api/webhooks/tiktok'
     | '/api/webhooks/whatsapp'
     | '/api/oauth/google/callback'
     | '/api/oauth/melhor-envio/callback'
@@ -651,6 +696,7 @@ export interface FileRouteTypes {
     | '/ops/'
     | '/_dashboard/clients/$id'
     | '/_dashboard/fiscal/config'
+    | '/_dashboard/logistics/carriers'
     | '/_dashboard/logistics/incidents'
     | '/_dashboard/logistics/packing'
     | '/_dashboard/logistics/picking'
@@ -660,6 +706,8 @@ export interface FileRouteTypes {
     | '/_dashboard/logistics/sla'
     | '/_dashboard/logistics/warehouse'
     | '/api/cron/run'
+    | '/api/webhooks/amazon'
+    | '/api/webhooks/instagram'
     | '/api/webhooks/melhor-envio'
     | '/api/webhooks/mercado-livre'
     | '/api/webhooks/mercado-pago'
@@ -668,6 +716,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/resend'
     | '/api/webhooks/shopee'
     | '/api/webhooks/shopify'
+    | '/api/webhooks/tiktok'
     | '/api/webhooks/whatsapp'
     | '/api/oauth/google/callback'
     | '/api/oauth/melhor-envio/callback'
@@ -686,6 +735,8 @@ export interface RootRouteChildren {
   OpsRoute: typeof OpsRouteWithChildren
   PortalRoute: typeof PortalRouteWithChildren
   ApiCronRunRoute: typeof ApiCronRunRoute
+  ApiWebhooksAmazonRoute: typeof ApiWebhooksAmazonRoute
+  ApiWebhooksInstagramRoute: typeof ApiWebhooksInstagramRoute
   ApiWebhooksMelhorEnvioRoute: typeof ApiWebhooksMelhorEnvioRoute
   ApiWebhooksMercadoLivreRoute: typeof ApiWebhooksMercadoLivreRoute
   ApiWebhooksMercadoPagoRoute: typeof ApiWebhooksMercadoPagoRoute
@@ -694,6 +745,7 @@ export interface RootRouteChildren {
   ApiWebhooksResendRoute: typeof ApiWebhooksResendRoute
   ApiWebhooksShopeeRoute: typeof ApiWebhooksShopeeRoute
   ApiWebhooksShopifyRoute: typeof ApiWebhooksShopifyRoute
+  ApiWebhooksTiktokRoute: typeof ApiWebhooksTiktokRoute
   ApiWebhooksWhatsappRoute: typeof ApiWebhooksWhatsappRoute
   ApiOauthGoogleCallbackRoute: typeof ApiOauthGoogleCallbackRoute
   ApiOauthMelhorEnvioCallbackRoute: typeof ApiOauthMelhorEnvioCallbackRoute
@@ -896,6 +948,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiWebhooksWhatsappRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/webhooks/tiktok': {
+      id: '/api/webhooks/tiktok'
+      path: '/api/webhooks/tiktok'
+      fullPath: '/api/webhooks/tiktok'
+      preLoaderRoute: typeof ApiWebhooksTiktokRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/webhooks/shopify': {
       id: '/api/webhooks/shopify'
       path: '/api/webhooks/shopify'
@@ -950,6 +1009,20 @@ declare module '@tanstack/react-router' {
       path: '/api/webhooks/melhor-envio'
       fullPath: '/api/webhooks/melhor-envio'
       preLoaderRoute: typeof ApiWebhooksMelhorEnvioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/webhooks/instagram': {
+      id: '/api/webhooks/instagram'
+      path: '/api/webhooks/instagram'
+      fullPath: '/api/webhooks/instagram'
+      preLoaderRoute: typeof ApiWebhooksInstagramRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/webhooks/amazon': {
+      id: '/api/webhooks/amazon'
+      path: '/api/webhooks/amazon'
+      fullPath: '/api/webhooks/amazon'
+      preLoaderRoute: typeof ApiWebhooksAmazonRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/cron/run': {
@@ -1013,6 +1086,13 @@ declare module '@tanstack/react-router' {
       path: '/incidents'
       fullPath: '/logistics/incidents'
       preLoaderRoute: typeof DashboardLogisticsIncidentsRouteImport
+      parentRoute: typeof DashboardLogisticsRoute
+    }
+    '/_dashboard/logistics/carriers': {
+      id: '/_dashboard/logistics/carriers'
+      path: '/carriers'
+      fullPath: '/logistics/carriers'
+      preLoaderRoute: typeof DashboardLogisticsCarriersRouteImport
       parentRoute: typeof DashboardLogisticsRoute
     }
     '/_dashboard/fiscal/config': {
@@ -1112,6 +1192,7 @@ const DashboardFiscalRouteWithChildren = DashboardFiscalRoute._addFileChildren(
 )
 
 interface DashboardLogisticsRouteChildren {
+  DashboardLogisticsCarriersRoute: typeof DashboardLogisticsCarriersRoute
   DashboardLogisticsIncidentsRoute: typeof DashboardLogisticsIncidentsRoute
   DashboardLogisticsPackingRoute: typeof DashboardLogisticsPackingRoute
   DashboardLogisticsPickingRoute: typeof DashboardLogisticsPickingRoute
@@ -1123,6 +1204,7 @@ interface DashboardLogisticsRouteChildren {
 }
 
 const DashboardLogisticsRouteChildren: DashboardLogisticsRouteChildren = {
+  DashboardLogisticsCarriersRoute: DashboardLogisticsCarriersRoute,
   DashboardLogisticsIncidentsRoute: DashboardLogisticsIncidentsRoute,
   DashboardLogisticsPackingRoute: DashboardLogisticsPackingRoute,
   DashboardLogisticsPickingRoute: DashboardLogisticsPickingRoute,
@@ -1212,6 +1294,8 @@ const rootRouteChildren: RootRouteChildren = {
   OpsRoute: OpsRouteWithChildren,
   PortalRoute: PortalRouteWithChildren,
   ApiCronRunRoute: ApiCronRunRoute,
+  ApiWebhooksAmazonRoute: ApiWebhooksAmazonRoute,
+  ApiWebhooksInstagramRoute: ApiWebhooksInstagramRoute,
   ApiWebhooksMelhorEnvioRoute: ApiWebhooksMelhorEnvioRoute,
   ApiWebhooksMercadoLivreRoute: ApiWebhooksMercadoLivreRoute,
   ApiWebhooksMercadoPagoRoute: ApiWebhooksMercadoPagoRoute,
@@ -1220,6 +1304,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiWebhooksResendRoute: ApiWebhooksResendRoute,
   ApiWebhooksShopeeRoute: ApiWebhooksShopeeRoute,
   ApiWebhooksShopifyRoute: ApiWebhooksShopifyRoute,
+  ApiWebhooksTiktokRoute: ApiWebhooksTiktokRoute,
   ApiWebhooksWhatsappRoute: ApiWebhooksWhatsappRoute,
   ApiOauthGoogleCallbackRoute: ApiOauthGoogleCallbackRoute,
   ApiOauthMelhorEnvioCallbackRoute: ApiOauthMelhorEnvioCallbackRoute,

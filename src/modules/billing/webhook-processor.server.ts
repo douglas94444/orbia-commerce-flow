@@ -159,6 +159,9 @@ async function routeWebhookEvent(event: WebhookEventRow) {
     case "shopee":
     case "nuvemshop":
     case "shopify":
+    case "amazon":
+    case "tiktok":
+    case "instagram":
       await ingestStoreWebhook(provider, event_type, payload, client_id);
       break;
     case "pagar_me":

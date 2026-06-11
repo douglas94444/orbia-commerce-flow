@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { toast } from "sonner";
 import { useConfirmPickLine } from "@/modules/logistics/hooks/use-fulfillly";
+import { useOfflineSync } from "@/modules/logistics/ops-pwa/use-offline-sync";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BarcodeScanner } from "@/modules/logistics/ops-pwa/barcode-scanner";
@@ -14,12 +16,20 @@ function OpsPickingPage() {
   const [taskLineId, setTaskLineId] = useState("");
   const [barcode, setBarcode] = useState("");
   const confirm = useConfirmPickLine();
+  const { queueAction } = useOfflineSync();
+
+  const submitPick = async (lineId: string, code: string) => {
+    if (await queueAction("confirm_pick", { taskLineId: lineId, barcode: code })) {
+      toast.success("Salvo offline — sincroniza ao reconectar");
+      setBarcode("");
+      return;
+    }
+    confirm.mutate({ taskLineId: lineId, barcode: code });
+  };
 
   const handleScan = (code: string) => {
     setBarcode(code);
-    if (taskLineId) {
-      confirm.mutate({ taskLineId, barcode: code });
-    }
+    if (taskLineId) void submitPick(taskLineId, code);
   };
 
   return (
@@ -44,7 +54,7 @@ function OpsPickingPage() {
         />
         <Button
           className="w-full"
-          onClick={() => confirm.mutate({ taskLineId, barcode })}
+          onClick={() => void submitPick(taskLineId, barcode)}
           disabled={!taskLineId || !barcode || confirm.isPending}
         >
           <CheckCircle2 className="mr-2 size-4" />

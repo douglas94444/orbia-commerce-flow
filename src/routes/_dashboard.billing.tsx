@@ -3,7 +3,7 @@ import { Banknote } from 'lucide-react'
 import { PageIntro, Panel } from '@/components/dashboard/panel'
 import { PlanBadge } from '@/components/dashboard/plan-badge'
 import { formatBRL } from '@/lib/format'
-import { useMrrStats, useSubscriptions, useTransactions } from '@/modules/billing/hooks/use-billing'
+import { useMrrStats, useSubscriptions, useTransactions, useFulfillmentBilling } from '@/modules/billing/hooks/use-billing'
 
 export const Route = createFileRoute('/_dashboard/billing')({
   head: () => ({ meta: [{ title: 'Billing — Orbia' }] }),
@@ -14,6 +14,7 @@ function BillingPage() {
   const { data: mrr, isLoading: loadingMrr } = useMrrStats()
   const { data: subs = [], isLoading: loadingSubs } = useSubscriptions()
   const { data: txs = [], isLoading: loadingTxs } = useTransactions()
+  const { data: fulfillment, isLoading: loadingFulfillment } = useFulfillmentBilling()
 
   return (
     <div className="space-y-6">
@@ -37,6 +38,42 @@ function BillingPage() {
           </Panel>
         ))}
       </div>
+
+      <Panel title="Fulfillment — uso do mês" subtitle={fulfillment?.periodMonth ?? undefined}>
+        {loadingFulfillment ? (
+          <div className="h-24 animate-pulse rounded-xl bg-muted/40" />
+        ) : !fulfillment ? (
+          <p className="text-sm text-muted-foreground">Sem dados de fulfillment para este cliente.</p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <p className="text-xs text-muted-foreground">Pedidos processados</p>
+              <p className="font-mono text-2xl font-bold">
+                {fulfillment.ordersProcessed}
+                <span className="text-sm font-normal text-muted-foreground">
+                  {' '}/ {fulfillment.included} incl.
+                </span>
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Excedente</p>
+              <p className="font-mono text-2xl font-bold text-warning">{fulfillment.overageOrders}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Cobrança excedente</p>
+              <p className="font-mono text-2xl font-bold text-primary">
+                {formatBRL(fulfillment.overageCents / 100)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Picks / Packs / Devoluções</p>
+              <p className="font-mono text-sm">
+                {fulfillment.picksCompleted} / {fulfillment.packsCompleted} / {fulfillment.returnsHandled}
+              </p>
+            </div>
+          </div>
+        )}
+      </Panel>
 
       <Panel title="Assinaturas ativas">
         {loadingSubs ? (

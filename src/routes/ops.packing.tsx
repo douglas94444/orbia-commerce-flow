@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { toast } from "sonner";
 import {
   useStartPacking,
   useConfirmPackingItem,
   useCompletePacking,
 } from "@/modules/logistics/hooks/use-fulfillly";
+import { useOfflineSync } from "@/modules/logistics/ops-pwa/use-offline-sync";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -22,6 +24,7 @@ function OpsPackingPage() {
   const startPacking = useStartPacking();
   const confirmItem = useConfirmPackingItem();
   const complete = useCompletePacking();
+  const { queueAction } = useOfflineSync();
 
   const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -33,6 +36,16 @@ function OpsPackingPage() {
       }
     };
     reader.readAsDataURL(file);
+  };
+
+  const submitPackItem = async () => {
+    const payload = { orderId, sku, qty };
+    if (await queueAction("confirm_pack", payload)) {
+      toast.success("Salvo offline — sincroniza ao reconectar");
+      setSku("");
+      return;
+    }
+    confirmItem.mutate(payload);
   };
 
   return (
@@ -72,11 +85,7 @@ function OpsPackingPage() {
             value={qty}
             onChange={(e) => setQty(Number(e.target.value))}
           />
-          <Button
-            className="w-full"
-            onClick={() => confirmItem.mutate({ orderId, sku, qty })}
-            disabled={!sku}
-          >
+          <Button className="w-full" onClick={() => void submitPackItem()} disabled={!sku}>
             Confirmar item
           </Button>
 

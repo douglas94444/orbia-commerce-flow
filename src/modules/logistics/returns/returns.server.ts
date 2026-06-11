@@ -129,6 +129,50 @@ export async function listReturnRequests(clientId: string) {
   return data ?? [];
 }
 
+export interface ReturnReasonReportRow {
+  reason: string;
+  channel: string;
+  sku: string;
+  count: number;
+  totalQty: number;
+}
+
+export async function getReturnReasonsReport(clientId: string): Promise<ReturnReasonReportRow[]> {
+  const { data: requests, error } = await supabaseAdmin
+    .from("return_requests")
+    .select("reason, orders(channel), return_items(sku, qty)")
+    .eq("client_id", clientId)
+    .order("created_at", { ascending: false })
+    .limit(500);
+
+  if (error) throw new Error(error.message);
+
+  const agg = new Map<string, ReturnReasonReportRow>();
+
+  for (const req of requests ?? []) {
+    const channel = String((req.orders as { channel: string } | null)?.channel ?? "desconhecido");
+    const items = (req.return_items ?? []) as Array<{ sku: string; qty: number }>;
+    for (const item of items) {
+      const key = `${req.reason}|${channel}|${item.sku}`;
+      const existing = agg.get(key);
+      if (existing) {
+        existing.count += 1;
+        existing.totalQty += item.qty;
+      } else {
+        agg.set(key, {
+          reason: String(req.reason),
+          channel,
+          sku: item.sku,
+          count: 1,
+          totalQty: item.qty,
+        });
+      }
+    }
+  }
+
+  return [...agg.values()].sort((a, b) => b.count - a.count);
+}
+
 export async function inspectReturn(input: {
   returnRequestId: string;
   inspectorId: string;

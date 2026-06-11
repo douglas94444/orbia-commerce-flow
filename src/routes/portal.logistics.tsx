@@ -1,10 +1,18 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { useState } from 'react'
 import { Lock } from 'lucide-react'
 import { PageIntro, Panel } from '@/components/dashboard/panel'
 import { StatusPill, type Tone } from '@/components/dashboard/status-pill'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { formatBRL } from '@/lib/format'
 import { useOrders, useInventory } from '@/modules/logistics/hooks/use-logistics'
-import { useSlaDashboard } from '@/modules/logistics/hooks/use-fulfillly'
+import {
+  useSlaDashboard,
+  useReturns,
+  useCreateReturnRequest,
+  useReturnReasonsReport,
+} from '@/modules/logistics/hooks/use-fulfillly'
 import { KpiCard } from '@/components/dashboard/kpi-card'
 import { Truck } from 'lucide-react'
 import type { NfStatus, OrderStatus } from '@/types/orbia'
@@ -32,17 +40,40 @@ const NF_STATUS: Record<NfStatus, { label: string; tone: Tone }> = {
   rejeitada:  { label: 'Rejeitada',  tone: 'danger'  },
 }
 
+const RETURN_STATUS: Record<string, { label: string; tone: Tone }> = {
+  pending: { label: 'Pendente', tone: 'warning' },
+  approved: { label: 'Aprovada', tone: 'primary' },
+  rejected: { label: 'Rejeitada', tone: 'danger' },
+  in_transit: { label: 'Em trânsito', tone: 'accent' },
+  received: { label: 'Recebida', tone: 'primary' },
+  inspected: { label: 'Inspecionada', tone: 'accent' },
+  completed: { label: 'Concluída', tone: 'success' },
+  cancelled: { label: 'Cancelada', tone: 'danger' },
+}
+
 function PortalLogisticsPage() {
   const { data: orders = [], isLoading: loadingOrders } = useOrders()
   const { data: inventory = [], isLoading: loadingInventory } = useInventory()
   const { data: sla, isLoading: loadingSla } = useSlaDashboard()
+  const { data: returns = [], isLoading: loadingReturns } = useReturns()
+  const { data: reasonReport = [], isLoading: loadingReport } = useReturnReasonsReport()
+  const createReturn = useCreateReturnRequest()
+
+  const [orderId, setOrderId] = useState('')
+  const [reason, setReason] = useState('')
+  const [sku, setSku] = useState('')
+  const [qty, setQty] = useState(1)
+
+  const deliverableOrders = orders.filter((o) =>
+    ['despachado', 'em_transito', 'entregue'].includes(o.status as OrderStatus),
+  )
 
   return (
     <div className="space-y-6">
       <PageIntro
         eyebrow="Fulfillly"
         title="Pedidos e estoque"
-        description="Acompanhe pedidos omnichannel, SLA e disponibilidade de SKUs."
+        description="Acompanhe pedidos omnichannel, SLA, devoluções e disponibilidade de SKUs."
       />
 
       <div className="grid grid-cols-3 gap-4">
@@ -50,6 +81,117 @@ function PortalLogisticsPage() {
         <KpiCard label="Em risco" value={loadingSla ? '—' : String(sla?.atRisk ?? 0)} icon={Truck} accent="warning" />
         <KpiCard label="Estourados" value={loadingSla ? '—' : String(sla?.breached ?? 0)} icon={Truck} accent="warning" />
       </div>
+
+      <Panel title="Solicitar devolução" subtitle="Pós-compra — informe o pedido e o motivo">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground">Pedido</label>
+            <select
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              value={orderId}
+              onChange={(e) => setOrderId(e.target.value)}
+            >
+              <option value="">Selecione...</option>
+              {deliverableOrders.map((o) => (
+                <option key={o.internalId} value={o.internalId}>
+                  {o.id} — {o.channel}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground">Motivo</label>
+            <Input placeholder="Ex.: produto com defeito" value={reason} onChange={(e) => setReason(e.target.value)} />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground">SKU</label>
+            <Input placeholder="SKU do item" value={sku} onChange={(e) => setSku(e.target.value)} />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground">Quantidade</label>
+            <Input type="number" min={1} value={qty} onChange={(e) => setQty(Number(e.target.value))} />
+          </div>
+        </div>
+        <Button
+          className="mt-4"
+          disabled={!orderId || !reason || !sku || createReturn.isPending}
+          onClick={() =>
+            createReturn.mutate({
+              orderId,
+              reason,
+              items: [{ sku, qty }],
+            })
+          }
+        >
+          Enviar solicitação
+        </Button>
+      </Panel>
+
+      <Panel title="Minhas devoluções">
+        {loadingReturns ? (
+          <div className="h-24 animate-pulse rounded-lg bg-muted/40" />
+        ) : returns.length === 0 ? (
+          <p className="py-4 text-center text-sm text-muted-foreground">Nenhuma devolução solicitada.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-[10px] uppercase text-muted-foreground">
+                  {['ID', 'Motivo', 'Status', 'Reembolso'].map((h) => (
+                    <th key={h} className="pb-2 pr-4">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {returns.map((r: { id: string; reason: string; status: string; refund_cents: number | null }) => {
+                  const st = RETURN_STATUS[r.status] ?? { label: r.status, tone: 'primary' as Tone }
+                  return (
+                    <tr key={r.id}>
+                      <td className="py-2 pr-4 font-mono text-xs">{r.id.slice(0, 8)}</td>
+                      <td className="py-2 pr-4">{r.reason}</td>
+                      <td className="py-2 pr-4"><StatusPill label={st.label} tone={st.tone} /></td>
+                      <td className="py-2 font-mono">
+                        {r.refund_cents ? formatBRL(r.refund_cents / 100) : '—'}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+
+      <Panel title="Relatório — motivos por SKU e canal">
+        {loadingReport ? (
+          <div className="h-24 animate-pulse rounded-lg bg-muted/40" />
+        ) : reasonReport.length === 0 ? (
+          <p className="py-4 text-center text-sm text-muted-foreground">Sem devoluções para agregar.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-[10px] uppercase text-muted-foreground">
+                  {['Motivo', 'Canal', 'SKU', 'Ocorrências', 'Qtd total'].map((h) => (
+                    <th key={h} className="pb-2 pr-4">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {reasonReport.map((row) => (
+                  <tr key={`${row.reason}-${row.channel}-${row.sku}`}>
+                    <td className="py-2 pr-4">{row.reason}</td>
+                    <td className="py-2 pr-4 text-muted-foreground">{row.channel}</td>
+                    <td className="py-2 pr-4 font-mono text-xs">{row.sku}</td>
+                    <td className="py-2 pr-4 font-mono">{row.count}</td>
+                    <td className="py-2 font-mono">{row.totalQty}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
 
       <Panel
         title="Pedidos"

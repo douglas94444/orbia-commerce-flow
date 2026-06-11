@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { toast } from "sonner";
 import { useConfirmReceivingLine } from "@/modules/logistics/hooks/use-fulfillly";
+import { useOfflineSync } from "@/modules/logistics/ops-pwa/use-offline-sync";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BarcodeScanner } from "@/modules/logistics/ops-pwa/barcode-scanner";
@@ -15,6 +17,22 @@ function OpsReceivingPage() {
   const [expectedQty, setExpectedQty] = useState(1);
   const [receivedQty, setReceivedQty] = useState(1);
   const confirm = useConfirmReceivingLine();
+  const { queueAction } = useOfflineSync();
+
+  const submitLine = async () => {
+    const payload = {
+      sessionId,
+      sku,
+      expectedQty,
+      receivedQty,
+      barcodeScanned: sku,
+    };
+    if (await queueAction("confirm_receive", payload)) {
+      toast.success("Salvo offline — sincroniza ao reconectar");
+      return;
+    }
+    confirm.mutate(payload);
+  };
 
   return (
     <div className="space-y-6">
@@ -46,19 +64,7 @@ function OpsReceivingPage() {
             onChange={(e) => setReceivedQty(Number(e.target.value))}
           />
         </div>
-        <Button
-          className="w-full"
-          onClick={() =>
-            confirm.mutate({
-              sessionId,
-              sku,
-              expectedQty,
-              receivedQty,
-              barcodeScanned: sku,
-            })
-          }
-          disabled={!sessionId || !sku}
-        >
+        <Button className="w-full" onClick={() => void submitLine()} disabled={!sessionId || !sku}>
           Confirmar linha
         </Button>
         {receivedQty !== expectedQty && (

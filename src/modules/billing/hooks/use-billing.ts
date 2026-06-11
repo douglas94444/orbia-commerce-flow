@@ -7,6 +7,7 @@ import {
   createSubscription,
   startMercadoPagoCheckout,
   getClientSubscription,
+  getFulfillmentBillingSummary,
 } from "../actions.functions";
 
 export const SUBSCRIPTIONS_KEY = ["subscriptions"] as const;
@@ -38,6 +39,16 @@ export function useTransactions() {
     queryKey: TRANSACTIONS_KEY,
     queryFn: () => listTransactions(),
     staleTime: 30_000,
+  });
+}
+
+export const FULFILLMENT_BILLING_KEY = ["fulfillment-billing"] as const;
+
+export function useFulfillmentBilling() {
+  return useQuery({
+    queryKey: FULFILLMENT_BILLING_KEY,
+    queryFn: () => getFulfillmentBillingSummary(),
+    staleTime: 60_000,
   });
 }
 

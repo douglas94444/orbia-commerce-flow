@@ -23,6 +23,10 @@ import {
   getDeliveryIncidentsFn,
   generateWaveLabelsFn,
   getDispatchManifestFn,
+  listCarrierConfigsFn,
+  upsertCarrierConfigFn,
+  getReturnReasonsReportFn,
+  createReturnRequestFn,
 } from "../fulfillly.actions.functions";
 
 export function useWarehouseLocations() {
@@ -224,6 +228,55 @@ export function useConfirmReceivingLine() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["ops-tasks"] });
       toast.success("Linha conferida");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useCarrierConfigs() {
+  return useQuery({
+    queryKey: ["carrier-configs"],
+    queryFn: () => listCarrierConfigsFn(),
+  });
+}
+
+export function useUpsertCarrierConfig() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      provider: string;
+      isActive: boolean;
+      priority: number;
+      autoSelect: boolean;
+      credentialsRef?: string;
+    }) => upsertCarrierConfigFn({ data: input }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["carrier-configs"] });
+      toast.success("Transportadora salva");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useReturnReasonsReport() {
+  return useQuery({
+    queryKey: ["return-reasons-report"],
+    queryFn: () => getReturnReasonsReportFn(),
+  });
+}
+
+export function useCreateReturnRequest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      orderId: string;
+      reason: string;
+      items: Array<{ sku: string; qty: number }>;
+    }) => createReturnRequestFn({ data: input }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["returns"] });
+      qc.invalidateQueries({ queryKey: ["return-reasons-report"] });
+      toast.success("Solicitação de devolução enviada");
     },
     onError: (e: Error) => toast.error(e.message),
   });

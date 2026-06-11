@@ -37,6 +37,12 @@ import {
   generateLabelsForWave,
   buildDispatchManifest,
 } from "./shipping/batch-labels.server";
+import {
+  listClientCarrierConfigs,
+  listAvailableCarrierProviders,
+  upsertClientCarrierConfig,
+} from "./shipping/carrier-config.server";
+import { getReturnReasonsReport } from "./returns/returns.server";
 
 async function getClientIdForUser(
   userId: string,
@@ -328,3 +334,38 @@ export const getDispatchManifestFn = createServerFn({ method: "POST" })
   .inputValidator(z.object({ waveId: z.string().uuid() }))
   .middleware([requireSupabaseAuth])
   .handler(async ({ data }) => buildDispatchManifest(data.waveId));
+
+export const listCarrierConfigsFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    const [configs, providers] = await Promise.all([
+      listClientCarrierConfigs(clientId),
+      Promise.resolve(listAvailableCarrierProviders()),
+    ]);
+    return { configs, providers };
+  });
+
+const carrierConfigSchema = z.object({
+  provider: z.string().min(1),
+  isActive: z.boolean(),
+  priority: z.number().int().min(0),
+  autoSelect: z.boolean(),
+  credentialsRef: z.string().optional(),
+});
+
+export const upsertCarrierConfigFn = createServerFn({ method: "POST" })
+  .inputValidator(carrierConfigSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    const id = await upsertClientCarrierConfig(clientId, data);
+    return { id };
+  });
+
+export const getReturnReasonsReportFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return getReturnReasonsReport(clientId);
+  });
