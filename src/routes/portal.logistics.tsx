@@ -4,6 +4,9 @@ import { PageIntro, Panel } from '@/components/dashboard/panel'
 import { StatusPill, type Tone } from '@/components/dashboard/status-pill'
 import { formatBRL } from '@/lib/format'
 import { useOrders, useInventory } from '@/modules/logistics/hooks/use-logistics'
+import { useSlaDashboard } from '@/modules/logistics/hooks/use-fulfillly'
+import { KpiCard } from '@/components/dashboard/kpi-card'
+import { Truck } from 'lucide-react'
 import type { NfStatus, OrderStatus } from '@/types/orbia'
 
 export const Route = createFileRoute('/portal/logistics')({
@@ -11,12 +14,16 @@ export const Route = createFileRoute('/portal/logistics')({
   component: PortalLogisticsPage,
 })
 
-const ORDER_STATUS: Record<OrderStatus, { label: string; tone: Tone }> = {
+const ORDER_STATUS: Record<string, { label: string; tone: Tone }> = {
   aguardando_nf: { label: 'Aguardando NF', tone: 'warning' },
   separacao:     { label: 'Separação',     tone: 'primary' },
+  em_picking:    { label: 'Picking',       tone: 'primary' },
+  em_packing:    { label: 'Packing',       tone: 'primary' },
   despachado:    { label: 'Despachado',    tone: 'accent'  },
   em_transito:   { label: 'Em trânsito',   tone: 'accent'  },
   entregue:      { label: 'Entregue',      tone: 'success' },
+  cancelado:     { label: 'Cancelado',     tone: 'danger'  },
+  devolvido:     { label: 'Devolvido',     tone: 'danger'  },
 }
 
 const NF_STATUS: Record<NfStatus, { label: string; tone: Tone }> = {
@@ -28,14 +35,21 @@ const NF_STATUS: Record<NfStatus, { label: string; tone: Tone }> = {
 function PortalLogisticsPage() {
   const { data: orders = [], isLoading: loadingOrders } = useOrders()
   const { data: inventory = [], isLoading: loadingInventory } = useInventory()
+  const { data: sla, isLoading: loadingSla } = useSlaDashboard()
 
   return (
     <div className="space-y-6">
       <PageIntro
-        eyebrow="Operação"
+        eyebrow="Fulfillly"
         title="Pedidos e estoque"
-        description="Acompanhe pedidos omnichannel e disponibilidade de SKUs."
+        description="Acompanhe pedidos omnichannel, SLA e disponibilidade de SKUs."
       />
+
+      <div className="grid grid-cols-3 gap-4">
+        <KpiCard label="SLA no prazo" value={loadingSla ? '—' : `${sla?.onTime ?? 0}/${sla?.total ?? 0}`} icon={Truck} accent="success" />
+        <KpiCard label="Em risco" value={loadingSla ? '—' : String(sla?.atRisk ?? 0)} icon={Truck} accent="warning" />
+        <KpiCard label="Estourados" value={loadingSla ? '—' : String(sla?.breached ?? 0)} icon={Truck} accent="warning" />
+      </div>
 
       <Panel
         title="Pedidos"

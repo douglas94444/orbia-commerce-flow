@@ -13,7 +13,7 @@ import {
 } from "recharts";
 
 const tooltipStyle = {
-  backgroundColor: "oklch(0.205 0.028 264)",
+  backgroundColor: "var(--card)",
   border: "1px solid var(--border)",
   borderRadius: "10px",
   fontSize: "12px",
@@ -79,7 +79,7 @@ export function GmvRoasChart({ data = [] }: GmvRoasChartProps) {
           dot={false}
           activeDot={{ r: 4, fill: "var(--primary)" }}
         />
-        <Line type="monotone" dataKey="roas" stroke="var(--accent)" strokeWidth={2} dot={false} yAxisId={0} hide />
+        <Line type="monotone" dataKey="roas" stroke="var(--success)" strokeWidth={2} dot={false} yAxisId={0} hide />
       </AreaChart>
     </ResponsiveContainer>
   );
@@ -90,7 +90,7 @@ interface ChannelRoasChartProps {
 }
 
 export function ChannelRoasChart({ data = [] }: ChannelRoasChartProps) {
-  const colors = ["var(--primary)", "var(--accent)", "var(--chart-4)", "var(--success)"];
+  const colors = ["var(--primary)", "var(--chart-2)", "var(--chart-4)", "var(--success)"];
   const chartData = data.length > 0 ? data : [{ channel: "—", roas: 0 }];
 
   return (

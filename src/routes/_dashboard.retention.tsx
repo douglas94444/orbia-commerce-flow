@@ -1,8 +1,15 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { Mail, MessageSquare, Repeat, Smartphone, TrendingUp, Users, ExternalLink, Bell } from 'lucide-react'
+import { Mail, Repeat, TrendingUp, Users, ExternalLink } from 'lucide-react'
 import { PageIntro, Panel } from '@/components/dashboard/panel'
 import { KpiCard } from '@/components/dashboard/kpi-card'
 import { StatusPill } from '@/components/dashboard/status-pill'
+import {
+  RFMBadge,
+  ChannelIcon,
+  FunnelBar,
+  QuickWinBanner,
+  OpportunityCard,
+} from '@/shared/components'
 import { formatBRL, formatNumber } from '@/lib/format'
 import {
   useAutomations,
@@ -22,8 +29,6 @@ export const Route = createFileRoute('/_dashboard/retention')({
   component: RetentionPage,
 })
 
-const CHANNEL_ICON = { Email: Mail, SMS: Smartphone, WhatsApp: MessageSquare, Push: Bell } as const
-
 function RetentionPage() {
   const { data: automations = [], isLoading: loadingAuto } = useAutomations()
   const { data: stats, isLoading: loadingStats } = useRetentionStats()
@@ -34,9 +39,12 @@ function RetentionPage() {
   const { mutate: applyTemplate, isPending: applyingTpl } = useApplyTemplate()
 
   const loading = loadingAuto || loadingStats
+  const atRiskCount = stats?.rfm.find((s) => s.segment === 'em_risco')?.count ?? 0
+  const lifecycleMax = Math.max(stats?.customerCount ?? 0, ...(stats?.lifecycle.map((s) => s.count) ?? [0]), 1)
 
   return (
     <div className="space-y-6">
+      <QuickWinBanner count={atRiskCount} />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <PageIntro
           eyebrow="Módulo Retenção"
@@ -100,12 +108,10 @@ function RetentionPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {automations.map((a) => {
-                    const Icon = CHANNEL_ICON[a.channel] ?? Mail
-                    return (
+                  {automations.map((a) => (
                       <div key={a.id} className="flex items-center gap-4 rounded-xl border border-border bg-muted/20 p-4">
-                        <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-                          <Icon className="size-5" />
+                        <span className="icon-well size-10 shrink-0">
+                          <ChannelIcon channel={a.channel} className="size-5" />
                         </span>
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium text-foreground">{a.name}</p>
@@ -129,8 +135,7 @@ function RetentionPage() {
                           <StatusPill label={a.active ? 'Ativo' : 'Pausado'} tone={a.active ? 'success' : 'neutral'} dot />
                         </button>
                       </div>
-                    )
-                  })}
+                  ))}
                 </div>
               )}
             </Panel>
@@ -141,8 +146,11 @@ function RetentionPage() {
               ) : (
                 <div className="space-y-2 max-h-80 overflow-y-auto">
                   {stats.recentDeliveries.map((d) => (
-                    <div key={d.id} className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-xs">
-                      <span className="capitalize text-muted-foreground">{d.channel}</span>
+                    <div key={d.id} className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2 text-xs">
+                      <span className="flex items-center gap-1.5 capitalize text-muted-foreground">
+                        <ChannelIcon channel={d.channel} className="size-3.5" />
+                        {d.channel}
+                      </span>
                       <StatusPill
                         label={d.status}
                         tone={d.status === 'failed' ? 'danger' : d.status === 'opened' ? 'success' : 'primary'}
@@ -168,9 +176,9 @@ function RetentionPage() {
               ) : (
                 <div className="grid grid-cols-2 gap-3">
                   {stats?.rfm.map((s) => (
-                    <div key={s.label} className="rounded-xl border border-border bg-muted/20 p-4">
-                      <StatusPill label={s.label} tone={s.tone} />
-                      <p className="mt-3 font-mono text-xl font-semibold text-foreground">{formatNumber(s.count)}</p>
+                    <div key={s.segment} className="rounded-xl border border-border bg-muted/20 p-4">
+                      <RFMBadge segment={s.segment} label={s.label} />
+                      <p className="text-metric mt-3 text-xl font-semibold text-foreground">{formatNumber(s.count)}</p>
                       <p className="mt-1 text-[11px] text-muted-foreground">{s.desc}</p>
                     </div>
                   ))}
@@ -178,15 +186,32 @@ function RetentionPage() {
               )}
             </Panel>
 
-            <Panel title="Ciclo de vida" subtitle="Estágios da base">
-              <div className="grid grid-cols-2 gap-3">
-                {stats?.lifecycle.map((s) => (
-                  <div key={s.stage} className="rounded-xl border border-border bg-muted/20 p-4">
-                    <p className="text-xs text-muted-foreground">{s.stage}</p>
-                    <p className="mt-2 font-mono text-xl font-semibold">{formatNumber(s.count)}</p>
-                  </div>
-                ))}
+            <Panel title="Ciclo de vida" subtitle="Funil da base de clientes">
+              <div className="divide-y divide-border">
+                {stats?.lifecycle.map((s, i, arr) => {
+                  const prev = i > 0 ? arr[i - 1]!.count : lifecycleMax
+                  const dropRate = i > 0 && prev > 0 ? 1 - s.count / prev : undefined
+                  return (
+                    <FunnelBar
+                      key={s.stage}
+                      label={s.stage}
+                      value={s.count}
+                      max={lifecycleMax}
+                      dropRate={dropRate}
+                      isBottleneck={s.stage === 'Em risco' || s.stage === 'Frios'}
+                    />
+                  )
+                })}
               </div>
+              {atRiskCount > 0 && (
+                <div className="mt-4">
+                  <OpportunityCard
+                    title={`${formatNumber(atRiskCount)} clientes em risco de churn`}
+                    potential={formatBRL((stats?.avgLtv ?? 0) * atRiskCount, true)}
+                    ctaLabel="Criar fluxo"
+                  />
+                </div>
+              )}
             </Panel>
           </div>
         </TabsContent>
@@ -217,7 +242,10 @@ function RetentionPage() {
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                 {stats?.channelRates.map((c) => (
                   <div key={c.channel} className="rounded-xl border border-border p-4 text-center">
-                    <p className="text-xs capitalize text-muted-foreground">{c.channel}</p>
+                    <div className="flex items-center justify-center gap-1.5 text-xs capitalize text-muted-foreground">
+                      <ChannelIcon channel={c.channel} className="size-3.5" />
+                      {c.channel}
+                    </div>
                     <p className="mt-2 font-mono text-lg">
                       {c.sent > 0 ? Math.round((c.delivered / c.sent) * 100) : 0}%
                     </p>

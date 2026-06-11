@@ -58,33 +58,16 @@ function LoginPage() {
   }, [navigate])
 
   return (
-    <div className="relative grid min-h-screen place-items-center overflow-hidden bg-background">
-      {/* Background layers */}
-      <div className="grid-texture pointer-events-none absolute inset-0 opacity-50" />
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{ background: 'var(--gradient-orbital)' }}
-      />
-
-      {/* Card */}
-      <div className="relative z-10 w-full max-w-md px-4">
-        <div className="glass-panel rounded-2xl p-8 shadow-2xl">
-
-          {/* Logo */}
+    <div className="grid min-h-screen place-items-center bg-background px-4">
+      <div className="w-full max-w-md">
+        <div className="surface-card rounded-xl p-8">
           <div className="mb-8 flex flex-col items-center gap-3">
-            <span className="relative grid size-12 place-items-center">
-              <span className="absolute inset-0 rounded-full border border-primary/40" />
-              <span className="absolute inset-0 animate-orbit rounded-full border-t-2 border-primary/80" />
-              <span
-                className="size-3.5 rounded-full bg-primary text-glow"
-                style={{ boxShadow: '0 0 16px var(--primary)' }}
-              />
+            <span className="grid size-12 place-items-center rounded-xl bg-primary-gradient text-lg font-bold text-primary-foreground shadow-primary-glow">
+              O
             </span>
             <div className="text-center">
-              <p className="font-display text-2xl font-bold tracking-tight text-foreground">Orbia</p>
-              <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                Centro de Operações
-              </p>
+              <p className="text-2xl font-bold tracking-tight text-foreground">Orbia</p>
+              <p className="text-xs text-muted-foreground">Centro de Operações</p>
             </div>
           </div>
 

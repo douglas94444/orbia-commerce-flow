@@ -45,6 +45,48 @@ async function postWhatsAppMessage(
   return { messageId: body.messages?.[0]?.id ?? "" };
 }
 
+export async function sendWhatsAppMessage(input: {
+  phoneNumberId: string;
+  accessToken: string;
+  to: string;
+  body: string;
+  clientId?: string;
+}): Promise<{ messageId: string }> {
+  const to = input.to.replace(/\D/g, "");
+  return postWhatsAppMessage(
+    input.phoneNumberId,
+    input.accessToken,
+    {
+      messaging_product: "whatsapp",
+      to,
+      type: "text",
+      text: { body: input.body },
+    },
+    input.clientId,
+  );
+}
+
+/** Convenience wrapper — resolves credentials from env when omitted */
+export async function sendWhatsAppMessageSimple(input: {
+  to: string;
+  body: string;
+  clientId?: string;
+}): Promise<void> {
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
+  if (!phoneNumberId || !accessToken) {
+    console.warn("[whatsapp] WHATSAPP_PHONE_NUMBER_ID or WHATSAPP_ACCESS_TOKEN not set");
+    return;
+  }
+  await sendWhatsAppMessage({
+    phoneNumberId,
+    accessToken,
+    to: input.to,
+    body: input.body,
+    clientId: input.clientId,
+  });
+}
+
 export async function sendTemplateMessage(input: {
   phoneNumberId: string;
   accessToken: string;

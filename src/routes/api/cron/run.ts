@@ -15,6 +15,10 @@ const VALID_JOBS = new Set<CronJobName>([
   "process-automation-enrollments",
   "retention-crons",
   "attribute-conversions",
+  "check-sla",
+  "sync-tracking",
+  "forecast-volume",
+  "check-stock-alerts",
   "all",
 ]);
 

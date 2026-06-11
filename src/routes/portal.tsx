@@ -63,12 +63,8 @@ function PortalLayout() {
       />
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar title={meta.title} subtitle={meta.subtitle} />
-        <main className="grid-texture relative flex-1 overflow-y-auto">
-          <div
-            className="pointer-events-none absolute inset-0"
-            style={{ background: 'var(--gradient-orbital)' }}
-          />
-          <div className="relative mx-auto w-full max-w-[1200px] px-6 py-8">
+        <main className="flex-1 overflow-y-auto bg-background">
+          <div className="mx-auto w-full max-w-[1200px] px-6 py-8">
             <Outlet />
           </div>
         </main>

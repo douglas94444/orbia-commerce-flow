@@ -134,6 +134,7 @@ export function FlowEditor({ trigger = "carrinho_abandonado", name = "Novo fluxo
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        colorMode="dark"
         fitView
       >
         <Background />

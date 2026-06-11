@@ -109,6 +109,38 @@ onDomainEvent("product.back_in_stock", async (payload) => {
   }
 });
 
+onDomainEvent("order.delivery_problem", async (payload) => {
+  const orderId = String(payload.orderId ?? "");
+  const clientId = String(payload.clientId ?? "");
+  if (!orderId || !clientId) return;
+
+  await supabaseAdmin.from("operation_alerts").insert({
+    client_id: clientId,
+    kind: "sla",
+    severity: "critical",
+    title: "Problema na entrega",
+    message: `Pedido com problema de entrega: ${String(payload.incidentType ?? "desconhecido")}`,
+    is_resolved: false,
+  });
+
+  const { notifyCsOnDeliveryProblem } = await import("@/modules/admin/cs-events.server");
+  try {
+    await notifyCsOnDeliveryProblem(orderId, clientId);
+  } catch {
+    // CS helper may not exist yet
+  }
+});
+
+onDomainEvent("return.inspected", async (payload) => {
+  const clientId = String(payload.clientId ?? "");
+  if (!clientId) return;
+
+  const { recordFulfillmentUsage } = await import(
+    "@/modules/logistics/forecast/volume-forecast.server"
+  );
+  await recordFulfillmentUsage(clientId, "returns_handled");
+});
+
 onDomainEvent("review.negative", async (payload) => {
   const { handleNegativeReview } = await import("@/modules/retention/trigger-crons.server");
   await handleNegativeReview({

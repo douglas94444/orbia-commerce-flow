@@ -5,7 +5,9 @@ import { KpiCard } from '@/components/dashboard/kpi-card'
 import { StatusPill, type Tone } from '@/components/dashboard/status-pill'
 import { Button } from '@/components/ui/button'
 import { formatBRL } from '@/lib/format'
+import { Link } from '@tanstack/react-router'
 import { useOrders, useInventory, useLogisticsStats, useDispatchOrder } from '@/modules/logistics/hooks/use-logistics'
+import { useSlaDashboard } from '@/modules/logistics/hooks/use-fulfillly'
 import type { NfStatus, OrderStatus } from '@/types/orbia'
 
 export const Route = createFileRoute('/_dashboard/logistics')({
@@ -13,12 +15,16 @@ export const Route = createFileRoute('/_dashboard/logistics')({
   component: LogisticsPage,
 })
 
-const ORDER_STATUS: Record<OrderStatus, { label: string; tone: Tone }> = {
+const ORDER_STATUS: Record<string, { label: string; tone: Tone }> = {
   aguardando_nf: { label: 'Aguardando NF', tone: 'warning' },
   separacao:     { label: 'Separação',     tone: 'primary' },
+  em_picking:    { label: 'Picking',       tone: 'primary' },
+  em_packing:    { label: 'Packing',       tone: 'primary' },
   despachado:    { label: 'Despachado',    tone: 'accent'  },
   em_transito:   { label: 'Em trânsito',   tone: 'accent'  },
   entregue:      { label: 'Entregue',      tone: 'success' },
+  cancelado:     { label: 'Cancelado',     tone: 'danger'  },
+  devolvido:     { label: 'Devolvido',     tone: 'danger'  },
 }
 
 const NF_STATUS: Record<NfStatus, { label: string; tone: Tone }> = {
@@ -34,6 +40,7 @@ function LogisticsPage() {
   const { data: inventory = [], isLoading: loadingInventory } = useInventory()
   const { data: stats,          isLoading: loadingStats     } = useLogisticsStats()
   const dispatch = useDispatchOrder()
+  const { data: sla } = useSlaDashboard()
 
   const awaitingNf   = stats?.awaitingNf   ?? orders.filter((o) => o.status === 'aguardando_nf').length
   const todayCount   = stats?.todayCount   ?? 0
@@ -43,15 +50,24 @@ function LogisticsPage() {
   return (
     <div className="space-y-6">
       <PageIntro
-        eyebrow="Módulo Logística"
+        eyebrow="Fulfillly"
         title="Hub omnichannel"
-        description="Um estoque serve todos os canais. Trava fiscal ativa: nenhum pedido vai para separação sem NF-e autorizada."
+        description="WMS + picking + packing + SLA. Trava fiscal ativa: nenhum pedido vai para separação sem NF-e autorizada."
       />
+      <div className="mb-6 flex flex-wrap gap-2">
+        <Link to="/logistics/products"><Button variant="outline" size="sm">Produtos</Button></Link>
+        <Link to="/logistics/warehouse"><Button variant="outline" size="sm">Armazém</Button></Link>
+        <Link to="/logistics/receiving"><Button variant="outline" size="sm">Recebimento</Button></Link>
+        <Link to="/logistics/picking"><Button variant="outline" size="sm">Picking</Button></Link>
+        <Link to="/logistics/packing"><Button variant="outline" size="sm">Packing</Button></Link>
+        <Link to="/logistics/sla"><Button variant="outline" size="sm">SLA</Button></Link>
+        <Link to="/ops"><Button size="sm">App Ops</Button></Link>
+      </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <KpiCard label="Pedidos hoje"    value={loadingStats ? '—' : String(todayCount)}    delta={todayCount > 0 ? undefined : undefined} icon={PackageCheck} accent="primary" />
         <KpiCard label="Aguardando NF"   value={loadingStats ? '—' : String(awaitingNf)}    hint="Bloqueados pela trava fiscal"             icon={Lock}         accent="warning" />
-        <KpiCard label="SLA no prazo"    value={loadingStats ? '—' : slaPercent > 0 ? `${slaPercent}%` : '—'} icon={Truck} accent="success" />
+        <KpiCard label="SLA no prazo"    value={loadingStats ? '—' : sla ? `${sla.onTime}/${sla.total}` : slaPercent > 0 ? `${slaPercent}%` : '—'} icon={Truck} accent="success" />
         <KpiCard label="SKUs críticos"   value={loadingStats ? '—' : String(criticalSkus)}  hint="Estoque ≤ 5 unidades"                     icon={PackageX}     accent="warning" />
       </div>
 

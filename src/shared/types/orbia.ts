@@ -42,9 +42,13 @@ export type SalesChannel =
 export type OrderStatus =
   | 'aguardando_nf'
   | 'separacao'
+  | 'em_picking'
+  | 'em_packing'
   | 'despachado'
   | 'em_transito'
   | 'entregue'
+  | 'cancelado'
+  | 'devolvido'
 
 export type NfStatus = 'autorizada' | 'pendente' | 'rejeitada'
 

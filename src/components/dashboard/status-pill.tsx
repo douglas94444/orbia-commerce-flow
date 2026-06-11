@@ -3,12 +3,12 @@ import { cn } from "@/lib/utils";
 type Tone = "success" | "warning" | "danger" | "neutral" | "primary" | "accent";
 
 const tones: Record<Tone, string> = {
-  success: "border-success/40 bg-success/10 text-success",
-  warning: "border-warning/40 bg-warning/10 text-warning",
-  danger: "border-destructive/40 bg-destructive/10 text-destructive",
-  neutral: "border-border bg-muted/50 text-muted-foreground",
-  primary: "border-primary/40 bg-primary/10 text-primary",
-  accent: "border-accent/40 bg-accent/15 text-accent",
+  success: "border-success/25 bg-success/8 text-success",
+  warning: "border-warning/25 bg-warning/8 text-warning",
+  danger: "border-destructive/25 bg-destructive/8 text-destructive",
+  neutral: "border-border bg-muted/40 text-muted-foreground",
+  primary: "border-primary/25 bg-primary/8 text-primary",
+  accent: "border-primary/25 bg-primary/8 text-primary",
 };
 
 export function StatusPill({
@@ -25,7 +25,7 @@ export function StatusPill({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+        "inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-medium",
         tones[tone],
         className,
       )}

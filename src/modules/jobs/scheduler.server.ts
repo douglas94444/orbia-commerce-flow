@@ -16,6 +16,11 @@ import {
   attributeConversions,
 } from "@/modules/retention/sequence-runner.server";
 import { runRetentionCrons } from "@/modules/retention/trigger-crons.server";
+import { checkSlaAlerts } from "@/modules/logistics/sla/sla-engine.server";
+import { syncAllTracking } from "@/modules/logistics/shipping/tracking-sync.server";
+import { forecastVolumeFromCampaigns } from "@/modules/logistics/forecast/volume-forecast.server";
+import { checkMinStockAlerts } from "@/modules/logistics/wms/stock-movements.server";
+import { supabaseAdmin as adminClient } from "@/integrations/supabase/client.server";
 
 export type CronJobName =
   | "health-recalc"
@@ -30,6 +35,10 @@ export type CronJobName =
   | "process-automation-enrollments"
   | "retention-crons"
   | "attribute-conversions"
+  | "check-sla"
+  | "sync-tracking"
+  | "forecast-volume"
+  | "check-stock-alerts"
   | "all";
 
 export interface JobResult {
@@ -116,6 +125,31 @@ async function runJob(name: Exclude<CronJobName, "all">): Promise<JobResult> {
         metadata = await attributeConversions();
         break;
       }
+      case "check-sla": {
+        metadata = await checkSlaAlerts();
+        break;
+      }
+      case "sync-tracking": {
+        metadata = await syncAllTracking();
+        break;
+      }
+      case "forecast-volume": {
+        metadata = await forecastVolumeFromCampaigns();
+        break;
+      }
+      case "check-stock-alerts": {
+        const { data: clients } = await adminClient
+          .from("clients")
+          .select("id")
+          .eq("status", "active");
+        let critical = 0;
+        for (const c of clients ?? []) {
+          const skus = await checkMinStockAlerts(c.id);
+          critical += skus.length;
+        }
+        metadata = { critical };
+        break;
+      }
     }
 
     const durationMs = end();
@@ -148,11 +182,15 @@ const JOB_SEQUENCE: Array<Exclude<CronJobName, "all">> = [
   "refresh-tokens",
   "health-recalc",
   "check-alerts",
+  "check-sla",
+  "sync-tracking",
   "sync-campaigns",
   "sync-catalog",
   "compute-rfm",
   "retention-crons",
   "attribute-conversions",
+  "forecast-volume",
+  "check-stock-alerts",
   "cleanup-oauth",
 ];
 

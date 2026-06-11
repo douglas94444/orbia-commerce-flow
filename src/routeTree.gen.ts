@@ -10,15 +10,20 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as PortalRouteImport } from './routes/portal'
+import { Route as OpsRouteImport } from './routes/ops'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/_dashboard'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as OpsIndexRouteImport } from './routes/ops.index'
 import { Route as PortalTrafficRouteImport } from './routes/portal.traffic'
 import { Route as PortalSettingsRouteImport } from './routes/portal.settings'
 import { Route as PortalRetentionRouteImport } from './routes/portal.retention'
 import { Route as PortalOverviewRouteImport } from './routes/portal.overview'
 import { Route as PortalLogisticsRouteImport } from './routes/portal.logistics'
 import { Route as PortalCatalogRouteImport } from './routes/portal.catalog'
+import { Route as OpsReceivingRouteImport } from './routes/ops.receiving'
+import { Route as OpsPickingRouteImport } from './routes/ops.picking'
+import { Route as OpsPackingRouteImport } from './routes/ops.packing'
 import { Route as DashboardTrafficRouteImport } from './routes/_dashboard.traffic'
 import { Route as DashboardSuccessRouteImport } from './routes/_dashboard.success'
 import { Route as DashboardSettingsRouteImport } from './routes/_dashboard.settings'
@@ -40,6 +45,12 @@ import { Route as ApiWebhooksMercadoPagoRouteImport } from './routes/api/webhook
 import { Route as ApiWebhooksMercadoLivreRouteImport } from './routes/api/webhooks/mercado-livre'
 import { Route as ApiWebhooksMelhorEnvioRouteImport } from './routes/api/webhooks/melhor-envio'
 import { Route as ApiCronRunRouteImport } from './routes/api/cron/run'
+import { Route as DashboardLogisticsWarehouseRouteImport } from './routes/_dashboard.logistics.warehouse'
+import { Route as DashboardLogisticsSlaRouteImport } from './routes/_dashboard.logistics.sla'
+import { Route as DashboardLogisticsReceivingRouteImport } from './routes/_dashboard.logistics.receiving'
+import { Route as DashboardLogisticsProductsRouteImport } from './routes/_dashboard.logistics.products'
+import { Route as DashboardLogisticsPickingRouteImport } from './routes/_dashboard.logistics.picking'
+import { Route as DashboardLogisticsPackingRouteImport } from './routes/_dashboard.logistics.packing'
 import { Route as DashboardFiscalConfigRouteImport } from './routes/_dashboard.fiscal.config'
 import { Route as DashboardClientsIdRouteImport } from './routes/_dashboard.clients.$id'
 import { Route as ApiOauthWhatsappCallbackRouteImport } from './routes/api/oauth/whatsapp/callback'
@@ -56,6 +67,11 @@ const PortalRoute = PortalRouteImport.update({
   path: '/portal',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OpsRoute = OpsRouteImport.update({
+  id: '/ops',
+  path: '/ops',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -69,6 +85,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const OpsIndexRoute = OpsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => OpsRoute,
 } as any)
 const PortalTrafficRoute = PortalTrafficRouteImport.update({
   id: '/traffic',
@@ -99,6 +120,21 @@ const PortalCatalogRoute = PortalCatalogRouteImport.update({
   id: '/catalog',
   path: '/catalog',
   getParentRoute: () => PortalRoute,
+} as any)
+const OpsReceivingRoute = OpsReceivingRouteImport.update({
+  id: '/receiving',
+  path: '/receiving',
+  getParentRoute: () => OpsRoute,
+} as any)
+const OpsPickingRoute = OpsPickingRouteImport.update({
+  id: '/picking',
+  path: '/picking',
+  getParentRoute: () => OpsRoute,
+} as any)
+const OpsPackingRoute = OpsPackingRouteImport.update({
+  id: '/packing',
+  path: '/packing',
+  getParentRoute: () => OpsRoute,
 } as any)
 const DashboardTrafficRoute = DashboardTrafficRouteImport.update({
   id: '/traffic',
@@ -205,6 +241,41 @@ const ApiCronRunRoute = ApiCronRunRouteImport.update({
   path: '/api/cron/run',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardLogisticsWarehouseRoute =
+  DashboardLogisticsWarehouseRouteImport.update({
+    id: '/warehouse',
+    path: '/warehouse',
+    getParentRoute: () => DashboardLogisticsRoute,
+  } as any)
+const DashboardLogisticsSlaRoute = DashboardLogisticsSlaRouteImport.update({
+  id: '/sla',
+  path: '/sla',
+  getParentRoute: () => DashboardLogisticsRoute,
+} as any)
+const DashboardLogisticsReceivingRoute =
+  DashboardLogisticsReceivingRouteImport.update({
+    id: '/receiving',
+    path: '/receiving',
+    getParentRoute: () => DashboardLogisticsRoute,
+  } as any)
+const DashboardLogisticsProductsRoute =
+  DashboardLogisticsProductsRouteImport.update({
+    id: '/products',
+    path: '/products',
+    getParentRoute: () => DashboardLogisticsRoute,
+  } as any)
+const DashboardLogisticsPickingRoute =
+  DashboardLogisticsPickingRouteImport.update({
+    id: '/picking',
+    path: '/picking',
+    getParentRoute: () => DashboardLogisticsRoute,
+  } as any)
+const DashboardLogisticsPackingRoute =
+  DashboardLogisticsPackingRouteImport.update({
+    id: '/packing',
+    path: '/packing',
+    getParentRoute: () => DashboardLogisticsRoute,
+  } as any)
 const DashboardFiscalConfigRoute = DashboardFiscalConfigRouteImport.update({
   id: '/config',
   path: '/config',
@@ -263,26 +334,37 @@ const ApiOauthGoogleCallbackRoute = ApiOauthGoogleCallbackRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/ops': typeof OpsRouteWithChildren
   '/portal': typeof PortalRouteWithChildren
   '/analytics': typeof DashboardAnalyticsRoute
   '/billing': typeof DashboardBillingRoute
   '/catalog': typeof DashboardCatalogRoute
   '/clients': typeof DashboardClientsRouteWithChildren
   '/fiscal': typeof DashboardFiscalRouteWithChildren
-  '/logistics': typeof DashboardLogisticsRoute
+  '/logistics': typeof DashboardLogisticsRouteWithChildren
   '/overview': typeof DashboardOverviewRoute
   '/retention': typeof DashboardRetentionRoute
   '/settings': typeof DashboardSettingsRoute
   '/success': typeof DashboardSuccessRoute
   '/traffic': typeof DashboardTrafficRoute
+  '/ops/packing': typeof OpsPackingRoute
+  '/ops/picking': typeof OpsPickingRoute
+  '/ops/receiving': typeof OpsReceivingRoute
   '/portal/catalog': typeof PortalCatalogRoute
   '/portal/logistics': typeof PortalLogisticsRoute
   '/portal/overview': typeof PortalOverviewRoute
   '/portal/retention': typeof PortalRetentionRoute
   '/portal/settings': typeof PortalSettingsRoute
   '/portal/traffic': typeof PortalTrafficRoute
+  '/ops/': typeof OpsIndexRoute
   '/clients/$id': typeof DashboardClientsIdRoute
   '/fiscal/config': typeof DashboardFiscalConfigRoute
+  '/logistics/packing': typeof DashboardLogisticsPackingRoute
+  '/logistics/picking': typeof DashboardLogisticsPickingRoute
+  '/logistics/products': typeof DashboardLogisticsProductsRoute
+  '/logistics/receiving': typeof DashboardLogisticsReceivingRoute
+  '/logistics/sla': typeof DashboardLogisticsSlaRoute
+  '/logistics/warehouse': typeof DashboardLogisticsWarehouseRoute
   '/api/cron/run': typeof ApiCronRunRoute
   '/api/webhooks/melhor-envio': typeof ApiWebhooksMelhorEnvioRoute
   '/api/webhooks/mercado-livre': typeof ApiWebhooksMercadoLivreRoute
@@ -311,20 +393,30 @@ export interface FileRoutesByTo {
   '/catalog': typeof DashboardCatalogRoute
   '/clients': typeof DashboardClientsRouteWithChildren
   '/fiscal': typeof DashboardFiscalRouteWithChildren
-  '/logistics': typeof DashboardLogisticsRoute
+  '/logistics': typeof DashboardLogisticsRouteWithChildren
   '/overview': typeof DashboardOverviewRoute
   '/retention': typeof DashboardRetentionRoute
   '/settings': typeof DashboardSettingsRoute
   '/success': typeof DashboardSuccessRoute
   '/traffic': typeof DashboardTrafficRoute
+  '/ops/packing': typeof OpsPackingRoute
+  '/ops/picking': typeof OpsPickingRoute
+  '/ops/receiving': typeof OpsReceivingRoute
   '/portal/catalog': typeof PortalCatalogRoute
   '/portal/logistics': typeof PortalLogisticsRoute
   '/portal/overview': typeof PortalOverviewRoute
   '/portal/retention': typeof PortalRetentionRoute
   '/portal/settings': typeof PortalSettingsRoute
   '/portal/traffic': typeof PortalTrafficRoute
+  '/ops': typeof OpsIndexRoute
   '/clients/$id': typeof DashboardClientsIdRoute
   '/fiscal/config': typeof DashboardFiscalConfigRoute
+  '/logistics/packing': typeof DashboardLogisticsPackingRoute
+  '/logistics/picking': typeof DashboardLogisticsPickingRoute
+  '/logistics/products': typeof DashboardLogisticsProductsRoute
+  '/logistics/receiving': typeof DashboardLogisticsReceivingRoute
+  '/logistics/sla': typeof DashboardLogisticsSlaRoute
+  '/logistics/warehouse': typeof DashboardLogisticsWarehouseRoute
   '/api/cron/run': typeof ApiCronRunRoute
   '/api/webhooks/melhor-envio': typeof ApiWebhooksMelhorEnvioRoute
   '/api/webhooks/mercado-livre': typeof ApiWebhooksMercadoLivreRoute
@@ -349,26 +441,37 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_dashboard': typeof DashboardRouteWithChildren
   '/login': typeof LoginRoute
+  '/ops': typeof OpsRouteWithChildren
   '/portal': typeof PortalRouteWithChildren
   '/_dashboard/analytics': typeof DashboardAnalyticsRoute
   '/_dashboard/billing': typeof DashboardBillingRoute
   '/_dashboard/catalog': typeof DashboardCatalogRoute
   '/_dashboard/clients': typeof DashboardClientsRouteWithChildren
   '/_dashboard/fiscal': typeof DashboardFiscalRouteWithChildren
-  '/_dashboard/logistics': typeof DashboardLogisticsRoute
+  '/_dashboard/logistics': typeof DashboardLogisticsRouteWithChildren
   '/_dashboard/overview': typeof DashboardOverviewRoute
   '/_dashboard/retention': typeof DashboardRetentionRoute
   '/_dashboard/settings': typeof DashboardSettingsRoute
   '/_dashboard/success': typeof DashboardSuccessRoute
   '/_dashboard/traffic': typeof DashboardTrafficRoute
+  '/ops/packing': typeof OpsPackingRoute
+  '/ops/picking': typeof OpsPickingRoute
+  '/ops/receiving': typeof OpsReceivingRoute
   '/portal/catalog': typeof PortalCatalogRoute
   '/portal/logistics': typeof PortalLogisticsRoute
   '/portal/overview': typeof PortalOverviewRoute
   '/portal/retention': typeof PortalRetentionRoute
   '/portal/settings': typeof PortalSettingsRoute
   '/portal/traffic': typeof PortalTrafficRoute
+  '/ops/': typeof OpsIndexRoute
   '/_dashboard/clients/$id': typeof DashboardClientsIdRoute
   '/_dashboard/fiscal/config': typeof DashboardFiscalConfigRoute
+  '/_dashboard/logistics/packing': typeof DashboardLogisticsPackingRoute
+  '/_dashboard/logistics/picking': typeof DashboardLogisticsPickingRoute
+  '/_dashboard/logistics/products': typeof DashboardLogisticsProductsRoute
+  '/_dashboard/logistics/receiving': typeof DashboardLogisticsReceivingRoute
+  '/_dashboard/logistics/sla': typeof DashboardLogisticsSlaRoute
+  '/_dashboard/logistics/warehouse': typeof DashboardLogisticsWarehouseRoute
   '/api/cron/run': typeof ApiCronRunRoute
   '/api/webhooks/melhor-envio': typeof ApiWebhooksMelhorEnvioRoute
   '/api/webhooks/mercado-livre': typeof ApiWebhooksMercadoLivreRoute
@@ -393,6 +496,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/ops'
     | '/portal'
     | '/analytics'
     | '/billing'
@@ -405,14 +509,24 @@ export interface FileRouteTypes {
     | '/settings'
     | '/success'
     | '/traffic'
+    | '/ops/packing'
+    | '/ops/picking'
+    | '/ops/receiving'
     | '/portal/catalog'
     | '/portal/logistics'
     | '/portal/overview'
     | '/portal/retention'
     | '/portal/settings'
     | '/portal/traffic'
+    | '/ops/'
     | '/clients/$id'
     | '/fiscal/config'
+    | '/logistics/packing'
+    | '/logistics/picking'
+    | '/logistics/products'
+    | '/logistics/receiving'
+    | '/logistics/sla'
+    | '/logistics/warehouse'
     | '/api/cron/run'
     | '/api/webhooks/melhor-envio'
     | '/api/webhooks/mercado-livre'
@@ -447,14 +561,24 @@ export interface FileRouteTypes {
     | '/settings'
     | '/success'
     | '/traffic'
+    | '/ops/packing'
+    | '/ops/picking'
+    | '/ops/receiving'
     | '/portal/catalog'
     | '/portal/logistics'
     | '/portal/overview'
     | '/portal/retention'
     | '/portal/settings'
     | '/portal/traffic'
+    | '/ops'
     | '/clients/$id'
     | '/fiscal/config'
+    | '/logistics/packing'
+    | '/logistics/picking'
+    | '/logistics/products'
+    | '/logistics/receiving'
+    | '/logistics/sla'
+    | '/logistics/warehouse'
     | '/api/cron/run'
     | '/api/webhooks/melhor-envio'
     | '/api/webhooks/mercado-livre'
@@ -478,6 +602,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_dashboard'
     | '/login'
+    | '/ops'
     | '/portal'
     | '/_dashboard/analytics'
     | '/_dashboard/billing'
@@ -490,14 +615,24 @@ export interface FileRouteTypes {
     | '/_dashboard/settings'
     | '/_dashboard/success'
     | '/_dashboard/traffic'
+    | '/ops/packing'
+    | '/ops/picking'
+    | '/ops/receiving'
     | '/portal/catalog'
     | '/portal/logistics'
     | '/portal/overview'
     | '/portal/retention'
     | '/portal/settings'
     | '/portal/traffic'
+    | '/ops/'
     | '/_dashboard/clients/$id'
     | '/_dashboard/fiscal/config'
+    | '/_dashboard/logistics/packing'
+    | '/_dashboard/logistics/picking'
+    | '/_dashboard/logistics/products'
+    | '/_dashboard/logistics/receiving'
+    | '/_dashboard/logistics/sla'
+    | '/_dashboard/logistics/warehouse'
     | '/api/cron/run'
     | '/api/webhooks/melhor-envio'
     | '/api/webhooks/mercado-livre'
@@ -522,6 +657,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRouteWithChildren
   LoginRoute: typeof LoginRoute
+  OpsRoute: typeof OpsRouteWithChildren
   PortalRoute: typeof PortalRouteWithChildren
   ApiCronRunRoute: typeof ApiCronRunRoute
   ApiWebhooksMelhorEnvioRoute: typeof ApiWebhooksMelhorEnvioRoute
@@ -552,6 +688,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PortalRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/ops': {
+      id: '/ops'
+      path: '/ops'
+      fullPath: '/ops'
+      preLoaderRoute: typeof OpsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -572,6 +715,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/ops/': {
+      id: '/ops/'
+      path: '/'
+      fullPath: '/ops/'
+      preLoaderRoute: typeof OpsIndexRouteImport
+      parentRoute: typeof OpsRoute
     }
     '/portal/traffic': {
       id: '/portal/traffic'
@@ -614,6 +764,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/portal/catalog'
       preLoaderRoute: typeof PortalCatalogRouteImport
       parentRoute: typeof PortalRoute
+    }
+    '/ops/receiving': {
+      id: '/ops/receiving'
+      path: '/receiving'
+      fullPath: '/ops/receiving'
+      preLoaderRoute: typeof OpsReceivingRouteImport
+      parentRoute: typeof OpsRoute
+    }
+    '/ops/picking': {
+      id: '/ops/picking'
+      path: '/picking'
+      fullPath: '/ops/picking'
+      preLoaderRoute: typeof OpsPickingRouteImport
+      parentRoute: typeof OpsRoute
+    }
+    '/ops/packing': {
+      id: '/ops/packing'
+      path: '/packing'
+      fullPath: '/ops/packing'
+      preLoaderRoute: typeof OpsPackingRouteImport
+      parentRoute: typeof OpsRoute
     }
     '/_dashboard/traffic': {
       id: '/_dashboard/traffic'
@@ -762,6 +933,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCronRunRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_dashboard/logistics/warehouse': {
+      id: '/_dashboard/logistics/warehouse'
+      path: '/warehouse'
+      fullPath: '/logistics/warehouse'
+      preLoaderRoute: typeof DashboardLogisticsWarehouseRouteImport
+      parentRoute: typeof DashboardLogisticsRoute
+    }
+    '/_dashboard/logistics/sla': {
+      id: '/_dashboard/logistics/sla'
+      path: '/sla'
+      fullPath: '/logistics/sla'
+      preLoaderRoute: typeof DashboardLogisticsSlaRouteImport
+      parentRoute: typeof DashboardLogisticsRoute
+    }
+    '/_dashboard/logistics/receiving': {
+      id: '/_dashboard/logistics/receiving'
+      path: '/receiving'
+      fullPath: '/logistics/receiving'
+      preLoaderRoute: typeof DashboardLogisticsReceivingRouteImport
+      parentRoute: typeof DashboardLogisticsRoute
+    }
+    '/_dashboard/logistics/products': {
+      id: '/_dashboard/logistics/products'
+      path: '/products'
+      fullPath: '/logistics/products'
+      preLoaderRoute: typeof DashboardLogisticsProductsRouteImport
+      parentRoute: typeof DashboardLogisticsRoute
+    }
+    '/_dashboard/logistics/picking': {
+      id: '/_dashboard/logistics/picking'
+      path: '/picking'
+      fullPath: '/logistics/picking'
+      preLoaderRoute: typeof DashboardLogisticsPickingRouteImport
+      parentRoute: typeof DashboardLogisticsRoute
+    }
+    '/_dashboard/logistics/packing': {
+      id: '/_dashboard/logistics/packing'
+      path: '/packing'
+      fullPath: '/logistics/packing'
+      preLoaderRoute: typeof DashboardLogisticsPackingRouteImport
+      parentRoute: typeof DashboardLogisticsRoute
+    }
     '/_dashboard/fiscal/config': {
       id: '/_dashboard/fiscal/config'
       path: '/config'
@@ -858,13 +1071,34 @@ const DashboardFiscalRouteWithChildren = DashboardFiscalRoute._addFileChildren(
   DashboardFiscalRouteChildren,
 )
 
+interface DashboardLogisticsRouteChildren {
+  DashboardLogisticsPackingRoute: typeof DashboardLogisticsPackingRoute
+  DashboardLogisticsPickingRoute: typeof DashboardLogisticsPickingRoute
+  DashboardLogisticsProductsRoute: typeof DashboardLogisticsProductsRoute
+  DashboardLogisticsReceivingRoute: typeof DashboardLogisticsReceivingRoute
+  DashboardLogisticsSlaRoute: typeof DashboardLogisticsSlaRoute
+  DashboardLogisticsWarehouseRoute: typeof DashboardLogisticsWarehouseRoute
+}
+
+const DashboardLogisticsRouteChildren: DashboardLogisticsRouteChildren = {
+  DashboardLogisticsPackingRoute: DashboardLogisticsPackingRoute,
+  DashboardLogisticsPickingRoute: DashboardLogisticsPickingRoute,
+  DashboardLogisticsProductsRoute: DashboardLogisticsProductsRoute,
+  DashboardLogisticsReceivingRoute: DashboardLogisticsReceivingRoute,
+  DashboardLogisticsSlaRoute: DashboardLogisticsSlaRoute,
+  DashboardLogisticsWarehouseRoute: DashboardLogisticsWarehouseRoute,
+}
+
+const DashboardLogisticsRouteWithChildren =
+  DashboardLogisticsRoute._addFileChildren(DashboardLogisticsRouteChildren)
+
 interface DashboardRouteChildren {
   DashboardAnalyticsRoute: typeof DashboardAnalyticsRoute
   DashboardBillingRoute: typeof DashboardBillingRoute
   DashboardCatalogRoute: typeof DashboardCatalogRoute
   DashboardClientsRoute: typeof DashboardClientsRouteWithChildren
   DashboardFiscalRoute: typeof DashboardFiscalRouteWithChildren
-  DashboardLogisticsRoute: typeof DashboardLogisticsRoute
+  DashboardLogisticsRoute: typeof DashboardLogisticsRouteWithChildren
   DashboardOverviewRoute: typeof DashboardOverviewRoute
   DashboardRetentionRoute: typeof DashboardRetentionRoute
   DashboardSettingsRoute: typeof DashboardSettingsRoute
@@ -878,7 +1112,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardCatalogRoute: DashboardCatalogRoute,
   DashboardClientsRoute: DashboardClientsRouteWithChildren,
   DashboardFiscalRoute: DashboardFiscalRouteWithChildren,
-  DashboardLogisticsRoute: DashboardLogisticsRoute,
+  DashboardLogisticsRoute: DashboardLogisticsRouteWithChildren,
   DashboardOverviewRoute: DashboardOverviewRoute,
   DashboardRetentionRoute: DashboardRetentionRoute,
   DashboardSettingsRoute: DashboardSettingsRoute,
@@ -889,6 +1123,22 @@ const DashboardRouteChildren: DashboardRouteChildren = {
 const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
   DashboardRouteChildren,
 )
+
+interface OpsRouteChildren {
+  OpsPackingRoute: typeof OpsPackingRoute
+  OpsPickingRoute: typeof OpsPickingRoute
+  OpsReceivingRoute: typeof OpsReceivingRoute
+  OpsIndexRoute: typeof OpsIndexRoute
+}
+
+const OpsRouteChildren: OpsRouteChildren = {
+  OpsPackingRoute: OpsPackingRoute,
+  OpsPickingRoute: OpsPickingRoute,
+  OpsReceivingRoute: OpsReceivingRoute,
+  OpsIndexRoute: OpsIndexRoute,
+}
+
+const OpsRouteWithChildren = OpsRoute._addFileChildren(OpsRouteChildren)
 
 interface PortalRouteChildren {
   PortalCatalogRoute: typeof PortalCatalogRoute
@@ -915,6 +1165,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRouteWithChildren,
   LoginRoute: LoginRoute,
+  OpsRoute: OpsRouteWithChildren,
   PortalRoute: PortalRouteWithChildren,
   ApiCronRunRoute: ApiCronRunRoute,
   ApiWebhooksMelhorEnvioRoute: ApiWebhooksMelhorEnvioRoute,

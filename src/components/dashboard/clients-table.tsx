@@ -11,24 +11,20 @@ export function ClientsTable({ data, compact = false }: { data: Client[]; compac
       <table className="w-full">
         <thead>
           <tr className="border-b border-border text-left">
-            <th className="pb-3 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Cliente</th>
-            <th className="pb-3 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Plano</th>
-            {!compact && (
-              <th className="pb-3 text-right text-[10px] font-medium uppercase tracking-wider text-muted-foreground">GMV (30d)</th>
-            )}
-            {!compact && (
-              <th className="pb-3 text-right text-[10px] font-medium uppercase tracking-wider text-muted-foreground">ROAS</th>
-            )}
-            <th className="pb-3 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Health Score</th>
-            <th className="pb-3 text-right text-[10px] font-medium uppercase tracking-wider text-muted-foreground" />
+            <th className="text-label pb-3">Cliente</th>
+            <th className="text-label pb-3">Plano</th>
+            {!compact && <th className="text-label pb-3 text-right">GMV (30d)</th>}
+            {!compact && <th className="text-label pb-3 text-right">ROAS</th>}
+            <th className="text-label pb-3">Health Score</th>
+            <th className="text-label pb-3 text-right" />
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
           {data.map((c) => (
-            <tr key={c.id} className="group transition-colors hover:bg-muted/30">
+            <tr key={c.id} className="group transition-colors duration-[180ms] hover:bg-muted/40">
               <td className="py-3">
                 <div className="flex items-center gap-3">
-                  <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-border bg-muted/50 font-mono text-[11px] font-semibold text-foreground">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-border-strong bg-muted/30 font-mono text-[11px] font-medium text-foreground">
                     {c.initials}
                   </span>
                   <div>

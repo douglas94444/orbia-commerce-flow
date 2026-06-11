@@ -13,6 +13,9 @@ import {
   releaseStock,
   itemsFromOrderMetadata,
 } from "./stock-reservation.server";
+import { upsertOrderItems } from "./order-items.server";
+import { computeSlaDeadline } from "./sla/sla-engine.server";
+import { recordFulfillmentUsage } from "./forecast/volume-forecast.server";
 
 export type MarketplaceChannel =
   | "nuvemshop"
@@ -323,6 +326,8 @@ export async function upsertOrderFromWebhook(
     if (order.shipping.postalCode) metadata.postal_code = order.shipping.postalCode;
   }
 
+  const slaDeadline = await computeSlaDeadline(order.channel);
+
   const { data, error } = await supabaseAdmin
     .from("orders")
     .upsert(
@@ -335,6 +340,9 @@ export async function upsertOrderFromWebhook(
         value_cents: order.valueCents,
         city: order.city,
         metadata,
+        sla_deadline_at: slaDeadline,
+        sla_alert_sent: false,
+        sla_breached: false,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "client_id,channel,external_id" },
@@ -343,6 +351,9 @@ export async function upsertOrderFromWebhook(
     .single();
 
   if (error) throw new Error(`Order upsert failed: ${error.message}`);
+
+  await upsertOrderItems(data.id, order.items, clientId);
+  await recordFulfillmentUsage(clientId, "orders_processed");
 
   await logAudit({
     user_id: "system",

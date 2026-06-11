@@ -1,4 +1,3 @@
-import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle,
   FileWarning,
@@ -42,21 +41,14 @@ const toneBySeverity: Record<
   },
 };
 
-function AlertRow({ alert, index }: { alert: OperationAlert; index: number }) {
+function AlertRow({ alert }: { alert: OperationAlert }) {
   const Icon = iconByKind[alert.kind];
   const tone = toneBySeverity[alert.severity];
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, x: 16 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 16 }}
-      transition={{ duration: 0.3, delay: index * 0.03 }}
-      className={cn("relative overflow-hidden rounded-xl border p-3 pl-4", tone.wrap)}
-    >
+    <div className={cn("relative overflow-hidden rounded-xl border p-3 pl-4 transition-opacity", tone.wrap)}>
       <span className={cn("absolute inset-y-0 left-0 w-0.5", tone.bar)} />
       <div className="mb-1 flex items-center justify-between gap-2">
-        <span className={cn("flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider", tone.text)}>
+        <span className={cn("flex items-center gap-1.5 text-xs font-semibold", tone.text)}>
           <Icon className="size-3.5" />
           {alert.title}
         </span>
@@ -64,7 +56,7 @@ function AlertRow({ alert, index }: { alert: OperationAlert; index: number }) {
       </div>
       <p className="text-xs leading-relaxed text-foreground/85">{alert.message}</p>
       <p className="mt-1 text-[10px] font-medium text-muted-foreground">{alert.client}</p>
-    </motion.div>
+    </div>
   );
 }
 
@@ -72,15 +64,11 @@ export function AlertsPanel() {
   const { data: alerts = [], isLoading } = useOperationAlerts();
   const critical = alerts.filter((a) => a.severity === "critical").length;
   return (
-    <aside className="hidden w-80 shrink-0 flex-col border-l border-border bg-sidebar/40 xl:flex">
+    <aside className="hidden w-80 shrink-0 flex-col border-l border-border bg-sidebar/80 xl:flex">
       <div className="flex h-16 items-center justify-between border-b border-border px-5">
-        <span className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-          Alertas críticos
-        </span>
-        <span className="relative flex items-center">
-          <span className="grid size-6 place-items-center rounded-full bg-destructive/15 font-mono text-[10px] font-bold text-destructive animate-pulse-ring">
-            {critical}
-          </span>
+        <span className="text-label">Alertas críticos</span>
+        <span className="grid size-6 place-items-center rounded-full bg-destructive/15 font-mono text-[10px] font-bold text-destructive">
+          {critical}
         </span>
       </div>
 
@@ -90,19 +78,13 @@ export function AlertsPanel() {
         ) : alerts.length === 0 ? (
           <p className="py-8 text-center text-xs text-muted-foreground">Nenhum alerta ativo.</p>
         ) : (
-          <AnimatePresence initial={false}>
-            {alerts.map((alert, i) => (
-              <AlertRow key={alert.id} alert={alert} index={i} />
-            ))}
-          </AnimatePresence>
+          alerts.map((alert) => <AlertRow key={alert.id} alert={alert} />)
         )}
       </div>
 
       <div className="border-t border-border p-4">
-        <div className="rounded-xl bg-card/80 p-4">
-          <p className="mb-3 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-            Status do sistema
-          </p>
+        <div className="surface-card rounded-xl p-4">
+          <p className="mb-3 text-xs font-medium text-muted-foreground">Status do sistema</p>
           <div className="mb-3 flex items-center gap-1.5">
             {[1, 1, 1, 0.3].map((v, i) => (
               <span

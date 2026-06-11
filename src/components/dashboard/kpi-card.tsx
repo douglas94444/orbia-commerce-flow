@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
 import { type LucideIcon, TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useRipple } from "@/hooks/use-ripple";
 
 interface KpiCardProps {
   label: string;
@@ -15,36 +13,34 @@ interface KpiCardProps {
 
 const accentMap = {
   primary: "text-primary",
-  accent: "text-accent",
+  accent: "text-primary",
   success: "text-success",
   warning: "text-warning",
 } as const;
 
-export function KpiCard({ label, value, delta, hint, icon: Icon, accent = "primary" }: KpiCardProps) {
-  const { onMouseDown, rippleElements } = useRipple<HTMLDivElement>();
+const iconWellMap = {
+  primary: "icon-well",
+  accent: "icon-well",
+  success: "border-success/20 bg-success/10 text-success",
+  warning: "border-warning/20 bg-warning/10 text-warning",
+} as const;
 
+export function KpiCard({ label, value, delta, hint, icon: Icon, accent = "primary" }: KpiCardProps) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: "easeOut" }}
-      className="glass-panel group relative overflow-hidden rounded-2xl p-5"
-      onMouseDown={onMouseDown}
-    >
-      <div
-        className="pointer-events-none absolute -right-8 -top-8 size-24 rounded-full opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100"
-        style={{ background: "color-mix(in oklab, var(--primary) 40%, transparent)" }}
-      />
-      <div className="mb-3 flex items-center justify-between">
-        <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-          {label}
-        </p>
-        <Icon className={cn("size-4", accentMap[accent])} />
+    <div className="surface-elevated p-5 transition-colors duration-[180ms] hover:border-border-strong">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <p className="text-label">{label}</p>
+        <span
+          className={cn(
+            "grid size-8 shrink-0 place-items-center rounded-lg border",
+            iconWellMap[accent],
+          )}
+        >
+          <Icon className="size-3.5" />
+        </span>
       </div>
       <div className="flex items-baseline gap-2">
-        <span className="font-mono text-2xl font-semibold tracking-tight text-foreground">
-          {value}
-        </span>
+        <span className="text-metric text-2xl font-semibold text-foreground">{value}</span>
         {delta && (
           <span
             className={cn(
@@ -52,22 +48,16 @@ export function KpiCard({ label, value, delta, hint, icon: Icon, accent = "prima
               delta.positive ? "text-success" : "text-destructive",
             )}
           >
-            {delta.positive ? (
-              <TrendingUp className="size-3" />
-            ) : (
-              <TrendingDown className="size-3" />
-            )}
+            {delta.positive ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
             {delta.value}
           </span>
         )}
       </div>
-      {hint && <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>}
-      {rippleElements}
-    </motion.div>
+      {hint && <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">{hint}</p>}
+    </div>
   );
 }
 
-/** Conta de 0 até target quando entra em vista. Retorna string formatada. */
 export function useCountUp(target: number, duration = 900) {
   const [value, setValue] = useState(0);
   useEffect(() => {

@@ -1,5 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { motion } from 'framer-motion'
 import { Banknote, FileCheck2, Gauge, HeartPulse, Truck } from 'lucide-react'
 import { KpiCard } from '@/components/dashboard/kpi-card'
 import { Panel } from '@/components/dashboard/panel'
@@ -84,28 +83,22 @@ function OverviewPage() {
         </div>
       )}
 
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, ease: 'easeOut' }}
+      <Panel
+        title="Evolução de performance"
+        subtitle="GMV vs ROAS — últimos 30 dias"
+        action={
+          <div className="flex items-center gap-4">
+            <span className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="size-2 rounded-full bg-primary" /> GMV
+            </span>
+            <span className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="size-2 rounded-full bg-success" /> ROAS
+            </span>
+          </div>
+        }
       >
-        <Panel
-          title="Evolução de performance"
-          subtitle="GMV vs ROAS — últimos 30 dias"
-          action={
-            <div className="flex items-center gap-4">
-              <span className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                <span className="size-2 rounded-full bg-primary" /> GMV
-              </span>
-              <span className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                <span className="size-2 rounded-full bg-accent" /> ROAS
-              </span>
-            </div>
-          }
-        >
-          <GmvRoasChart data={loadingAnalytics ? undefined : analytics?.gmvRoasSeries} />
-        </Panel>
-      </motion.div>
+        <GmvRoasChart data={loadingAnalytics ? undefined : analytics?.gmvRoasSeries} />
+      </Panel>
 
       <Panel
         title="Carteira estratégica"

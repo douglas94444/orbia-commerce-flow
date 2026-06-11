@@ -17,16 +17,14 @@ export function Panel({
   children: ReactNode;
 }) {
   return (
-    <section className={cn("glass-panel overflow-hidden rounded-2xl", className)}>
+    <section className={cn("surface-elevated overflow-hidden", className)}>
       {(title || action) && (
         <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-4">
           <div>
             {title && (
-              <h2 className="font-display text-sm font-semibold tracking-tight text-foreground">
-                {title}
-              </h2>
+              <h2 className="text-sm font-semibold tracking-tight text-foreground">{title}</h2>
             )}
-            {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+            {subtitle && <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>}
           </div>
           {action}
         </div>
@@ -36,14 +34,20 @@ export function Panel({
   );
 }
 
-export function PageIntro({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) {
+export function PageIntro({
+  eyebrow,
+  title,
+  description,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+}) {
   return (
-    <div className="mb-6">
-      <p className="mb-1 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
-        {eyebrow}
-      </p>
-      <h2 className="font-display text-2xl font-bold tracking-tight text-foreground">{title}</h2>
-      <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{description}</p>
+    <div className="mb-8">
+      <p className="text-label mb-2">{eyebrow}</p>
+      <h2 className="text-2xl font-bold tracking-tight text-foreground">{title}</h2>
+      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{description}</p>
     </div>
   );
 }

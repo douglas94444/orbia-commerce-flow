@@ -95,6 +95,7 @@ export const listAutomations = createServerFn({ method: "GET" })
   });
 
 export interface RfmSegment {
+  segment: string;
   label: string;
   count: number;
   tone: "success" | "primary" | "warning" | "danger" | "neutral";
@@ -161,6 +162,7 @@ export const getRetentionStats = createServerFn({ method: "GET" })
     );
 
     const rfm = Object.entries(RFM_MAP).map(([key, meta]) => ({
+      segment: key,
       ...meta,
       count: customers.filter((c) => (c.rfm_segment ?? "perdidos") === key).length,
     }));

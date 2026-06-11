@@ -5,9 +5,8 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Orbia — Design system (futurista orbital, tema escuro).
- * Cores em oklch. Acento primário ciano, secundário violeta.
- * Status: success (verde), warning (âmbar), destructive (vermelho).
+ * Orbia — Design system premium (navy + mint).
+ * Hierarquia de superfícies, tipografia refinada, profundidade sutil.
  */
 
 @theme inline {
@@ -39,6 +38,7 @@
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-ring-offset-background: var(--background);
@@ -56,78 +56,98 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
+  --color-info: var(--info);
+  --color-severity-critical: var(--severity-critical);
+  --color-severity-high: var(--severity-high);
+  --color-severity-medium: var(--severity-medium);
+  --color-channel-whatsapp: var(--channel-whatsapp);
+  --color-channel-email: var(--channel-email);
+  --color-channel-sms: var(--channel-sms);
+  --color-channel-push: var(--channel-push);
+  --color-rfm-loyal: var(--rfm-loyal);
+  --color-rfm-potential: var(--rfm-potential);
+
   --font-sans: "Sora", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Sora", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
 :root {
-  --radius: 0.75rem;
+  --radius: 0.875rem;
 
-  --background: oklch(0.16 0.022 264);
-  --foreground: oklch(0.96 0.008 250);
+  /* Superfícies — navy profundo */
+  --background: oklch(0.11 0.02 262);
+  --foreground: oklch(0.98 0.003 260);
 
-  --card: oklch(0.205 0.028 264);
-  --card-foreground: oklch(0.96 0.008 250);
-  --popover: oklch(0.205 0.028 264);
-  --popover-foreground: oklch(0.96 0.008 250);
+  --card: oklch(0.155 0.022 262);
+  --card-foreground: oklch(0.98 0.003 260);
+  --popover: oklch(0.165 0.024 262);
+  --popover-foreground: oklch(0.98 0.003 260);
 
-  --primary: oklch(0.82 0.14 195);
-  --primary-foreground: oklch(0.16 0.03 230);
+  /* Mint premium */
+  --primary: oklch(0.8 0.155 175);
+  --primary-foreground: oklch(0.12 0.045 175);
 
-  --secondary: oklch(0.27 0.04 270);
-  --secondary-foreground: oklch(0.96 0.008 250);
+  --secondary: oklch(0.2 0.022 262);
+  --secondary-foreground: oklch(0.92 0.006 260);
 
-  --muted: oklch(0.24 0.03 266);
-  --muted-foreground: oklch(0.68 0.03 262);
+  --muted: oklch(0.18 0.02 262);
+  --muted-foreground: oklch(0.58 0.024 262);
 
-  --accent: oklch(0.66 0.2 292);
-  --accent-foreground: oklch(0.97 0.008 290);
+  --accent: oklch(0.21 0.025 262);
+  --accent-foreground: oklch(0.98 0.003 260);
 
-  --destructive: oklch(0.64 0.22 18);
+  --destructive: oklch(0.62 0.21 22);
   --destructive-foreground: oklch(0.98 0.01 20);
 
-  --success: oklch(0.74 0.17 158);
-  --success-foreground: oklch(0.15 0.03 160);
+  --success: oklch(0.74 0.14 165);
+  --success-foreground: oklch(0.12 0.04 165);
 
-  --warning: oklch(0.82 0.16 78);
-  --warning-foreground: oklch(0.18 0.04 70);
+  --warning: oklch(0.8 0.14 78);
+  --warning-foreground: oklch(0.16 0.04 70);
 
-  --border: oklch(1 0 0 / 9%);
-  --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.82 0.14 195);
+  --border: oklch(1 0 0 / 8%);
+  --border-subtle: oklch(1 0 0 / 5%);
+  --border-strong: oklch(1 0 0 / 14%);
+  --input: oklch(1 0 0 / 10%);
+  --ring: oklch(0.8 0.155 175);
 
-  --chart-1: oklch(0.82 0.14 195);
-  --chart-2: oklch(0.66 0.2 292);
-  --chart-3: oklch(0.74 0.17 158);
-  --chart-4: oklch(0.82 0.16 78);
-  --chart-5: oklch(0.7 0.15 330);
+  --chart-1: oklch(0.8 0.155 175);
+  --chart-2: oklch(0.7 0.12 175);
+  --chart-3: oklch(0.74 0.14 165);
+  --chart-4: oklch(0.5 0.06 262);
+  --chart-5: oklch(0.8 0.14 78);
 
-  --sidebar: oklch(0.18 0.025 266);
-  --sidebar-foreground: oklch(0.9 0.01 255);
-  --sidebar-primary: oklch(0.82 0.14 195);
-  --sidebar-primary-foreground: oklch(0.16 0.03 230);
-  --sidebar-accent: oklch(0.26 0.035 268);
-  --sidebar-accent-foreground: oklch(0.96 0.008 250);
-  --sidebar-border: oklch(1 0 0 / 8%);
-  --sidebar-ring: oklch(0.82 0.14 195);
+  --sidebar: oklch(0.125 0.021 262);
+  --sidebar-foreground: oklch(0.9 0.008 260);
+  --sidebar-primary: oklch(0.8 0.155 175);
+  --sidebar-primary-foreground: oklch(0.12 0.045 175);
+  --sidebar-accent: oklch(0.19 0.024 262);
+  --sidebar-accent-foreground: oklch(0.98 0.003 260);
+  --sidebar-border: oklch(1 0 0 / 6%);
+  --sidebar-ring: oklch(0.8 0.155 175);
 
-  /* Gradientes e sombras orbitais */
-  --gradient-orbital: radial-gradient(
-      circle at 15% -10%,
-      color-mix(in oklab, var(--primary) 18%, transparent),
-      transparent 45%
-    ),
-    radial-gradient(
-      circle at 90% 0%,
-      color-mix(in oklab, var(--accent) 20%, transparent),
-      transparent 40%
-    );
-  --glow-primary: 0 0 0 1px color-mix(in oklab, var(--primary) 30%, transparent),
-    0 0 32px -8px color-mix(in oklab, var(--primary) 55%, transparent);
-  --glow-danger: 0 0 0 1px color-mix(in oklab, var(--destructive) 35%, transparent),
-    0 0 28px -8px color-mix(in oklab, var(--destructive) 60%, transparent);
-  --shadow-elevated: 0 24px 60px -28px oklch(0 0 0 / 0.7);
+  --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.24);
+  --shadow-elevated:
+    0 1px 0 0 oklch(1 0 0 / 6%) inset,
+    0 1px 2px oklch(0 0 0 / 0.2),
+    0 12px 32px -16px oklch(0 0 0 / 0.55);
+  --shadow-primary:
+    0 1px 0 0 oklch(1 0 0 / 18%) inset,
+    0 4px 20px -6px color-mix(in oklab, var(--primary) 55%, transparent);
+  --transition-premium: 180ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Semântica LTV Boost — canais, severidade, RFM */
+  --info: oklch(0.68 0.14 250);
+  --severity-critical: oklch(0.65 0.2 25);
+  --severity-high: oklch(0.72 0.16 55);
+  --severity-medium: oklch(0.8 0.14 85);
+  --channel-whatsapp: #25d366;
+  --channel-email: #3b82f6;
+  --channel-sms: #f59e0b;
+  --channel-push: oklch(0.7 0.12 175);
+  --rfm-loyal: oklch(0.68 0.14 250);
+  --rfm-potential: oklch(0.62 0.16 300);
 }
 
 @layer base {
@@ -139,73 +159,152 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
+    font-feature-settings: "cv02", "cv03", "cv11";
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   ::selection {
     background-color: color-mix(in oklab, var(--primary) 30%, transparent);
+    color: var(--foreground);
   }
 
-  /* Scrollbar discreta no tema escuro */
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: color-mix(in oklab, var(--foreground) 14%, transparent);
+    background: color-mix(in oklab, var(--foreground) 12%, transparent);
     border-radius: 999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: color-mix(in oklab, var(--foreground) 22%, transparent);
+    background: color-mix(in oklab, var(--foreground) 20%, transparent);
   }
 }
 
-@utility text-glow {
-  text-shadow: 0 0 18px color-mix(in oklab, currentColor 55%, transparent);
+/* ─── Tipografia premium ─── */
+
+@utility text-label {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
 }
 
-@utility glass-panel {
+@utility text-metric {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* ─── Superfícies ─── */
+
+@utility surface-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+@utility surface-elevated {
   background: linear-gradient(
     180deg,
-    color-mix(in oklab, var(--card) 92%, transparent),
-    color-mix(in oklab, var(--card) 78%, transparent)
+    color-mix(in oklab, var(--card) 100%, white 3%) 0%,
+    var(--card) 100%
   );
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-elevated);
+}
+
+@utility surface-chrome {
+  background: color-mix(in oklab, var(--background) 88%, var(--card) 12%);
+  border-bottom: 1px solid var(--border);
   backdrop-filter: blur(12px);
-  border: 1px solid var(--border);
 }
 
-@utility grid-texture {
+@utility bg-primary-gradient {
   background-image: linear-gradient(
-      color-mix(in oklab, var(--foreground) 4%, transparent) 1px,
-      transparent 1px
-    ),
-    linear-gradient(
-      90deg,
-      color-mix(in oklab, var(--foreground) 4%, transparent) 1px,
-      transparent 1px
-    );
-  background-size: 44px 44px;
+    165deg,
+    color-mix(in oklab, var(--primary) 90%, white 10%) 0%,
+    color-mix(in oklab, var(--primary) 95%, black 5%) 100%
+  );
 }
 
-@keyframes orbit-spin {
+@utility shadow-primary-glow {
+  box-shadow: var(--shadow-primary);
+}
+
+@utility icon-well {
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-md);
+  background: color-mix(in oklab, var(--primary) 12%, transparent);
+  border: 1px solid color-mix(in oklab, var(--primary) 18%, transparent);
+  color: var(--primary);
+}
+
+@utility nav-item-active {
+  background: color-mix(in oklab, var(--primary) 10%, transparent);
+  border: 1px solid color-mix(in oklab, var(--primary) 16%, transparent);
+  color: var(--foreground);
+}
+
+@utility text-gradient {
+  background-image: linear-gradient(
+    135deg,
+    var(--primary) 0%,
+    color-mix(in oklab, var(--primary) 70%, white 30%) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
   to {
-    transform: rotate(360deg);
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-@keyframes pulse-ring {
-  0% {
-    box-shadow: 0 0 0 0 color-mix(in oklab, var(--destructive) 55%, transparent);
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
   }
-  70% {
-    box-shadow: 0 0 0 8px color-mix(in oklab, var(--destructive) 0%, transparent);
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
   }
   100% {
-    box-shadow: 0 0 0 0 color-mix(in oklab, var(--destructive) 0%, transparent);
+    transform: translateX(300%);
   }
+}
+
+@utility animate-fade-up {
+  animation: fade-up 0.45s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@utility animate-pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@utility animate-shimmer {
+  animation: shimmer 1.8s ease-in-out infinite;
 }
 
 @keyframes draw-line {
@@ -217,32 +316,15 @@
   }
 }
 
-@keyframes ripple-glow {
-  0% {
-    transform: translate(-50%, -50%) scale(0);
-    opacity: 0.75;
-  }
-  100% {
-    transform: translate(-50%, -50%) scale(4);
-    opacity: 0;
-  }
-}
-
-@utility animate-pulse-ring {
-  animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-@utility animate-orbit {
-  animation: orbit-spin 18s linear infinite;
-}
-
-@utility ripple-glow-element {
-  position: absolute;
-  width: 60px;
-  height: 60px;
-  border-radius: 9999px;
-  background: oklch(0.82 0.14 195 / 0.35);
-  box-shadow: 0 0 16px oklch(0.82 0.14 195 / 0.5), 0 0 40px oklch(0.82 0.14 195 / 0.25);
-  animation: ripple-glow 600ms ease-out forwards;
-  pointer-events: none;
+.react-flow {
+  --xy-background-color: var(--background);
+  --xy-node-background-color-default: var(--card);
+  --xy-node-border-default: 1px solid var(--border-strong);
+  --xy-node-color-default: var(--foreground);
+  --xy-edge-stroke-default: var(--muted-foreground);
+  --xy-controls-button-background-color-default: var(--card);
+  --xy-controls-button-background-color-hover-default: var(--muted);
+  --xy-controls-button-color-default: var(--foreground);
+  --xy-controls-button-border-color-default: var(--border);
+  --xy-minimap-background-color-default: var(--card);
 }

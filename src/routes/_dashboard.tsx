@@ -52,14 +52,7 @@ function DashboardLayout() {
   if (loading || !session || loadingProfile) {
     return (
       <div className="grid min-h-screen place-items-center bg-background">
-        <span className="relative grid size-12 place-items-center">
-          <span className="absolute inset-0 rounded-full border border-primary/40" />
-          <span className="absolute inset-0 animate-orbit rounded-full border-t-2 border-primary/80" />
-          <span
-            className="size-3 rounded-full bg-primary"
-            style={{ boxShadow: '0 0 16px var(--primary)' }}
-          />
-        </span>
+        <span className="size-8 animate-pulse rounded-full bg-primary/30" />
       </div>
     )
   }
@@ -74,12 +67,8 @@ function DashboardLayout() {
       <div className="flex min-w-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">
           <TopBar title={meta.title} subtitle={meta.subtitle} />
-          <main className="grid-texture relative flex-1 overflow-y-auto">
-            <div
-              className="pointer-events-none absolute inset-0"
-              style={{ background: 'var(--gradient-orbital)' }}
-            />
-            <div className="relative mx-auto w-full max-w-[1400px] px-6 py-8">
+          <main className="flex-1 overflow-y-auto bg-background">
+            <div className="mx-auto w-full max-w-[1400px] px-6 py-8">
               <Outlet />
             </div>
           </main>

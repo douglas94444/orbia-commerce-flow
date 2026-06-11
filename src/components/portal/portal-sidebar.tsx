@@ -72,17 +72,13 @@ export function PortalSidebar({
       )}
     >
       <div className="flex h-16 items-center gap-3 px-5">
-        <span className="relative grid size-9 shrink-0 place-items-center">
-          <span className="absolute inset-0 rounded-full border border-accent/40" />
-          <span
-            className="size-2.5 rounded-full bg-accent"
-            style={{ boxShadow: '0 0 12px var(--accent)' }}
-          />
+        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary-gradient text-sm font-bold text-primary-foreground shadow-primary-glow">
+          O
         </span>
         {!collapsed && (
           <div className="leading-tight">
-            <p className="font-display text-lg font-bold tracking-tight text-foreground">Orbia</p>
-            <p className="truncate text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+            <p className="text-lg font-bold tracking-tight text-foreground">Orbia</p>
+            <p className="truncate text-xs text-muted-foreground">
               {storeName ?? 'Portal Lojista'}
             </p>
           </div>
@@ -98,13 +94,13 @@ export function PortalSidebar({
               to={item.to}
               title={collapsed ? item.label : undefined}
               className={cn(
-                'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
+                'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-[180ms]',
                 active
-                  ? 'bg-sidebar-accent text-foreground'
-                  : 'text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground',
+                  ? 'nav-item-active'
+                  : 'text-muted-foreground hover:bg-sidebar-accent/70 hover:text-foreground',
               )}
             >
-              <item.icon className={cn('size-5 shrink-0', active && 'text-accent')} />
+              <item.icon className={cn('size-[18px] shrink-0', active ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground')} />
               {!collapsed && <span className="truncate">{item.label}</span>}
             </Link>
           )
@@ -113,7 +109,7 @@ export function PortalSidebar({
 
       <div className="border-t border-sidebar-border p-3">
         <div className={cn('flex items-center gap-3 rounded-xl bg-sidebar-accent/50 p-2.5', collapsed && 'justify-center')}>
-          <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-accent/30 to-primary/30 font-mono text-[11px] font-semibold">
+          <span className="grid size-8 shrink-0 place-items-center rounded-lg border border-primary/20 bg-primary/10 font-mono text-[11px] font-semibold text-primary">
             {initials}
           </span>
           {!collapsed && (
