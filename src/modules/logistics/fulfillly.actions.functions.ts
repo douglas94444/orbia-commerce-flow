@@ -3,11 +3,27 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { adjustStock, listStockMovements } from "./wms/stock-movements.server";
+import { logAudit } from "@/shared/lib/logger";
 import {
   listWarehouseLocations,
   listWmsProducts,
   upsertWarehouseLocation,
+  upsertWmsProduct,
+  uploadProductPhoto,
+  deactivateWarehouseLocation,
+  listLocationStock,
+  assignSkuToLocation,
+  listStockAlertSkus,
+  listProductVariations,
 } from "./wms/warehouse.server";
+import { listExpiringLots } from "./wms/product-lots.server";
+import {
+  listQuarantineItems,
+  releaseQuarantineItem,
+  discardQuarantineItem,
+} from "./wms/quarantine.server";
+import { listStockTurnover } from "./wms/stock-turnover.server";
+import { listRecentStockSyncs } from "@/modules/catalog/stock-sync-outbox.server";
 import {
   createReceivingAppointment,
   startReceivingSession,
@@ -44,6 +60,15 @@ import {
 } from "./shipping/carrier-config.server";
 import { getReturnReasonsReport } from "./returns/returns.server";
 import { getLogisticsAnalytics } from "./analytics/logistics-analytics.server";
+import { getOpsPickQueue } from "./ops/ops-tasks.server";
+import {
+  startInventoryCount,
+  recordCountLine,
+  completeInventoryCount,
+  listInventoryCounts,
+  getInventoryCountLines,
+  exportCountReport,
+} from "./wms/inventory-count.server";
 
 async function getClientIdForUser(
   userId: string,
@@ -104,11 +129,20 @@ export const adjustStockFn = createServerFn({ method: "POST" })
     return adjustStock(clientId, data.sku, data.delta, data.reason, context.userId);
   });
 
-export const listStockMovementsFn = createServerFn({ method: "GET" })
+const stockMovementsQuerySchema = z.object({
+  sku: z.string().optional(),
+  limit: z.number().int().min(1).max(200).default(50),
+  offset: z.number().int().min(0).default(0),
+});
+
+export const listStockMovementsFn = createServerFn({ method: "POST" })
+  .inputValidator(stockMovementsQuerySchema.optional())
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .handler(async ({ data, context }) => {
     const clientId = await getClientIdForUser(context.userId, context.supabase);
-    return listStockMovements(clientId);
+    const params = data ?? { limit: 50, offset: 0 };
+    const rows = await listStockMovements(clientId, params.sku, params.limit + params.offset);
+    return rows.slice(params.offset, params.offset + params.limit);
   });
 
 export const generatePickWaveFn = createServerFn({ method: "POST" })
@@ -190,7 +224,17 @@ const receiveLineSchema = z.object({
   receivedQty: z.number(),
   barcodeScanned: z.string().optional(),
   locationId: z.string().uuid().optional(),
+  lotCode: z.string().optional(),
+  expiresAt: z.string().optional(),
 });
+
+export const startReceivingSessionFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ appointmentId: z.string().uuid().nullable() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return startReceivingSession(clientId, data.appointmentId, context.userId);
+  });
 
 export const confirmReceivingLineFn = createServerFn({ method: "POST" })
   .inputValidator(receiveLineSchema)
@@ -206,6 +250,8 @@ export const confirmReceivingLineFn = createServerFn({ method: "POST" })
         receivedQty: data.receivedQty,
         barcodeScanned: data.barcodeScanned,
         locationId: data.locationId,
+        lotCode: data.lotCode,
+        expiresAt: data.expiresAt,
       },
       context.userId,
     );
@@ -217,23 +263,8 @@ export const getOpsTasksFn = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const clientId = await getClientIdForUser(context.userId, context.supabase);
 
-    const { data: waves } = await supabaseAdmin
-      .from("pick_waves")
-      .select("id")
-      .eq("client_id", clientId)
-      .in("status", ["open", "in_progress"]);
-
-    const waveIds = (waves ?? []).map((w: { id: string }) => w.id);
-
-    const [picks, appointments] = await Promise.all([
-      waveIds.length ?
-        supabaseAdmin
-          .from("pick_tasks")
-          .select("id, status, order_id")
-          .in("wave_id", waveIds)
-          .in("status", ["pending", "in_progress"])
-          .limit(20)
-      : Promise.resolve({ data: [] }),
+    const [pickLines, appointments] = await Promise.all([
+      getOpsPickQueue(clientId),
       supabaseAdmin
         .from("receiving_appointments")
         .select("id, scheduled_at, status")
@@ -243,7 +274,7 @@ export const getOpsTasksFn = createServerFn({ method: "GET" })
     ]);
 
     return {
-      pickTasks: picks.data ?? [],
+      pickLines,
       receivingAppointments: appointments.data ?? [],
     };
   });
@@ -376,4 +407,196 @@ export const getLogisticsAnalyticsFn = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const clientId = await getClientIdForUser(context.userId, context.supabase);
     return getLogisticsAnalytics(clientId);
+  });
+
+export const listInventoryCountsFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return listInventoryCounts(clientId);
+  });
+
+export const getInventoryCountLinesFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ countId: z.string().uuid() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data }) => getInventoryCountLines(data.countId));
+
+const startCountSchema = z.object({
+  countType: z.enum(["rotativo", "geral"]),
+  skus: z.array(z.string()).optional(),
+  aisle: z.string().optional(),
+  locationId: z.string().uuid().optional(),
+});
+
+export const startInventoryCountFn = createServerFn({ method: "POST" })
+  .inputValidator(startCountSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    const id = await startInventoryCount(clientId, data.countType, context.userId, {
+      skus: data.skus,
+      aisle: data.aisle,
+      locationId: data.locationId,
+    });
+    return { id };
+  });
+
+const recordCountSchema = z.object({
+  countId: z.string().uuid(),
+  sku: z.string(),
+  countedQty: z.number().int().min(0),
+  locationId: z.string().uuid().optional(),
+});
+
+export const recordInventoryCountLineFn = createServerFn({ method: "POST" })
+  .inputValidator(recordCountSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data }) => {
+    await recordCountLine(data.countId, data.sku, data.countedQty, data.locationId);
+    return { ok: true };
+  });
+
+export const exportInventoryCountFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ countId: z.string().uuid() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data }) => ({ csv: await exportCountReport(data.countId) }));
+
+export const completeInventoryCountFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ countId: z.string().uuid() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return completeInventoryCount(clientId, data.countId, context.userId);
+  });
+
+const wmsProductSchema = z.object({
+  sku: z.string(),
+  barcode: z.string().nullable().optional(),
+  lengthMm: z.number().nullable().optional(),
+  widthMm: z.number().nullable().optional(),
+  heightMm: z.number().nullable().optional(),
+  ncm: z.string().nullable().optional(),
+  minStockUnits: z.number().int().min(0).optional(),
+  photoUrl: z.string().nullable().optional(),
+  parentProductId: z.string().uuid().nullable().optional(),
+});
+
+export const upsertWmsProductFn = createServerFn({ method: "POST" })
+  .inputValidator(wmsProductSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    const id = await upsertWmsProduct(clientId, data);
+    await logAudit({
+      user_id: context.userId,
+      client_id: clientId,
+      action: "update",
+      resource: "product",
+      resource_id: data.sku,
+      new_data: data,
+    });
+    return { id };
+  });
+
+export const uploadProductPhotoFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ sku: z.string(), dataUrl: z.string() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    const url = await uploadProductPhoto(clientId, data.sku, data.dataUrl);
+    return { url };
+  });
+
+export const deactivateWarehouseLocationFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ id: z.string().uuid() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    await deactivateWarehouseLocation(clientId, data.id);
+    return { ok: true };
+  });
+
+export const listLocationStockFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ locationId: z.string().uuid().optional() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return listLocationStock(clientId, data?.locationId);
+  });
+
+const assignSkuSchema = z.object({
+  sku: z.string(),
+  locationId: z.string().uuid(),
+  qty: z.number().int().positive(),
+  lotId: z.string().uuid().nullable().optional(),
+});
+
+export const assignSkuToLocationFn = createServerFn({ method: "POST" })
+  .inputValidator(assignSkuSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    await assignSkuToLocation(clientId, data.sku, data.locationId, data.qty, data.lotId);
+    return { ok: true };
+  });
+
+export const listStockAlertSkusFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return listStockAlertSkus(clientId);
+  });
+
+export const listProductVariationsFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ parentProductId: z.string().uuid() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return listProductVariations(clientId, data.parentProductId);
+  });
+
+export const listExpiringLotsFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return listExpiringLots(clientId);
+  });
+
+export const listQuarantineItemsFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return listQuarantineItems(clientId);
+  });
+
+export const releaseQuarantineItemFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ itemId: z.string().uuid() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    await releaseQuarantineItem(clientId, data.itemId, context.userId);
+    return { ok: true };
+  });
+
+export const discardQuarantineItemFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ itemId: z.string().uuid() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    await discardQuarantineItem(clientId, data.itemId, context.userId);
+    return { ok: true };
+  });
+
+export const listStockTurnoverFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return listStockTurnover(clientId);
+  });
+
+export const listRecentStockSyncsFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return listRecentStockSyncs(clientId);
   });

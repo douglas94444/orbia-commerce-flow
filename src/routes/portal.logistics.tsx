@@ -83,6 +83,17 @@ function PortalLogisticsPage() {
       </div>
 
       <Panel title="Solicitar devolução" subtitle="Pós-compra — informe o pedido e o motivo">
+        <div className="mb-4 rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">
+          <p className="text-muted-foreground">Prefere pelo WhatsApp?</p>
+          <a
+            href="https://wa.me/?text=Ol%C3%A1%2C%20gostaria%20de%20solicitar%20uma%20devolu%C3%A7%C3%A3o%20do%20meu%20pedido."
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1 inline-block font-medium text-primary hover:underline"
+          >
+            Abrir conversa no WhatsApp
+          </a>
+        </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label className="mb-1 block text-xs text-muted-foreground">Pedido</label>

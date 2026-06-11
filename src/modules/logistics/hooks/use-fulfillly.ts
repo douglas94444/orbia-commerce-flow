@@ -28,6 +28,27 @@ import {
   getReturnReasonsReportFn,
   createReturnRequestFn,
   getLogisticsAnalyticsFn,
+  listInventoryCountsFn,
+  getInventoryCountLinesFn,
+  startInventoryCountFn,
+  recordInventoryCountLineFn,
+  completeInventoryCountFn,
+  exportInventoryCountFn,
+  upsertWmsProductFn,
+  uploadProductPhotoFn,
+  upsertWarehouseLocationFn,
+  deactivateWarehouseLocationFn,
+  listLocationStockFn,
+  assignSkuToLocationFn,
+  listStockAlertSkusFn,
+  listProductVariationsFn,
+  listExpiringLotsFn,
+  listQuarantineItemsFn,
+  releaseQuarantineItemFn,
+  discardQuarantineItemFn,
+  listStockTurnoverFn,
+  listRecentStockSyncsFn,
+  startReceivingSessionFn,
 } from "../fulfillly.actions.functions";
 
 export function useWarehouseLocations() {
@@ -44,10 +65,10 @@ export function useWmsProducts() {
   });
 }
 
-export function useStockMovements() {
+export function useStockMovements(sku?: string, offset = 0) {
   return useQuery({
-    queryKey: ["stock-movements"],
-    queryFn: () => listStockMovementsFn(),
+    queryKey: ["stock-movements", sku, offset],
+    queryFn: () => listStockMovementsFn({ data: { sku, limit: 50, offset } }),
   });
 }
 
@@ -225,6 +246,9 @@ export function useConfirmReceivingLine() {
       expectedQty: number;
       receivedQty: number;
       barcodeScanned?: string;
+      locationId?: string;
+      lotCode?: string;
+      expiresAt?: string;
     }) => confirmReceivingLineFn({ data: input }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["ops-tasks"] });
@@ -254,6 +278,200 @@ export function useUpsertCarrierConfig() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["carrier-configs"] });
       toast.success("Transportadora salva");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useInventoryCounts() {
+  return useQuery({
+    queryKey: ["inventory-counts"],
+    queryFn: () => listInventoryCountsFn(),
+  });
+}
+
+export function useInventoryCountLines(countId: string | null) {
+  return useQuery({
+    queryKey: ["inventory-count-lines", countId],
+    queryFn: () => getInventoryCountLinesFn({ data: { countId: countId! } }),
+    enabled: !!countId,
+  });
+}
+
+export function useUpsertWmsProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      sku: string;
+      barcode?: string | null;
+      lengthMm?: number | null;
+      widthMm?: number | null;
+      heightMm?: number | null;
+      ncm?: string | null;
+      minStockUnits?: number;
+      photoUrl?: string | null;
+      parentProductId?: string | null;
+    }) => upsertWmsProductFn({ data: input }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["wms-products"] });
+      toast.success("Produto salvo");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useUploadProductPhoto() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { sku: string; dataUrl: string }) => uploadProductPhotoFn({ data: input }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["wms-products"] });
+      toast.success("Foto enviada");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useUpsertWarehouseLocation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      aisle: string;
+      shelf: string;
+      level?: string;
+      binCode: string;
+      routeOrder?: number;
+      id?: string;
+    }) => upsertWarehouseLocationFn({ data: input }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["warehouse-locations"] });
+      toast.success("Posição salva");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useLocationStock(locationId?: string) {
+  return useQuery({
+    queryKey: ["location-stock", locationId],
+    queryFn: () => listLocationStockFn({ data: { locationId } }),
+  });
+}
+
+export function useStockAlerts() {
+  return useQuery({
+    queryKey: ["stock-alerts"],
+    queryFn: () => listStockAlertSkusFn(),
+    staleTime: 60_000,
+  });
+}
+
+export function useProductVariations(parentProductId: string | null) {
+  return useQuery({
+    queryKey: ["product-variations", parentProductId],
+    queryFn: () => listProductVariationsFn({ data: { parentProductId: parentProductId! } }),
+    enabled: !!parentProductId,
+  });
+}
+
+export function useExpiringLots() {
+  return useQuery({
+    queryKey: ["expiring-lots"],
+    queryFn: () => listExpiringLotsFn(),
+  });
+}
+
+export function useQuarantineItems() {
+  return useQuery({
+    queryKey: ["quarantine-items"],
+    queryFn: () => listQuarantineItemsFn(),
+  });
+}
+
+export function useReleaseQuarantine() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (itemId: string) => releaseQuarantineItemFn({ data: { itemId } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["quarantine-items"] });
+      toast.success("Item liberado");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useDiscardQuarantine() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (itemId: string) => discardQuarantineItemFn({ data: { itemId } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["quarantine-items"] });
+      toast.success("Item descartado");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useStockTurnover() {
+  return useQuery({
+    queryKey: ["stock-turnover"],
+    queryFn: () => listStockTurnoverFn(),
+  });
+}
+
+export function useRecentStockSyncs() {
+  return useQuery({
+    queryKey: ["stock-syncs"],
+    queryFn: () => listRecentStockSyncsFn(),
+  });
+}
+
+export function useStartReceivingSession() {
+  return useMutation({
+    mutationFn: (appointmentId: string | null) =>
+      startReceivingSessionFn({ data: { appointmentId } }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useStartInventoryCount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      countType: "rotativo" | "geral";
+      skus?: string[];
+      aisle?: string;
+      locationId?: string;
+    }) => startInventoryCountFn({ data: input }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["inventory-counts"] });
+      toast.success("Inventário iniciado");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useRecordInventoryCountLine() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { countId: string; sku: string; countedQty: number }) =>
+      recordInventoryCountLineFn({ data: input }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["inventory-count-lines"] });
+      toast.success("Contagem registrada");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useCompleteInventoryCount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (countId: string) => completeInventoryCountFn({ data: { countId } }),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ["inventory-counts"] });
+      qc.invalidateQueries({ queryKey: ["inventory"] });
+      toast.success(`${res.adjusted} SKU(s) ajustados`);
     },
     onError: (e: Error) => toast.error(e.message),
   });

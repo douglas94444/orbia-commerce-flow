@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { formatBRL } from '@/lib/format'
 import { Link } from '@tanstack/react-router'
 import { useOrders, useInventory, useLogisticsStats, useDispatchOrder } from '@/modules/logistics/hooks/use-logistics'
-import { useSlaDashboard } from '@/modules/logistics/hooks/use-fulfillly'
+import { useSlaDashboard, useStockAlerts } from '@/modules/logistics/hooks/use-fulfillly'
 import type { NfStatus, OrderStatus } from '@/types/orbia'
 
 export const Route = createFileRoute('/_dashboard/logistics')({
@@ -41,6 +41,7 @@ function LogisticsPage() {
   const { data: stats,          isLoading: loadingStats     } = useLogisticsStats()
   const dispatch = useDispatchOrder()
   const { data: sla } = useSlaDashboard()
+  const { data: stockAlerts = [] } = useStockAlerts()
 
   const awaitingNf   = stats?.awaitingNf   ?? orders.filter((o) => o.status === 'aguardando_nf').length
   const todayCount   = stats?.todayCount   ?? 0
@@ -57,6 +58,7 @@ function LogisticsPage() {
       <div className="mb-6 flex flex-wrap gap-2">
         <Link to="/logistics/products"><Button variant="outline" size="sm">Produtos</Button></Link>
         <Link to="/logistics/warehouse"><Button variant="outline" size="sm">Armazém</Button></Link>
+        <Link to="/logistics/inventory"><Button variant="outline" size="sm">Inventário</Button></Link>
         <Link to="/logistics/receiving"><Button variant="outline" size="sm">Recebimento</Button></Link>
         <Link to="/logistics/picking"><Button variant="outline" size="sm">Picking</Button></Link>
         <Link to="/logistics/packing"><Button variant="outline" size="sm">Packing</Button></Link>
@@ -65,6 +67,7 @@ function LogisticsPage() {
         <Link to="/logistics/returns"><Button variant="outline" size="sm">Devoluções</Button></Link>
         <Link to="/logistics/carriers"><Button variant="outline" size="sm">Transportadoras</Button></Link>
         <Link to="/logistics/analytics"><Button variant="outline" size="sm">Analytics</Button></Link>
+        <Link to="/logistics/quarantine"><Button variant="outline" size="sm">Quarentena</Button></Link>
         <Link to="/ops"><Button size="sm">App Ops</Button></Link>
       </div>
 
@@ -72,8 +75,20 @@ function LogisticsPage() {
         <KpiCard label="Pedidos hoje"    value={loadingStats ? '—' : String(todayCount)}    delta={todayCount > 0 ? undefined : undefined} icon={PackageCheck} accent="primary" />
         <KpiCard label="Aguardando NF"   value={loadingStats ? '—' : String(awaitingNf)}    hint="Bloqueados pela trava fiscal"             icon={Lock}         accent="warning" />
         <KpiCard label="SLA no prazo"    value={loadingStats ? '—' : sla ? `${sla.onTime}/${sla.total}` : slaPercent > 0 ? `${slaPercent}%` : '—'} icon={Truck} accent="success" />
-        <KpiCard label="SKUs críticos"   value={loadingStats ? '—' : String(criticalSkus)}  hint="Estoque ≤ 5 unidades"                     icon={PackageX}     accent="warning" />
+        <KpiCard label="SKUs críticos"   value={loadingStats ? '—' : String(criticalSkus)}  hint="Abaixo do mínimo configurado"              icon={PackageX}     accent="warning" />
       </div>
+
+      {stockAlerts.length > 0 && (
+        <Panel title="Alertas de estoque">
+          <div className="flex flex-wrap gap-2">
+            {stockAlerts.slice(0, 12).map((a) => (
+              <span key={a.sku} className="rounded-full border border-warning/30 bg-warning/10 px-3 py-1 text-xs font-mono">
+                {a.sku}: {a.available} un. (mín. {a.minStockUnits})
+              </span>
+            ))}
+          </div>
+        </Panel>
+      )}
 
       <Panel
         title="Pedidos omnichannel"

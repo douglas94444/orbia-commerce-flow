@@ -1,7 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useOpsTasks, useGeneratePickWave } from "@/modules/logistics/hooks/use-fulfillly";
 import { Button } from "@/components/ui/button";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { Loader2, AlertTriangle, MapPin } from "lucide-react";
 
 export const Route = createFileRoute("/ops/")({
   component: OpsHomePage,
@@ -10,12 +10,13 @@ export const Route = createFileRoute("/ops/")({
 function OpsHomePage() {
   const { data, isLoading } = useOpsTasks();
   const generateWave = useGeneratePickWave();
+  const pickLines = data?.pickLines ?? [];
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="font-display text-xl font-semibold">Fila do dia</h1>
-        <p className="text-sm text-muted-foreground">Tarefas priorizadas por SLA</p>
+        <p className="text-sm text-muted-foreground">Linhas de pick ordenadas por SLA</p>
       </div>
 
       <Button
@@ -35,19 +36,51 @@ function OpsHomePage() {
         <>
           <section className="space-y-2">
             <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Picking ({data?.pickTasks?.length ?? 0})
+              Picking ({pickLines.length} linhas)
             </h2>
-            {(data?.pickTasks ?? []).length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhuma tarefa de picking</p>
+            {pickLines.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhuma linha pendente</p>
             ) : (
-              (data?.pickTasks ?? []).map((t: { id: string; status: string }) => (
-                <div
-                  key={t.id}
-                  className="rounded-xl border border-border bg-card p-3 text-sm"
+              pickLines.slice(0, 15).map((line) => (
+                <Link
+                  key={line.lineId}
+                  to="/ops/picking"
+                  search={{ lineId: line.lineId }}
+                  className="block rounded-xl border border-border bg-card p-3 text-sm transition-colors hover:border-primary/40"
                 >
-                  Tarefa {t.id.slice(0, 8)} — {t.status}
-                </div>
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-mono font-medium">{line.sku}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Pedido {line.orderExternalId} · qtd {line.qtyRequired}
+                      </p>
+                      {line.locationLabel && (
+                        <p className="mt-1 flex items-center gap-1 text-xs text-primary">
+                          <MapPin className="size-3" />
+                          {line.locationLabel}
+                        </p>
+                      )}
+                    </div>
+                    {line.slaDeadlineAt && (
+                      <span className="shrink-0 font-mono text-[10px] text-warning">
+                        SLA {new Date(line.slaDeadlineAt).toLocaleString("pt-BR", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    )}
+                  </div>
+                </Link>
               ))
+            )}
+            {pickLines.length > 15 && (
+              <Link to="/ops/picking">
+                <Button variant="outline" className="w-full" size="sm">
+                  Ver todas ({pickLines.length})
+                </Button>
+              </Link>
             )}
           </section>
 

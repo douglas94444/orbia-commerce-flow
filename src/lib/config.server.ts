@@ -95,6 +95,10 @@ export function getServerConfig() {
     fcm: {
       serverKey: process.env.FCM_SERVER_KEY,
     },
+    redis: {
+      restUrl: process.env.UPSTASH_REDIS_REST_URL,
+      restToken: process.env.UPSTASH_REDIS_REST_TOKEN,
+    },
   };
 }
 

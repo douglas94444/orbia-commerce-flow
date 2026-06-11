@@ -39,6 +39,7 @@ export type CronJobName =
   | "sync-tracking"
   | "forecast-volume"
   | "check-stock-alerts"
+  | "stock-sync-outbox"
   | "all";
 
 export interface JobResult {
@@ -160,6 +161,13 @@ async function runJob(name: Exclude<CronJobName, "all">): Promise<JobResult> {
         metadata = { critical, ruptureRisk };
         break;
       }
+      case "stock-sync-outbox": {
+        const { processStockSyncOutbox } = await import(
+          "@/modules/catalog/stock-sync-outbox.server"
+        );
+        metadata = await processStockSyncOutbox();
+        break;
+      }
     }
 
     const durationMs = end();
@@ -188,6 +196,7 @@ async function runJob(name: Exclude<CronJobName, "all">): Promise<JobResult> {
 
 const JOB_SEQUENCE: Array<Exclude<CronJobName, "all">> = [
   "process-outbox",
+  "stock-sync-outbox",
   "process-automation-enrollments",
   "refresh-tokens",
   "health-recalc",

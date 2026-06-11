@@ -63,11 +63,11 @@ export async function getLogisticsAnalytics(clientId: string): Promise<Logistics
       .limit(500),
     supabaseAdmin
       .from("orders")
-      .select("id, status, sla_deadline, updated_at")
+      .select("id, status, sla_deadline_at, updated_at")
       .eq("client_id", clientId)
       .eq("status", "entregue")
       .gte("updated_at", since30d)
-      .not("sla_deadline", "is", null)
+      .not("sla_deadline_at", "is", null)
       .limit(500),
   ]);
 
@@ -108,7 +108,7 @@ export async function getLogisticsAnalytics(clientId: string): Promise<Logistics
 
   let onTime = 0;
   for (const o of slaOrders ?? []) {
-    const deadline = new Date(o.sla_deadline as string).getTime();
+    const deadline = new Date(o.sla_deadline_at as string).getTime();
     const deliveredAt = new Date(o.updated_at as string).getTime();
     if (deliveredAt <= deadline) onTime += 1;
   }

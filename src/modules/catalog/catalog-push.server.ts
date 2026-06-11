@@ -4,6 +4,8 @@ import { pushMercadoLivreStock } from "@/integrations/mercado-livre/catalog";
 import { pushNuvemshopStock } from "@/integrations/nuvemshop/catalog";
 import { pushShopeeStock } from "@/integrations/shopee/catalog";
 import { pushShopifyStock } from "@/integrations/shopify/catalog";
+import { pushAmazonStock } from "@/integrations/amazon/catalog";
+import { pushTikTokStock } from "@/integrations/tiktok/catalog";
 import type { CatalogChannel } from "./sync-catalog.server";
 
 export async function pushStockToChannel(
@@ -77,6 +79,25 @@ export async function pushStockToChannel(
           qty,
         );
         break;
+      case "amazon":
+        await pushAmazonStock(
+          clientId,
+          listing.external_product_id,
+          sku,
+          qty,
+          accessToken,
+        );
+        break;
+      case "tiktok":
+        await pushTikTokStock(
+          clientId,
+          listing.external_product_id,
+          listing.external_variant_id ?? listing.external_product_id,
+          qty,
+          accessToken,
+          conn.data.external_account ?? "",
+        );
+        break;
     }
   } catch (err) {
     console.warn(`[catalog-push] ${channel} ${sku}:`, err);
@@ -97,6 +118,49 @@ export async function pushStockToAllChannels(
   if (!inv) return;
   const available = Math.max(0, inv.units - inv.reserved);
 
-  const channels: CatalogChannel[] = ["nuvemshop", "shopify", "mercado_livre", "shopee"];
+  const channels: CatalogChannel[] = [
+    "nuvemshop",
+    "shopify",
+    "mercado_livre",
+    "shopee",
+    "amazon",
+    "tiktok",
+  ];
   await Promise.all(channels.map((ch) => pushStockToChannel(clientId, ch, sku, available)));
+}
+
+/** Propaga estoque do SKU pai para variações no push. */
+export async function pushStockWithVariations(clientId: string, sku: string): Promise<void> {
+  const { data: product } = await supabaseAdmin
+    .from("products")
+    .select("id, parent_product_id")
+    .eq("client_id", clientId)
+    .eq("sku", sku)
+    .maybeSingle();
+
+  await pushStockToAllChannels(clientId, sku);
+
+  if (product?.parent_product_id) {
+    const { data: siblings } = await supabaseAdmin
+      .from("products")
+      .select("sku")
+      .eq("client_id", clientId)
+      .eq("parent_product_id", product.parent_product_id);
+
+    for (const s of siblings ?? []) {
+      if ((s.sku as string) !== sku) {
+        await pushStockToAllChannels(clientId, s.sku as string);
+      }
+    }
+  }
+
+  const { data: children } = await supabaseAdmin
+    .from("products")
+    .select("sku")
+    .eq("client_id", clientId)
+    .eq("parent_product_id", product?.id ?? "");
+
+  for (const child of children ?? []) {
+    await pushStockToAllChannels(clientId, child.sku as string);
+  }
 }

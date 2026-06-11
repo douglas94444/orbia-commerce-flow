@@ -76,13 +76,22 @@ export const getLogisticsStats = createServerFn({ method: "GET" })
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const [ordersResult, inventoryResult] = await Promise.all([
+    const [ordersResult, inventoryResult, productsResult] = await Promise.all([
       context.supabase.from("orders").select("status, nf_status, created_at"),
-      context.supabase.from("inventory").select("units"),
+      context.supabase.from("inventory").select("sku, units, reserved"),
+      context.supabase.from("products").select("sku, min_stock_units"),
     ]);
 
     const orders = ordersResult.data ?? [];
     const inventory = inventoryResult.data ?? [];
+    const products = productsResult.data ?? [];
+
+    const minMap = new Map(
+      (products as Array<{ sku: string; min_stock_units: number }>).map((p) => [
+        p.sku,
+        p.min_stock_units ?? 0,
+      ]),
+    );
 
     const todayCount = orders.filter(
       (o: { created_at: string }) => new Date(o.created_at) >= today,
@@ -93,7 +102,14 @@ export const getLogisticsStats = createServerFn({ method: "GET" })
     const delivered = orders.filter((o: { status: string }) => o.status === "entregue").length;
     const total = orders.length;
     const slaPercent = total > 0 ? Math.round((delivered / total) * 100 * 10) / 10 : 0;
-    const criticalSkus = inventory.filter((i: { units: number }) => i.units <= 5).length;
+
+    const criticalSkus = (inventory as Array<{ sku: string; units: number; reserved: number }>).filter(
+      (i) => {
+        const available = i.units - (i.reserved ?? 0);
+        const min = minMap.get(i.sku) ?? 0;
+        return min > 0 ? available <= min : available <= 5;
+      },
+    ).length;
 
     return { todayCount, awaitingNf, slaPercent, criticalSkus };
   });
@@ -103,14 +119,24 @@ export const getLogisticsStats = createServerFn({ method: "GET" })
 export const listInventory = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<InventoryItem[]> => {
-    const { data, error } = await context.supabase
-      .from("inventory")
-      .select("sku, product, units, reserved, clients(name)")
-      .order("units", { ascending: true });
+    const [invResult, prodResult] = await Promise.all([
+      context.supabase
+        .from("inventory")
+        .select("sku, product, units, reserved, clients(name)")
+        .order("units", { ascending: true }),
+      context.supabase.from("products").select("sku, min_stock_units"),
+    ]);
 
-    if (error) throw new Error(error.message);
+    if (invResult.error) throw new Error(invResult.error.message);
 
-    return (data ?? []).map(
+    const minMap = new Map(
+      (prodResult.data ?? []).map((p: { sku: string; min_stock_units: number }) => [
+        p.sku,
+        p.min_stock_units ?? 0,
+      ]),
+    );
+
+    return (invResult.data ?? []).map(
       (row: {
         sku: string;
         product: string;
@@ -119,6 +145,19 @@ export const listInventory = createServerFn({ method: "GET" })
         clients: { name: string } | null;
       }): InventoryItem => {
         const available = row.units - (row.reserved ?? 0);
+        const min = minMap.get(row.sku) ?? 0;
+        const level =
+          min > 0
+            ? available <= min
+              ? "critico"
+              : available <= min * 2
+                ? "atencao"
+                : "ok"
+            : available <= 5
+              ? "critico"
+              : available <= 20
+                ? "atencao"
+                : "ok";
         return {
           sku: row.sku,
           product: row.product,
@@ -126,7 +165,7 @@ export const listInventory = createServerFn({ method: "GET" })
           units: row.units,
           reserved: row.reserved ?? 0,
           available,
-          level: available <= 5 ? "critico" : available <= 20 ? "atencao" : "ok",
+          level,
         };
       },
     );

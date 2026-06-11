@@ -4,7 +4,7 @@ import { PageIntro, Panel } from "@/components/dashboard/panel";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { Button } from "@/components/ui/button";
 import { formatBRL } from "@/lib/format";
-import { useLogisticsAnalytics } from "@/modules/logistics/hooks/use-fulfillly";
+import { useLogisticsAnalytics, useStockTurnover } from "@/modules/logistics/hooks/use-fulfillly";
 import { PackageCheck, Truck, Target, AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/_dashboard/logistics/analytics")({
@@ -14,6 +14,7 @@ export const Route = createFileRoute("/_dashboard/logistics/analytics")({
 
 function LogisticsAnalyticsPage() {
   const { data, isLoading } = useLogisticsAnalytics();
+  const { data: turnover = [], isLoading: loadingTurnover } = useStockTurnover();
 
   return (
     <div className="space-y-6">
@@ -57,6 +58,37 @@ function LogisticsAnalyticsPage() {
           accent="warning"
         />
       </div>
+
+      <Panel title="Giro de estoque por SKU (30d)">
+        {loadingTurnover ? (
+          <div className="h-24 animate-pulse rounded-xl bg-muted/40" />
+        ) : turnover.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Sem dados de giro</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs uppercase text-muted-foreground">
+                  <th className="pb-2">SKU</th>
+                  <th className="pb-2">Saídas 30d</th>
+                  <th className="pb-2">Estoque</th>
+                  <th className="pb-2">Giro</th>
+                </tr>
+              </thead>
+              <tbody>
+                {turnover.slice(0, 20).map((row) => (
+                  <tr key={row.sku} className="border-b border-border/50">
+                    <td className="py-2 font-mono">{row.sku}</td>
+                    <td className="py-2 font-mono">{row.unitsSold30d}</td>
+                    <td className="py-2 font-mono">{row.avgInventory}</td>
+                    <td className="py-2 font-mono">{row.turnover}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
 
       <Panel title="Produtividade ops (últimas 24h)">
         {isLoading ? (

@@ -455,7 +455,11 @@ export async function ingestStoreWebhook(
 
   if (normalized.paymentStatus === "paid") {
     await reserveStock(resolvedClientId, stockItems);
-    await emitDomainEvent("order.paid", { orderId, clientId: resolvedClientId });
+    await emitDomainEvent("order.paid", {
+      orderId,
+      clientId: resolvedClientId,
+      items: stockItems,
+    });
     await triggerNfeForOrder(orderId);
     await recalculateClientMetrics(resolvedClientId);
   }

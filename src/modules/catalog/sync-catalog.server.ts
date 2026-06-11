@@ -6,9 +6,22 @@ import { pullShopeeProducts } from "@/integrations/shopee/catalog";
 import { pullShopifyProducts } from "@/integrations/shopify/catalog";
 import type { CatalogProductRow } from "@/integrations/shopify/catalog";
 
-export type CatalogChannel = "nuvemshop" | "shopify" | "mercado_livre" | "shopee";
+export type CatalogChannel =
+  | "nuvemshop"
+  | "shopify"
+  | "mercado_livre"
+  | "shopee"
+  | "amazon"
+  | "tiktok";
 
-const CHANNELS: CatalogChannel[] = ["nuvemshop", "shopify", "mercado_livre", "shopee"];
+const CHANNELS: CatalogChannel[] = [
+  "nuvemshop",
+  "shopify",
+  "mercado_livre",
+  "shopee",
+  "amazon",
+  "tiktok",
+];
 
 async function getOAuthConnection(clientId: string, provider: CatalogChannel) {
   const { data } = await supabaseAdmin

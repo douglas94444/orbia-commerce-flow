@@ -6,7 +6,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { commitStock, itemsFromOrderMetadata } from "@/modules/logistics/stock-reservation.server";
 import type { StockItem } from "@/modules/logistics/stock-reservation.server";
 import { recalculateClientMetrics } from "@/modules/analytics/health-score.server";
-import { pushStockToAllChannels } from "@/modules/catalog/catalog-push.server";
+import { enqueueStockSync } from "@/modules/catalog/stock-sync-outbox.server";
 import {
   onOrderDelivered,
   onOrderDispatched,
@@ -17,18 +17,31 @@ import { notifyCsOnOrderDelivered } from "@/modules/admin/cs-events.server";
 
 onDomainEvent("order.dispatched", async (payload) => {
   const clientId = String(payload.clientId ?? "");
+  const orderId = String(payload.orderId ?? "");
   const items = (payload.items as StockItem[] | undefined) ?? [];
   if (!clientId || !items.length) return;
   await commitStock(clientId, items);
   for (const item of items) {
-    await pushStockToAllChannels(clientId, item.sku);
+    await enqueueStockSync(clientId, item.sku, `dispatch:${orderId}:${item.sku}`);
   }
 });
 
 onDomainEvent("order.paid", async (payload) => {
   const orderId = String(payload.orderId ?? "");
+  const clientId = String(payload.clientId ?? "");
   if (!orderId) return;
   await onOrderPaid(orderId);
+
+  const items = (payload.items as StockItem[] | undefined) ?? [];
+  if (clientId && items.length) {
+    for (const item of items) {
+      try {
+        await enqueueStockSync(clientId, item.sku, `paid:${orderId}:${item.sku}`);
+      } catch (err) {
+        console.error("[catalog] stock sync enqueue on reserve:", err);
+      }
+    }
+  }
 });
 
 onDomainEvent("order.dispatched", async (payload) => {
@@ -134,11 +147,39 @@ onDomainEvent("order.delivery_problem", async (payload) => {
 onDomainEvent("return.approved", async (payload) => {
   const returnRequestId = String(payload.returnRequestId ?? "");
   const clientId = String(payload.clientId ?? "");
+  const orderId = String(payload.orderId ?? "");
   if (!returnRequestId || !clientId) return;
 
   try {
     const { generateReturnLabel } = await import("@/modules/logistics/returns/returns.server");
-    await generateReturnLabel(returnRequestId);
+    const trackingCode = await generateReturnLabel(returnRequestId);
+
+    const { data: order } = await supabaseAdmin
+      .from("orders")
+      .select("external_id, metadata")
+      .eq("id", orderId)
+      .maybeSingle();
+
+    const meta = (order?.metadata ?? {}) as Record<string, unknown>;
+    const phone = String(meta.customer_phone ?? meta.phone ?? "");
+    if (phone) {
+      const { data: req } = await supabaseAdmin
+        .from("return_requests")
+        .select("return_label_url")
+        .eq("id", returnRequestId)
+        .maybeSingle();
+
+      const { sendReturnLabelWhatsApp } = await import(
+        "@/modules/logistics/notifications/whatsapp-alerts.server"
+      );
+      await sendReturnLabelWhatsApp(
+        clientId,
+        phone,
+        String(order?.external_id ?? orderId.slice(0, 8)),
+        trackingCode,
+        (req?.return_label_url as string | null) ?? null,
+      );
+    }
   } catch (err) {
     console.error("[returns] return.approved label:", err);
   }

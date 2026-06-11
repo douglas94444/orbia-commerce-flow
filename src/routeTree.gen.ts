@@ -52,9 +52,11 @@ import { Route as DashboardLogisticsWarehouseRouteImport } from './routes/_dashb
 import { Route as DashboardLogisticsSlaRouteImport } from './routes/_dashboard.logistics.sla'
 import { Route as DashboardLogisticsReturnsRouteImport } from './routes/_dashboard.logistics.returns'
 import { Route as DashboardLogisticsReceivingRouteImport } from './routes/_dashboard.logistics.receiving'
+import { Route as DashboardLogisticsQuarantineRouteImport } from './routes/_dashboard.logistics.quarantine'
 import { Route as DashboardLogisticsProductsRouteImport } from './routes/_dashboard.logistics.products'
 import { Route as DashboardLogisticsPickingRouteImport } from './routes/_dashboard.logistics.picking'
 import { Route as DashboardLogisticsPackingRouteImport } from './routes/_dashboard.logistics.packing'
+import { Route as DashboardLogisticsInventoryRouteImport } from './routes/_dashboard.logistics.inventory'
 import { Route as DashboardLogisticsIncidentsRouteImport } from './routes/_dashboard.logistics.incidents'
 import { Route as DashboardLogisticsCarriersRouteImport } from './routes/_dashboard.logistics.carriers'
 import { Route as DashboardLogisticsAnalyticsRouteImport } from './routes/_dashboard.logistics.analytics'
@@ -289,6 +291,12 @@ const DashboardLogisticsReceivingRoute =
     path: '/receiving',
     getParentRoute: () => DashboardLogisticsRoute,
   } as any)
+const DashboardLogisticsQuarantineRoute =
+  DashboardLogisticsQuarantineRouteImport.update({
+    id: '/quarantine',
+    path: '/quarantine',
+    getParentRoute: () => DashboardLogisticsRoute,
+  } as any)
 const DashboardLogisticsProductsRoute =
   DashboardLogisticsProductsRouteImport.update({
     id: '/products',
@@ -305,6 +313,12 @@ const DashboardLogisticsPackingRoute =
   DashboardLogisticsPackingRouteImport.update({
     id: '/packing',
     path: '/packing',
+    getParentRoute: () => DashboardLogisticsRoute,
+  } as any)
+const DashboardLogisticsInventoryRoute =
+  DashboardLogisticsInventoryRouteImport.update({
+    id: '/inventory',
+    path: '/inventory',
     getParentRoute: () => DashboardLogisticsRoute,
   } as any)
 const DashboardLogisticsIncidentsRoute =
@@ -427,9 +441,11 @@ export interface FileRoutesByFullPath {
   '/logistics/analytics': typeof DashboardLogisticsAnalyticsRoute
   '/logistics/carriers': typeof DashboardLogisticsCarriersRoute
   '/logistics/incidents': typeof DashboardLogisticsIncidentsRoute
+  '/logistics/inventory': typeof DashboardLogisticsInventoryRoute
   '/logistics/packing': typeof DashboardLogisticsPackingRoute
   '/logistics/picking': typeof DashboardLogisticsPickingRoute
   '/logistics/products': typeof DashboardLogisticsProductsRoute
+  '/logistics/quarantine': typeof DashboardLogisticsQuarantineRoute
   '/logistics/receiving': typeof DashboardLogisticsReceivingRoute
   '/logistics/returns': typeof DashboardLogisticsReturnsRoute
   '/logistics/sla': typeof DashboardLogisticsSlaRoute
@@ -489,9 +505,11 @@ export interface FileRoutesByTo {
   '/logistics/analytics': typeof DashboardLogisticsAnalyticsRoute
   '/logistics/carriers': typeof DashboardLogisticsCarriersRoute
   '/logistics/incidents': typeof DashboardLogisticsIncidentsRoute
+  '/logistics/inventory': typeof DashboardLogisticsInventoryRoute
   '/logistics/packing': typeof DashboardLogisticsPackingRoute
   '/logistics/picking': typeof DashboardLogisticsPickingRoute
   '/logistics/products': typeof DashboardLogisticsProductsRoute
+  '/logistics/quarantine': typeof DashboardLogisticsQuarantineRoute
   '/logistics/receiving': typeof DashboardLogisticsReceivingRoute
   '/logistics/returns': typeof DashboardLogisticsReturnsRoute
   '/logistics/sla': typeof DashboardLogisticsSlaRoute
@@ -554,9 +572,11 @@ export interface FileRoutesById {
   '/_dashboard/logistics/analytics': typeof DashboardLogisticsAnalyticsRoute
   '/_dashboard/logistics/carriers': typeof DashboardLogisticsCarriersRoute
   '/_dashboard/logistics/incidents': typeof DashboardLogisticsIncidentsRoute
+  '/_dashboard/logistics/inventory': typeof DashboardLogisticsInventoryRoute
   '/_dashboard/logistics/packing': typeof DashboardLogisticsPackingRoute
   '/_dashboard/logistics/picking': typeof DashboardLogisticsPickingRoute
   '/_dashboard/logistics/products': typeof DashboardLogisticsProductsRoute
+  '/_dashboard/logistics/quarantine': typeof DashboardLogisticsQuarantineRoute
   '/_dashboard/logistics/receiving': typeof DashboardLogisticsReceivingRoute
   '/_dashboard/logistics/returns': typeof DashboardLogisticsReturnsRoute
   '/_dashboard/logistics/sla': typeof DashboardLogisticsSlaRoute
@@ -619,9 +639,11 @@ export interface FileRouteTypes {
     | '/logistics/analytics'
     | '/logistics/carriers'
     | '/logistics/incidents'
+    | '/logistics/inventory'
     | '/logistics/packing'
     | '/logistics/picking'
     | '/logistics/products'
+    | '/logistics/quarantine'
     | '/logistics/receiving'
     | '/logistics/returns'
     | '/logistics/sla'
@@ -681,9 +703,11 @@ export interface FileRouteTypes {
     | '/logistics/analytics'
     | '/logistics/carriers'
     | '/logistics/incidents'
+    | '/logistics/inventory'
     | '/logistics/packing'
     | '/logistics/picking'
     | '/logistics/products'
+    | '/logistics/quarantine'
     | '/logistics/receiving'
     | '/logistics/returns'
     | '/logistics/sla'
@@ -745,9 +769,11 @@ export interface FileRouteTypes {
     | '/_dashboard/logistics/analytics'
     | '/_dashboard/logistics/carriers'
     | '/_dashboard/logistics/incidents'
+    | '/_dashboard/logistics/inventory'
     | '/_dashboard/logistics/packing'
     | '/_dashboard/logistics/picking'
     | '/_dashboard/logistics/products'
+    | '/_dashboard/logistics/quarantine'
     | '/_dashboard/logistics/receiving'
     | '/_dashboard/logistics/returns'
     | '/_dashboard/logistics/sla'
@@ -1113,6 +1139,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardLogisticsReceivingRouteImport
       parentRoute: typeof DashboardLogisticsRoute
     }
+    '/_dashboard/logistics/quarantine': {
+      id: '/_dashboard/logistics/quarantine'
+      path: '/quarantine'
+      fullPath: '/logistics/quarantine'
+      preLoaderRoute: typeof DashboardLogisticsQuarantineRouteImport
+      parentRoute: typeof DashboardLogisticsRoute
+    }
     '/_dashboard/logistics/products': {
       id: '/_dashboard/logistics/products'
       path: '/products'
@@ -1132,6 +1165,13 @@ declare module '@tanstack/react-router' {
       path: '/packing'
       fullPath: '/logistics/packing'
       preLoaderRoute: typeof DashboardLogisticsPackingRouteImport
+      parentRoute: typeof DashboardLogisticsRoute
+    }
+    '/_dashboard/logistics/inventory': {
+      id: '/_dashboard/logistics/inventory'
+      path: '/inventory'
+      fullPath: '/logistics/inventory'
+      preLoaderRoute: typeof DashboardLogisticsInventoryRouteImport
       parentRoute: typeof DashboardLogisticsRoute
     }
     '/_dashboard/logistics/incidents': {
@@ -1276,9 +1316,11 @@ interface DashboardLogisticsRouteChildren {
   DashboardLogisticsAnalyticsRoute: typeof DashboardLogisticsAnalyticsRoute
   DashboardLogisticsCarriersRoute: typeof DashboardLogisticsCarriersRoute
   DashboardLogisticsIncidentsRoute: typeof DashboardLogisticsIncidentsRoute
+  DashboardLogisticsInventoryRoute: typeof DashboardLogisticsInventoryRoute
   DashboardLogisticsPackingRoute: typeof DashboardLogisticsPackingRoute
   DashboardLogisticsPickingRoute: typeof DashboardLogisticsPickingRoute
   DashboardLogisticsProductsRoute: typeof DashboardLogisticsProductsRoute
+  DashboardLogisticsQuarantineRoute: typeof DashboardLogisticsQuarantineRoute
   DashboardLogisticsReceivingRoute: typeof DashboardLogisticsReceivingRoute
   DashboardLogisticsReturnsRoute: typeof DashboardLogisticsReturnsRoute
   DashboardLogisticsSlaRoute: typeof DashboardLogisticsSlaRoute
@@ -1289,9 +1331,11 @@ const DashboardLogisticsRouteChildren: DashboardLogisticsRouteChildren = {
   DashboardLogisticsAnalyticsRoute: DashboardLogisticsAnalyticsRoute,
   DashboardLogisticsCarriersRoute: DashboardLogisticsCarriersRoute,
   DashboardLogisticsIncidentsRoute: DashboardLogisticsIncidentsRoute,
+  DashboardLogisticsInventoryRoute: DashboardLogisticsInventoryRoute,
   DashboardLogisticsPackingRoute: DashboardLogisticsPackingRoute,
   DashboardLogisticsPickingRoute: DashboardLogisticsPickingRoute,
   DashboardLogisticsProductsRoute: DashboardLogisticsProductsRoute,
+  DashboardLogisticsQuarantineRoute: DashboardLogisticsQuarantineRoute,
   DashboardLogisticsReceivingRoute: DashboardLogisticsReceivingRoute,
   DashboardLogisticsReturnsRoute: DashboardLogisticsReturnsRoute,
   DashboardLogisticsSlaRoute: DashboardLogisticsSlaRoute,

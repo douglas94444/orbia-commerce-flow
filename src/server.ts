@@ -63,7 +63,12 @@ export default {
     const appUrl = env.APP_URL ?? env.VITE_APP_URL ?? "http://localhost:5173";
 
     const CRON_JOBS: Record<string, string[]> = {
-      "*/15 * * * *": ["process-automation-enrollments", "process-outbox", "sync-tracking"],
+      "*/15 * * * *": [
+        "process-automation-enrollments",
+        "process-outbox",
+        "stock-sync-outbox",
+        "sync-tracking",
+      ],
       "*/10 * * * *": ["check-sla"],
       "*/5 * * * *": ["process-outbox"],
       "0 6 * * *": [

@@ -59,29 +59,39 @@ export async function listStockMovements(
 }
 
 export async function checkMinStockAlerts(clientId: string): Promise<string[]> {
-  const { data: products } = await supabaseAdmin
-    .from("products")
-    .select("sku, min_stock_units")
-    .eq("client_id", clientId)
-    .gt("min_stock_units", 0);
+  const { listStockAlertSkus } = await import("./warehouse.server");
+  const alerts = await listStockAlertSkus(clientId);
+  const critical = alerts.map((a) => a.sku);
 
-  const { data: inventory } = await supabaseAdmin
-    .from("inventory")
-    .select("sku, units, reserved")
-    .eq("client_id", clientId);
+  const since = new Date();
+  since.setHours(since.getHours() - 24);
 
-  const invMap = new Map(
-    (inventory ?? []).map((i: { sku: string; units: number; reserved: number }) => [
-      i.sku,
-      i.units - (i.reserved ?? 0),
-    ]),
-  );
+  for (const alert of alerts) {
+    const { data: existing } = await supabaseAdmin
+      .from("operation_alerts")
+      .select("id")
+      .eq("client_id", clientId)
+      .eq("kind", "stock")
+      .ilike("message", `%${alert.sku}%`)
+      .gte("created_at", since.toISOString())
+      .maybeSingle();
 
-  const critical: string[] = [];
-  for (const p of products ?? []) {
-    const row = p as { sku: string; min_stock_units: number };
-    const available = invMap.get(row.sku) ?? 0;
-    if (available <= row.min_stock_units) critical.push(row.sku);
+    if (existing) continue;
+
+    await supabaseAdmin.from("operation_alerts").insert({
+      client_id: clientId,
+      kind: "stock",
+      severity: alert.available === 0 ? "critical" : "warning",
+      title: `Estoque crítico: ${alert.sku}`,
+      message: `SKU ${alert.sku} com ${alert.available} un. (mínimo: ${alert.minStockUnits})`,
+      is_resolved: false,
+    });
+
+    const { sendStockCriticalWhatsApp } = await import(
+      "../notifications/whatsapp-alerts.server"
+    );
+    await sendStockCriticalWhatsApp(clientId, alert.sku, alert.available, alert.minStockUnits);
   }
+
   return critical;
 }

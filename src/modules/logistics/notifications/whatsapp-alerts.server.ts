@@ -40,6 +40,42 @@ export async function sendWhatsAppToClient(
   }
 }
 
+export async function sendStockCriticalWhatsApp(
+  clientId: string,
+  sku: string,
+  available: number,
+  minUnits: number,
+): Promise<void> {
+  await sendWhatsAppToClient(
+    clientId,
+    `⚠️ Estoque crítico no Fulfillly: SKU ${sku} com ${available} un. disponíveis (mínimo configurado: ${minUnits}). Reponha o estoque.`,
+  );
+}
+
+export async function sendReturnLabelWhatsApp(
+  clientId: string,
+  customerPhone: string,
+  orderExternalId: string,
+  trackingCode: string,
+  labelUrl: string | null,
+): Promise<void> {
+  const labelPart = labelUrl ? ` Etiqueta: ${labelUrl}` : "";
+  const body = `Sua devolução do pedido ${orderExternalId} foi aprovada. Código de rastreio: ${trackingCode}.${labelPart}`;
+
+  try {
+    const { sendWhatsAppMessageSimple } = await import("@/integrations/whatsapp/client");
+    await sendWhatsAppMessageSimple({ to: customerPhone, body, clientId });
+  } catch (err) {
+    await logIntegration({
+      client_id: clientId,
+      provider: "whatsapp",
+      operation: "return_label",
+      status: "error",
+      error_message: (err as Error).message,
+    });
+  }
+}
+
 export async function sendTrackingWhatsApp(
   clientId: string,
   customerPhone: string,

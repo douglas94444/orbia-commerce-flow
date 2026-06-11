@@ -91,6 +91,18 @@ export async function dispatchOrder(orderId: string): Promise<{ trackingCode: st
 
   await pushOrderStatusToChannel(row.client_id, row.channel, row.external_id, "shipped");
 
+  const customerPhone = String(row.metadata.customer_phone ?? row.metadata.phone ?? "");
+  if (customerPhone) {
+    const { sendTrackingWhatsApp } = await import("../notifications/whatsapp-alerts.server");
+    await sendTrackingWhatsApp(
+      row.client_id,
+      customerPhone,
+      "dispatched",
+      trackingCode,
+      row.external_id,
+    );
+  }
+
   const stockItems = itemsFromOrderMetadata(orderItems(row.metadata));
   await emitDomainEvent("order.dispatched", {
     orderId,

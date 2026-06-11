@@ -9,6 +9,8 @@ export interface ReceivingLineInput {
   barcodeScanned?: string;
   locationId?: string;
   photoUrl?: string;
+  lotCode?: string;
+  expiresAt?: string;
 }
 
 export async function createReceivingAppointment(
@@ -57,6 +59,30 @@ export async function confirmReceivingLine(
 ): Promise<void> {
   const hasDivergence = line.receivedQty !== line.expectedQty;
 
+  if (line.barcodeScanned) {
+    const { data: product } = await supabaseAdmin
+      .from("products")
+      .select("barcode")
+      .eq("client_id", clientId)
+      .eq("sku", line.sku)
+      .maybeSingle();
+
+    const expectedBarcode = product?.barcode as string | null;
+    if (expectedBarcode && expectedBarcode !== line.barcodeScanned) {
+      throw new Error(`Barcode não confere: esperado ${expectedBarcode}`);
+    }
+  }
+
+  let lotId: string | null = null;
+  if (line.lotCode) {
+    const { upsertProductLot } = await import("../wms/product-lots.server");
+    lotId = await upsertProductLot(clientId, {
+      sku: line.sku,
+      lotCode: line.lotCode,
+      expiresAt: line.expiresAt ?? null,
+    });
+  }
+
   await supabaseAdmin.from("receiving_lines").insert({
     session_id: sessionId,
     sku: line.sku,
@@ -92,12 +118,24 @@ export async function confirmReceivingLine(
     }
 
     if (line.locationId) {
+      let existingQuery = supabaseAdmin
+        .from("inventory_locations")
+        .select("qty")
+        .eq("client_id", clientId)
+        .eq("sku", line.sku)
+        .eq("location_id", line.locationId);
+
+      existingQuery = lotId ? existingQuery.eq("lot_id", lotId) : existingQuery.is("lot_id", null);
+
+      const { data: existing } = await existingQuery.maybeSingle();
+
       await supabaseAdmin.from("inventory_locations").upsert(
         {
           client_id: clientId,
           sku: line.sku,
           location_id: line.locationId,
-          qty: line.receivedQty,
+          lot_id: lotId,
+          qty: (existing?.qty as number | undefined ?? 0) + line.receivedQty,
         },
         { onConflict: "client_id,sku,location_id,lot_id" },
       );
