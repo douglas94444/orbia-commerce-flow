@@ -2,12 +2,12 @@
 
 CREATE POLICY quarantine_items_insert_member
   ON public.quarantine_items FOR INSERT
-  WITH CHECK (client_id = auth.current_client_id());
+  WITH CHECK (client_id = public.current_client_id());
 
 CREATE POLICY quarantine_items_update_member
   ON public.quarantine_items FOR UPDATE
-  USING (client_id = auth.current_client_id())
-  WITH CHECK (client_id = auth.current_client_id());
+  USING (client_id = public.current_client_id())
+  WITH CHECK (client_id = public.current_client_id());
 
 CREATE TABLE IF NOT EXISTS public.stock_sync_jobs (
   id              uuid        DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -30,7 +30,7 @@ ALTER TABLE public.stock_sync_jobs ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY stock_sync_jobs_select_member
   ON public.stock_sync_jobs FOR SELECT
-  USING (client_id = auth.current_client_id());
+  USING (client_id = public.current_client_id());
 
 CREATE POLICY stock_sync_jobs_all_service
   ON public.stock_sync_jobs FOR ALL TO service_role
