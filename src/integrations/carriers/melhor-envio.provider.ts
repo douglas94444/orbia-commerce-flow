@@ -13,6 +13,9 @@ export const melhorEnvioProvider: CarrierProvider = {
     const quotes = await quoteShipment(token, {
       toPostalCode: input.toPostalCode,
       weightKg: input.weightKg,
+      lengthCm: input.lengthCm,
+      widthCm: input.widthCm,
+      heightCm: input.heightCm,
     });
     return quotes.map((q) => ({
       providerId: "melhor_envio",
@@ -29,7 +32,7 @@ export const melhorEnvioProvider: CarrierProvider = {
     return {
       trackingCode: label.tracking,
       shipmentId: label.id,
-      labelUrl: label.url,
+      labelUrl: label.url ?? undefined,
     };
   },
 

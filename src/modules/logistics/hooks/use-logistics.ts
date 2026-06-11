@@ -30,6 +30,10 @@ export function useDispatchOrder() {
       toast.success(`Etiqueta gerada — rastreio ${result.trackingCode}`);
       void qc.invalidateQueries({ queryKey: ORDERS_KEY });
       void qc.invalidateQueries({ queryKey: INVENTORY_KEY });
+      void qc.invalidateQueries({ queryKey: ["dispatch-queue"] });
+      if (result.labelUrl) {
+        window.open(result.labelUrl, "_blank", "noopener,noreferrer");
+      }
     },
     onError: (err: Error) => toast.error(err.message),
   });

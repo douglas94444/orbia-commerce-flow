@@ -1,10 +1,12 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getCarrierProvider } from "@/integrations/carriers";
 import { emitDomainEvent } from "@/shared/lib/domain-events.server";
+import { logAudit } from "@/shared/lib/logger";
 import { itemsFromOrderMetadata } from "../stock-reservation.server";
 import type { NormalizedOrderItem } from "../order-ingestion.server";
 import { pushOrderStatusToChannel } from "./channel-status-push.server";
 import { getCarrierToken, selectBestCarrier } from "./routing-engine.server";
+import { computeOrderShipmentSpecs } from "./shipment-specs.server";
 
 interface OrderRow {
   id: string;
@@ -22,7 +24,29 @@ function orderItems(metadata: Record<string, unknown>): NormalizedOrderItem[] {
   return (metadata.items as NormalizedOrderItem[] | undefined) ?? [];
 }
 
-export async function dispatchOrder(orderId: string): Promise<{ trackingCode: string }> {
+async function recordShipmentRow(input: {
+  clientId: string;
+  orderId: string;
+  provider: string;
+  trackingCode: string;
+  shipmentId: string;
+  labelUrl?: string;
+}): Promise<void> {
+  await supabaseAdmin.from("shipments").insert({
+    client_id: input.clientId,
+    order_id: input.orderId,
+    provider: input.provider,
+    tracking_code: input.trackingCode,
+    shipment_external_id: input.shipmentId,
+    label_url: input.labelUrl ?? null,
+    status: "created",
+  });
+}
+
+export async function dispatchOrder(
+  orderId: string,
+  userId?: string,
+): Promise<{ trackingCode: string; labelUrl?: string }> {
   const { data: order, error } = await supabaseAdmin
     .from("orders")
     .select(
@@ -41,10 +65,14 @@ export async function dispatchOrder(orderId: string): Promise<{ trackingCode: st
     throw new Error(`Pedido em status "${row.status}" — esperado separacao ou em_packing`);
   }
 
+  const specs = await computeOrderShipmentSpecs(orderId);
   const postal = String(row.metadata.postal_code ?? "01310100");
   const quote = await selectBestCarrier(row.client_id, {
     toPostalCode: postal,
-    weightKg: 0.5,
+    weightKg: specs.weightKg,
+    lengthCm: specs.lengthCm,
+    widthCm: specs.widthCm,
+    heightCm: specs.heightCm,
   });
 
   if (!quote) {
@@ -75,6 +103,11 @@ export async function dispatchOrder(orderId: string): Promise<{ trackingCode: st
         ...row.metadata,
         carrier_provider_id: quote.providerId,
         shipping_cost_cents: quote.priceCents,
+        label_url: label.labelUrl ?? null,
+        packing_weight_kg: specs.weightKg,
+        packing_length_cm: specs.lengthCm,
+        packing_width_cm: specs.widthCm,
+        packing_height_cm: specs.heightCm,
       },
       updated_at: new Date().toISOString(),
     })
@@ -82,14 +115,33 @@ export async function dispatchOrder(orderId: string): Promise<{ trackingCode: st
 
   if (updateErr) throw new Error(`Failed to update order: ${updateErr.message}`);
 
+  await recordShipmentRow({
+    clientId: row.client_id,
+    orderId,
+    provider: quote.providerId,
+    trackingCode,
+    shipmentId,
+    labelUrl: label.labelUrl,
+  });
+
   await supabaseAdmin.from("order_events").insert({
     order_id: orderId,
     status: "despachado",
     source: quote.providerId,
-    metadata: { tracking_code: trackingCode, shipment_id: shipmentId },
+    metadata: {
+      tracking_code: trackingCode,
+      shipment_id: shipmentId,
+      label_url: label.labelUrl ?? null,
+    },
   });
 
-  await pushOrderStatusToChannel(row.client_id, row.channel, row.external_id, "shipped");
+  await pushOrderStatusToChannel(
+    row.client_id,
+    row.channel,
+    row.external_id,
+    "shipped",
+    trackingCode,
+  );
 
   const customerPhone = String(row.metadata.customer_phone ?? row.metadata.phone ?? "");
   if (customerPhone) {
@@ -110,7 +162,18 @@ export async function dispatchOrder(orderId: string): Promise<{ trackingCode: st
     items: stockItems,
   });
 
-  return { trackingCode };
+  if (userId) {
+    await logAudit({
+      user_id: userId,
+      client_id: row.client_id,
+      action: "update",
+      resource: "order",
+      resource_id: orderId,
+      new_data: { status: "despachado", tracking_code: trackingCode, carrier },
+    });
+  }
+
+  return { trackingCode, labelUrl: label.labelUrl };
 }
 
 const TRACKING_TO_STATUS: Record<string, string> = {
@@ -143,23 +206,28 @@ export async function syncOrderTracking(orderId: string): Promise<{ status: stri
   const providerId = resolveCarrierProviderId(row.metadata ?? {});
   const provider = getCarrierProvider(providerId);
   const token = await getCarrierToken(row.client_id, providerId);
-  let trackingStatus = "in_transit";
 
-  if (provider && token) {
-    const tracking = await provider.getTracking(row.shipment_external_id, token);
-    trackingStatus = tracking.status;
-  } else if (row.status === "despachado") {
-    trackingStatus = "in_transit";
-  } else if (row.status === "em_transito") {
-    trackingStatus = "delivered";
+  if (!provider || !token) {
+    throw new Error(`Transportadora ${providerId} indisponível para sync`);
   }
 
+  const tracking = await provider.getTracking(row.shipment_external_id, token);
+  const trackingStatus = tracking.status;
+
   const newStatus = TRACKING_TO_STATUS[trackingStatus] ?? row.status;
-  if (newStatus === row.status) return { status: row.status };
+  const meta = { ...(row.metadata ?? {}), carrier_status: trackingStatus };
+
+  if (newStatus === row.status) {
+    await supabaseAdmin
+      .from("orders")
+      .update({ metadata: meta, updated_at: new Date().toISOString() })
+      .eq("id", orderId);
+    return { status: row.status };
+  }
 
   await supabaseAdmin
     .from("orders")
-    .update({ status: newStatus, updated_at: new Date().toISOString() })
+    .update({ status: newStatus, metadata: meta, updated_at: new Date().toISOString() })
     .eq("id", orderId);
 
   await supabaseAdmin.from("order_events").insert({
@@ -184,30 +252,43 @@ export async function handleMelhorEnvioWebhook(payload: unknown): Promise<void> 
 
   if (!tracking && !shipmentId) return;
 
-  const query = supabaseAdmin.from("orders").select("id, client_id, status");
+  const query = supabaseAdmin.from("orders").select("id, client_id, status, metadata");
 
   const { data: orders } = tracking
     ? await query.eq("tracking_code", tracking)
     : await query.eq("shipment_external_id", shipmentId);
 
-  const order = orders?.[0] as { id: string; client_id: string; status: string } | undefined;
+  const order = orders?.[0] as {
+    id: string;
+    client_id: string;
+    status: string;
+    metadata: Record<string, unknown>;
+  } | undefined;
   if (!order) return;
 
   const newStatus =
     statusRaw.includes("deliver") ? "entregue" : statusRaw.includes("transit") ? "em_transito" : null;
 
-  if (!newStatus || newStatus === order.status) return;
+  const meta = { ...(order.metadata ?? {}), carrier_status: statusRaw };
+
+  if (!newStatus || newStatus === order.status) {
+    await supabaseAdmin
+      .from("orders")
+      .update({ metadata: meta, updated_at: new Date().toISOString() })
+      .eq("id", order.id);
+    return;
+  }
 
   await supabaseAdmin
     .from("orders")
-    .update({ status: newStatus, updated_at: new Date().toISOString() })
+    .update({ status: newStatus, metadata: meta, updated_at: new Date().toISOString() })
     .eq("id", order.id);
 
   await supabaseAdmin.from("order_events").insert({
     order_id: order.id,
     status: newStatus,
     source: "melhor_envio_webhook",
-    metadata: { raw_status: statusRaw },
+    metadata: { raw_status: statusRaw, carrier_status: statusRaw },
   });
 
   if (newStatus === "entregue") {

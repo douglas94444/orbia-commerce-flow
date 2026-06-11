@@ -1,18 +1,24 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { decryptToken } from "@/lib/crypto.server";
 import { logIntegration } from "@/shared/lib/logger";
+import { shopifyFetch } from "@/integrations/shopify/client";
+import { nuvemshopFetch } from "@/integrations/nuvemshop/client";
 
 export async function pushOrderStatusToChannel(
   clientId: string,
   channel: string,
   externalOrderId: string,
   status: "shipped" | "delivered" | "cancelled",
+  trackingCode?: string,
 ): Promise<void> {
+  const providerKey =
+    channel === "mercado_livre" ? "mercado_livre" : channel === "nuvemshop" ? "nuvemshop" : channel;
+
   const { data: conn } = await supabaseAdmin
     .from("oauth_connections")
     .select("access_token, external_account")
     .eq("client_id", clientId)
-    .eq("provider", channel === "mercado_livre" ? "mercado_livre" : channel)
+    .eq("provider", providerKey)
     .eq("is_active", true)
     .maybeSingle();
 
@@ -36,6 +42,26 @@ export async function pushOrderStatusToChannel(
     } else if (channel === "tiktok" && status === "shipped") {
       const { updateTiktokShipmentStatus } = await import("@/integrations/tiktok/orders");
       await updateTiktokShipmentStatus(externalOrderId, "IN_TRANSIT", token);
+    } else if (channel === "shopify" && status === "shipped" && trackingCode) {
+      const shop = conn.external_account as string;
+      await shopifyFetch(shop, token, `/orders/${externalOrderId}/fulfillments.json`, {
+        method: "POST",
+        body: JSON.stringify({
+          fulfillment: {
+            tracking_number: trackingCode,
+            notify_customer: true,
+          },
+        }),
+      });
+    } else if (channel === "nuvemshop" && status === "shipped") {
+      const storeId = conn.external_account as string;
+      await nuvemshopFetch(storeId, token, `/orders/${externalOrderId}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          shipping_status: "shipped",
+          shipping_tracking_number: trackingCode ?? null,
+        }),
+      });
     }
 
     await logIntegration({
@@ -43,7 +69,7 @@ export async function pushOrderStatusToChannel(
       provider: channel,
       operation: `push_status_${status}`,
       status: "success",
-      metadata: { externalOrderId },
+      metadata: { externalOrderId, trackingCode },
     });
   } catch (err) {
     await logIntegration({

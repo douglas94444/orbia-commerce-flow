@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createHash } from "node:crypto";
+import { getServerConfig } from "@/lib/config.server";
 import { rateLimit } from "@/lib/rate-limit.server";
+import { validateMelhorEnvioWebhook } from "@/integrations/melhor-envio/client";
 import {
   saveWebhookEvent,
   processWebhookEventInternal,
@@ -14,6 +16,18 @@ export const Route = createFileRoute("/api/webhooks/melhor-envio")({
         if (!rateLimit(ip)) return new Response("Too Many Requests", { status: 429 });
 
         const rawBody = await request.text();
+        const { melhorEnvio } = getServerConfig();
+        const signature =
+          request.headers.get("x-me-signature") ??
+          request.headers.get("x-signature") ??
+          request.headers.get("signature");
+
+        if (
+          melhorEnvio.clientSecret &&
+          !validateMelhorEnvioWebhook(rawBody, signature, melhorEnvio.clientSecret)
+        ) {
+          return new Response("Invalid signature", { status: 401 });
+        }
 
         let payload: unknown;
         try {

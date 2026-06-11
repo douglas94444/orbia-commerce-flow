@@ -6,7 +6,9 @@ import {
   adjustStockFn,
   listStockMovementsFn,
   generatePickWaveFn,
+  listPickWavesFn,
   confirmPickLineFn,
+  markPickLineNotFoundFn,
   completePickTaskFn,
   startPackingFn,
   confirmPackingItemFn,
@@ -23,6 +25,8 @@ import {
   getDeliveryIncidentsFn,
   generateWaveLabelsFn,
   getDispatchManifestFn,
+  exportManifestCsvFn,
+  listDispatchQueueFn,
   listCarrierConfigsFn,
   upsertCarrierConfigFn,
   getReturnReasonsReportFn,
@@ -107,14 +111,27 @@ export function useAdjustStock() {
   });
 }
 
+export function usePickWaves() {
+  return useQuery({
+    queryKey: ["pick-waves"],
+    queryFn: () => listPickWavesFn(),
+    refetchInterval: 30_000,
+  });
+}
+
 export function useGeneratePickWave() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => generatePickWaveFn(),
-    onSuccess: () => {
+    onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ["ops-tasks"] });
+      qc.invalidateQueries({ queryKey: ["pick-waves"] });
       qc.invalidateQueries({ queryKey: ["orders"] });
-      toast.success("Onda de picking gerada");
+      if (res.waveId) {
+        toast.success(`Onda gerada: ${res.waveId.slice(0, 8)}…`);
+      } else {
+        toast.info("Nenhum pedido elegível para onda");
+      }
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -126,9 +143,41 @@ export function useConfirmPickLine() {
     mutationFn: (input: { taskLineId: string; barcode: string }) =>
       confirmPickLineFn({ data: input }),
     onSuccess: (res) => {
-      if (!res.ok) toast.error(res.error ?? "Erro no pick");
-      else toast.success("Item confirmado");
+      if (!res.ok) {
+        toast.error(res.error ?? "Erro no pick");
+        return;
+      }
+      if (res.taskCompleted) {
+        toast.success(
+          `Pedido ${res.orderExternalId ?? ""} concluído — pronto para packing`,
+        );
+      }
       qc.invalidateQueries({ queryKey: ["ops-tasks"] });
+      qc.invalidateQueries({ queryKey: ["pick-waves"] });
+      qc.invalidateQueries({ queryKey: ["orders"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useMarkPickLineNotFound() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (taskLineId: string) => markPickLineNotFoundFn({ data: { taskLineId } }),
+    onSuccess: (res) => {
+      if (!res.ok) {
+        toast.error(res.error ?? "Erro ao marcar item");
+        return;
+      }
+      if (res.taskCompleted) {
+        toast.warning(
+          `Pedido ${res.orderExternalId ?? ""} finalizado com pendências`,
+        );
+      } else {
+        toast.info("Item marcado como não encontrado");
+      }
+      qc.invalidateQueries({ queryKey: ["ops-tasks"] });
+      qc.invalidateQueries({ queryKey: ["pick-waves"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -140,6 +189,8 @@ export function useCompletePickTask() {
     mutationFn: (taskId: string) => completePickTaskFn({ data: { taskId } }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["ops-tasks"] });
+      qc.invalidateQueries({ queryKey: ["pick-waves"] });
+      qc.invalidateQueries({ queryKey: ["orders"] });
       toast.success("Picking concluído");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -242,6 +293,21 @@ export function useDispatchManifest() {
   return useMutation({
     mutationFn: (waveId: string) => getDispatchManifestFn({ data: { waveId } }),
     onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useExportManifestCsv() {
+  return useMutation({
+    mutationFn: (waveId: string) => exportManifestCsvFn({ data: { waveId } }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useDispatchQueue() {
+  return useQuery({
+    queryKey: ["dispatch-queue"],
+    queryFn: () => listDispatchQueueFn(),
+    staleTime: 10_000,
   });
 }
 

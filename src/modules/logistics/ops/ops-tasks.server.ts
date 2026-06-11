@@ -91,3 +91,45 @@ export async function getOpsPickQueue(clientId: string): Promise<OpsPickLine[]> 
 
   return queue;
 }
+
+export interface OpsPickOrderProgress {
+  taskId: string;
+  orderId: string;
+  orderExternalId: string;
+  pickedCount: number;
+  totalCount: number;
+  slaDeadlineAt: string | null;
+}
+
+export async function getOpsPickOrderProgress(clientId: string): Promise<OpsPickOrderProgress[]> {
+  const { data: waves } = await supabaseAdmin
+    .from("pick_waves")
+    .select("id")
+    .eq("client_id", clientId)
+    .in("status", ["open", "in_progress"]);
+
+  const waveIds = (waves ?? []).map((w: { id: string }) => w.id);
+  if (!waveIds.length) return [];
+
+  const { data: tasks } = await supabaseAdmin
+    .from("pick_tasks")
+    .select("id, order_id, orders(external_id, sla_deadline_at), pick_task_lines(status)")
+    .in("wave_id", waveIds)
+    .in("status", ["pending", "in_progress"]);
+
+  return (tasks ?? []).map((t) => {
+    const lines = (t.pick_task_lines as Array<{ status: string }> | null) ?? [];
+    const pickedCount = lines.filter((l) =>
+      ["picked", "not_found", "skipped"].includes(l.status),
+    ).length;
+    const orders = t.orders as { external_id: string; sla_deadline_at: string | null } | null;
+    return {
+      taskId: t.id as string,
+      orderId: t.order_id as string,
+      orderExternalId: orders?.external_id ?? (t.order_id as string).slice(0, 8),
+      pickedCount,
+      totalCount: lines.length,
+      slaDeadlineAt: orders?.sla_deadline_at ?? null,
+    };
+  });
+}

@@ -62,6 +62,7 @@ function LogisticsPage() {
         <Link to="/logistics/receiving"><Button variant="outline" size="sm">Recebimento</Button></Link>
         <Link to="/logistics/picking"><Button variant="outline" size="sm">Picking</Button></Link>
         <Link to="/logistics/packing"><Button variant="outline" size="sm">Packing</Button></Link>
+        <Link to="/logistics/dispatch"><Button variant="outline" size="sm">Expedição</Button></Link>
         <Link to="/logistics/sla"><Button variant="outline" size="sm">SLA</Button></Link>
         <Link to="/logistics/incidents"><Button variant="outline" size="sm">Incidentes</Button></Link>
         <Link to="/logistics/returns"><Button variant="outline" size="sm">Devoluções</Button></Link>
@@ -123,7 +124,7 @@ function LogisticsPage() {
                     <td className="py-3"><StatusPill label={ORDER_STATUS[o.status].label} tone={ORDER_STATUS[o.status].tone} /></td>
                     <td className="py-3 text-right font-mono text-sm text-foreground">{formatBRL(o.value)}</td>
                     <td className="py-3 text-right">
-                      {o.status === 'separacao' && o.nf === 'autorizada' && (
+                      {(o.status === 'separacao' || o.status === 'em_packing') && o.nf === 'autorizada' && !o.trackingCode && (
                         <Button
                           size="sm"
                           variant="outline"

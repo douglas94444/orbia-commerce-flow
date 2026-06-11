@@ -78,6 +78,7 @@ export default {
         "attribute-conversions",
         "forecast-volume",
         "check-stock-alerts",
+        "schedule-pickup",
       ],
       "0 */6 * * *": ["sync-catalog", "compute-rfm"],
       "0 3 * * *": ["cleanup-oauth"],

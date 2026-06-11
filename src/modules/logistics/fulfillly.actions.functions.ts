@@ -36,7 +36,13 @@ import {
   listReceivingReports,
   exportReceivingReportCsv,
 } from "./receiving/receiving.server";
-import { generatePickWave, confirmPickLine, completePickTask } from "./picking/wave-generator.server";
+import {
+  generatePickWave,
+  confirmPickLine,
+  completePickTask,
+  listPickWaves,
+  markPickLineNotFound,
+} from "./picking/wave-generator.server";
 import {
   startPackingSession,
   confirmPackingItem,
@@ -58,7 +64,9 @@ import {
 import {
   generateLabelsForWave,
   buildDispatchManifest,
+  exportManifestCsv,
 } from "./shipping/batch-labels.server";
+import { listDispatchQueue } from "./shipping/dispatch-queue.server";
 import {
   listClientCarrierConfigs,
   listAvailableCarrierProviders,
@@ -66,7 +74,7 @@ import {
 } from "./shipping/carrier-config.server";
 import { getReturnReasonsReport } from "./returns/returns.server";
 import { getLogisticsAnalytics } from "./analytics/logistics-analytics.server";
-import { getOpsPickQueue } from "./ops/ops-tasks.server";
+import { getOpsPickQueue, getOpsPickOrderProgress } from "./ops/ops-tasks.server";
 import {
   startInventoryCount,
   recordCountLine,
@@ -155,7 +163,15 @@ export const generatePickWaveFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const clientId = await getClientIdForUser(context.userId, context.supabase);
-    return generatePickWave(clientId);
+    const waveId = await generatePickWave(clientId);
+    return { waveId };
+  });
+
+export const listPickWavesFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return listPickWaves(clientId);
   });
 
 const pickLineSchema = z.object({
@@ -166,14 +182,29 @@ const pickLineSchema = z.object({
 export const confirmPickLineFn = createServerFn({ method: "POST" })
   .inputValidator(pickLineSchema)
   .middleware([requireSupabaseAuth])
-  .handler(async ({ data, context }) => confirmPickLine(data.taskLineId, data.barcode, context.userId));
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return confirmPickLine(clientId, data.taskLineId, data.barcode, context.userId);
+  });
+
+export const markPickLineNotFoundFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ taskLineId: z.string().uuid() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return markPickLineNotFound(clientId, data.taskLineId, context.userId);
+  });
 
 const taskSchema = z.object({ taskId: z.string().uuid() });
 
 export const completePickTaskFn = createServerFn({ method: "POST" })
   .inputValidator(taskSchema)
   .middleware([requireSupabaseAuth])
-  .handler(async ({ data }) => completePickTask(data.taskId));
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    await completePickTask(clientId, data.taskId, context.userId);
+    return { ok: true };
+  });
 
 const orderSchema = z.object({ orderId: z.string().uuid() });
 
@@ -325,8 +356,9 @@ export const getOpsTasksFn = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const clientId = await getClientIdForUser(context.userId, context.supabase);
 
-    const [pickLines, appointments] = await Promise.all([
+    const [pickLines, pickOrderProgress, appointments] = await Promise.all([
       getOpsPickQueue(clientId),
+      getOpsPickOrderProgress(clientId),
       supabaseAdmin
         .from("receiving_appointments")
         .select("id, scheduled_at, status, expected_items, appointment_type")
@@ -338,6 +370,7 @@ export const getOpsTasksFn = createServerFn({ method: "GET" })
 
     return {
       pickLines,
+      pickOrderProgress,
       receivingAppointments: appointments.data ?? [],
     };
   });
@@ -429,6 +462,18 @@ export const getDispatchManifestFn = createServerFn({ method: "POST" })
   .inputValidator(z.object({ waveId: z.string().uuid() }))
   .middleware([requireSupabaseAuth])
   .handler(async ({ data }) => buildDispatchManifest(data.waveId));
+
+export const exportManifestCsvFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ waveId: z.string().uuid() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data }) => ({ csv: await exportManifestCsv(data.waveId) }));
+
+export const listDispatchQueueFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return listDispatchQueue(clientId);
+  });
 
 export const listCarrierConfigsFn = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

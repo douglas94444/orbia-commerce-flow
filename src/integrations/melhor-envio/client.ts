@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { getServerConfig } from "@/lib/config.server";
 import { logIntegration, startTimer } from "@/shared/lib/logger";
 
@@ -49,10 +50,19 @@ export interface ShipmentQuote {
 
 export async function quoteShipment(
   accessToken: string,
-  input: { toPostalCode: string; weightKg: number },
+  input: {
+    toPostalCode: string;
+    weightKg: number;
+    lengthCm?: number;
+    widthCm?: number;
+    heightCm?: number;
+  },
 ): Promise<ShipmentQuote[]> {
   const { melhorEnvio } = getServerConfig();
   const fromPostal = melhorEnvio.fromPostalCode ?? "01310100";
+  const length = input.lengthCm ?? 16;
+  const width = input.widthCm ?? 11;
+  const height = input.heightCm ?? 2;
 
   const res = await meFetch<{ data?: ShipmentQuote[] } | ShipmentQuote[]>(
     "/shipment/calculate",
@@ -62,7 +72,16 @@ export async function quoteShipment(
       body: JSON.stringify({
         from: { postal_code: fromPostal },
         to: { postal_code: input.toPostalCode },
-        products: [{ weight: input.weightKg, width: 11, height: 2, length: 16, insurance_value: 0, quantity: 1 }],
+        products: [
+          {
+            weight: input.weightKg,
+            width,
+            height,
+            length,
+            insurance_value: 0,
+            quantity: 1,
+          },
+        ],
       }),
     },
   );
@@ -75,25 +94,59 @@ export interface PurchaseLabelResult {
   id: string;
   tracking: string;
   protocol: string;
+  url?: string;
 }
 
 export async function purchaseLabel(
   accessToken: string,
   shipmentId: string,
 ): Promise<PurchaseLabelResult> {
-  const res = await meFetch<{ purchase?: { id: string }; tracking?: string; protocol?: string }>(
-    "/shipment/checkout",
-    accessToken,
-    {
+  const checkout = await meFetch<{
+    purchase?: { id: string };
+    tracking?: string;
+    protocol?: string;
+    id?: string;
+  }>("/shipment/checkout", accessToken, {
+    method: "POST",
+    body: JSON.stringify({ orders: [shipmentId] }),
+  });
+
+  const orderId = checkout.purchase?.id ?? checkout.id ?? shipmentId;
+  const tracking = checkout.tracking ?? "";
+  const protocol = checkout.protocol ?? shipmentId;
+
+  let labelUrl: string | undefined;
+  try {
+    await meFetch("/shipment/generate", accessToken, {
       method: "POST",
-      body: JSON.stringify({ orders: [shipmentId] }),
-    },
-  );
+      body: JSON.stringify({ orders: [orderId] }),
+    });
+    const print = await meFetch<{ url?: string } | Array<{ url?: string }>>(
+      "/shipment/print",
+      accessToken,
+      {
+        method: "POST",
+        body: JSON.stringify({ orders: [orderId], mode: "private" }),
+      },
+    );
+    if (Array.isArray(print)) {
+      labelUrl = print[0]?.url;
+    } else {
+      labelUrl = print.url;
+    }
+  } catch {
+    // generate/print may fail in sandbox — tracking still valid
+  }
+
+  if (!tracking) {
+    throw new Error("Melhor Envio não retornou código de rastreio");
+  }
 
   return {
-    id: res.purchase?.id ?? shipmentId,
-    tracking: res.tracking ?? `ME${Date.now()}`,
-    protocol: res.protocol ?? shipmentId,
+    id: orderId,
+    tracking,
+    protocol,
+    url: labelUrl,
   };
 }
 
@@ -106,13 +159,24 @@ export async function getTracking(
   accessToken: string,
   shipmentId: string,
 ): Promise<TrackingStatus> {
+  const res = await meFetch<{ status?: string; tracking?: string }>(
+    `/shipment/tracking/${shipmentId}`,
+    accessToken,
+  );
+  return { status: res.status ?? "unknown", tracking: res.tracking ?? shipmentId };
+}
+
+export function validateMelhorEnvioWebhook(
+  rawBody: string,
+  signature: string | null,
+  secret: string | undefined,
+): boolean {
+  if (!secret) return true;
+  if (!signature) return false;
+  const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
   try {
-    const res = await meFetch<{ status?: string; tracking?: string }>(
-      `/shipment/tracking/${shipmentId}`,
-      accessToken,
-    );
-    return { status: res.status ?? "posted", tracking: res.tracking ?? shipmentId };
+    return timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
   } catch {
-    return { status: "posted", tracking: shipmentId };
+    return expected === signature;
   }
 }

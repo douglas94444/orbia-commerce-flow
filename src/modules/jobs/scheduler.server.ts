@@ -40,6 +40,7 @@ export type CronJobName =
   | "forecast-volume"
   | "check-stock-alerts"
   | "stock-sync-outbox"
+  | "schedule-pickup"
   | "all";
 
 export interface JobResult {
@@ -168,6 +169,13 @@ async function runJob(name: Exclude<CronJobName, "all">): Promise<JobResult> {
         metadata = await processStockSyncOutbox();
         break;
       }
+      case "schedule-pickup": {
+        const { checkScheduledPickup } = await import(
+          "@/modules/logistics/shipping/pickup-scheduler.server"
+        );
+        metadata = await checkScheduledPickup();
+        break;
+      }
     }
 
     const durationMs = end();
@@ -210,6 +218,7 @@ const JOB_SEQUENCE: Array<Exclude<CronJobName, "all">> = [
   "attribute-conversions",
   "forecast-volume",
   "check-stock-alerts",
+  "schedule-pickup",
   "cleanup-oauth",
 ];
 

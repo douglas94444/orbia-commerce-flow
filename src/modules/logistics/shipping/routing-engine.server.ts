@@ -64,6 +64,20 @@ export async function getCarrierToken(
   providerId: string,
 ): Promise<string | null> {
   const { melhorEnvio } = getServerConfig();
+
+  const { data: config } = await supabaseAdmin
+    .from("client_carrier_configs")
+    .select("credentials_ref")
+    .eq("client_id", clientId)
+    .eq("provider", providerId)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  const credRef = config?.credentials_ref as string | undefined;
+  if (credRef && process.env[credRef]) {
+    return process.env[credRef] as string;
+  }
+
   if (providerId === "melhor_envio" && melhorEnvio.token) return melhorEnvio.token;
 
   const { data: conn } = await supabaseAdmin

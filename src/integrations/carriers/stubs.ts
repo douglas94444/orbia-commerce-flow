@@ -5,10 +5,13 @@ function stubProvider(id: string, name: string): CarrierProvider {
     id,
     name,
     async quote() {
+      // Correios, Jadlog etc. são cotados via Melhor Envio (proxy) — configure melhor_envio ativo.
       return [];
     },
     async purchaseLabel() {
-      throw new Error(`${name} — integração direta em desenvolvimento. Use Melhor Envio.`);
+      throw new Error(
+        `${name} — use Melhor Envio como proxy (cota múltiplas transportadoras). Integração direta em roadmap.`,
+      );
     },
     async getTracking() {
       return { status: "unknown" };

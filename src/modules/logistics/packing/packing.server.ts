@@ -141,15 +141,47 @@ export async function completePackingSession(
   const storedPhotos =
     clientId && photoUrls.length ? await uploadPackingEvidence(clientId, sessionId, photoUrls) : photoUrls;
 
-  const { data: items } = await supabaseAdmin
+  const { data: packItems } = await supabaseAdmin
     .from("order_items")
-    .select("qty, packed_qty")
+    .select("qty, packed_qty, products(weight_grams, length_mm, width_mm, height_mm)")
     .eq("order_id", session.order_id);
 
-  const allPacked = (items ?? []).every(
+  const allPacked = (packItems ?? []).every(
     (i: { qty: number; packed_qty: number }) => i.packed_qty >= i.qty,
   );
   if (!allPacked) throw new Error("Confirme todos os itens antes de fechar");
+
+  let totalWeightGrams = 0;
+  let maxL = 0;
+  let maxW = 0;
+  let maxH = 0;
+  for (const item of packItems ?? []) {
+    const p = item.products as {
+      weight_grams: number | null;
+      length_mm: number | null;
+      width_mm: number | null;
+      height_mm: number | null;
+    } | null;
+    const w = p?.weight_grams ?? 200;
+    totalWeightGrams += w * (item.qty as number);
+    maxL = Math.max(maxL, p?.length_mm ?? 160);
+    maxW = Math.max(maxW, p?.width_mm ?? 110);
+    maxH = Math.max(maxH, p?.height_mm ?? 20);
+  }
+
+  const { data: packSession } = await supabaseAdmin
+    .from("packing_sessions")
+    .select("box_type")
+    .eq("id", sessionId)
+    .single();
+
+  const { data: orderRow } = await supabaseAdmin
+    .from("orders")
+    .select("metadata")
+    .eq("id", session.order_id)
+    .single();
+
+  const existingMeta = (orderRow?.metadata ?? {}) as Record<string, unknown>;
 
   await supabaseAdmin
     .from("packing_sessions")
@@ -162,7 +194,17 @@ export async function completePackingSession(
 
   await supabaseAdmin
     .from("orders")
-    .update({ status: "separacao" })
+    .update({
+      status: "em_packing",
+      metadata: {
+        ...existingMeta,
+        packing_weight_kg: Math.max(0.1, totalWeightGrams / 1000),
+        packing_length_cm: Math.ceil(maxL / 10) || 16,
+        packing_width_cm: Math.ceil(maxW / 10) || 11,
+        packing_height_cm: Math.ceil(maxH / 10) || 2,
+        packing_box_type: packSession?.box_type ?? "P",
+      },
+    })
     .eq("id", session.order_id);
 
   const { data: order } = await supabaseAdmin

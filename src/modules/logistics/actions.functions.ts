@@ -196,5 +196,5 @@ export const dispatchOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
     await requireStaffLogistics(context.userId, context.supabase);
-    return dispatchOrderInternal(data.orderId);
+    return dispatchOrderInternal(data.orderId, context.userId);
   });

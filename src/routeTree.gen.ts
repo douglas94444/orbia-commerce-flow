@@ -58,6 +58,7 @@ import { Route as DashboardLogisticsPickingRouteImport } from './routes/_dashboa
 import { Route as DashboardLogisticsPackingRouteImport } from './routes/_dashboard.logistics.packing'
 import { Route as DashboardLogisticsInventoryRouteImport } from './routes/_dashboard.logistics.inventory'
 import { Route as DashboardLogisticsIncidentsRouteImport } from './routes/_dashboard.logistics.incidents'
+import { Route as DashboardLogisticsDispatchRouteImport } from './routes/_dashboard.logistics.dispatch'
 import { Route as DashboardLogisticsCarriersRouteImport } from './routes/_dashboard.logistics.carriers'
 import { Route as DashboardLogisticsAnalyticsRouteImport } from './routes/_dashboard.logistics.analytics'
 import { Route as DashboardFiscalConfigRouteImport } from './routes/_dashboard.fiscal.config'
@@ -327,6 +328,12 @@ const DashboardLogisticsIncidentsRoute =
     path: '/incidents',
     getParentRoute: () => DashboardLogisticsRoute,
   } as any)
+const DashboardLogisticsDispatchRoute =
+  DashboardLogisticsDispatchRouteImport.update({
+    id: '/dispatch',
+    path: '/dispatch',
+    getParentRoute: () => DashboardLogisticsRoute,
+  } as any)
 const DashboardLogisticsCarriersRoute =
   DashboardLogisticsCarriersRouteImport.update({
     id: '/carriers',
@@ -440,6 +447,7 @@ export interface FileRoutesByFullPath {
   '/fiscal/config': typeof DashboardFiscalConfigRoute
   '/logistics/analytics': typeof DashboardLogisticsAnalyticsRoute
   '/logistics/carriers': typeof DashboardLogisticsCarriersRoute
+  '/logistics/dispatch': typeof DashboardLogisticsDispatchRoute
   '/logistics/incidents': typeof DashboardLogisticsIncidentsRoute
   '/logistics/inventory': typeof DashboardLogisticsInventoryRoute
   '/logistics/packing': typeof DashboardLogisticsPackingRoute
@@ -504,6 +512,7 @@ export interface FileRoutesByTo {
   '/fiscal/config': typeof DashboardFiscalConfigRoute
   '/logistics/analytics': typeof DashboardLogisticsAnalyticsRoute
   '/logistics/carriers': typeof DashboardLogisticsCarriersRoute
+  '/logistics/dispatch': typeof DashboardLogisticsDispatchRoute
   '/logistics/incidents': typeof DashboardLogisticsIncidentsRoute
   '/logistics/inventory': typeof DashboardLogisticsInventoryRoute
   '/logistics/packing': typeof DashboardLogisticsPackingRoute
@@ -571,6 +580,7 @@ export interface FileRoutesById {
   '/_dashboard/fiscal/config': typeof DashboardFiscalConfigRoute
   '/_dashboard/logistics/analytics': typeof DashboardLogisticsAnalyticsRoute
   '/_dashboard/logistics/carriers': typeof DashboardLogisticsCarriersRoute
+  '/_dashboard/logistics/dispatch': typeof DashboardLogisticsDispatchRoute
   '/_dashboard/logistics/incidents': typeof DashboardLogisticsIncidentsRoute
   '/_dashboard/logistics/inventory': typeof DashboardLogisticsInventoryRoute
   '/_dashboard/logistics/packing': typeof DashboardLogisticsPackingRoute
@@ -638,6 +648,7 @@ export interface FileRouteTypes {
     | '/fiscal/config'
     | '/logistics/analytics'
     | '/logistics/carriers'
+    | '/logistics/dispatch'
     | '/logistics/incidents'
     | '/logistics/inventory'
     | '/logistics/packing'
@@ -702,6 +713,7 @@ export interface FileRouteTypes {
     | '/fiscal/config'
     | '/logistics/analytics'
     | '/logistics/carriers'
+    | '/logistics/dispatch'
     | '/logistics/incidents'
     | '/logistics/inventory'
     | '/logistics/packing'
@@ -768,6 +780,7 @@ export interface FileRouteTypes {
     | '/_dashboard/fiscal/config'
     | '/_dashboard/logistics/analytics'
     | '/_dashboard/logistics/carriers'
+    | '/_dashboard/logistics/dispatch'
     | '/_dashboard/logistics/incidents'
     | '/_dashboard/logistics/inventory'
     | '/_dashboard/logistics/packing'
@@ -1181,6 +1194,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardLogisticsIncidentsRouteImport
       parentRoute: typeof DashboardLogisticsRoute
     }
+    '/_dashboard/logistics/dispatch': {
+      id: '/_dashboard/logistics/dispatch'
+      path: '/dispatch'
+      fullPath: '/logistics/dispatch'
+      preLoaderRoute: typeof DashboardLogisticsDispatchRouteImport
+      parentRoute: typeof DashboardLogisticsRoute
+    }
     '/_dashboard/logistics/carriers': {
       id: '/_dashboard/logistics/carriers'
       path: '/carriers'
@@ -1315,6 +1335,7 @@ const DashboardFiscalRouteWithChildren = DashboardFiscalRoute._addFileChildren(
 interface DashboardLogisticsRouteChildren {
   DashboardLogisticsAnalyticsRoute: typeof DashboardLogisticsAnalyticsRoute
   DashboardLogisticsCarriersRoute: typeof DashboardLogisticsCarriersRoute
+  DashboardLogisticsDispatchRoute: typeof DashboardLogisticsDispatchRoute
   DashboardLogisticsIncidentsRoute: typeof DashboardLogisticsIncidentsRoute
   DashboardLogisticsInventoryRoute: typeof DashboardLogisticsInventoryRoute
   DashboardLogisticsPackingRoute: typeof DashboardLogisticsPackingRoute
@@ -1330,6 +1351,7 @@ interface DashboardLogisticsRouteChildren {
 const DashboardLogisticsRouteChildren: DashboardLogisticsRouteChildren = {
   DashboardLogisticsAnalyticsRoute: DashboardLogisticsAnalyticsRoute,
   DashboardLogisticsCarriersRoute: DashboardLogisticsCarriersRoute,
+  DashboardLogisticsDispatchRoute: DashboardLogisticsDispatchRoute,
   DashboardLogisticsIncidentsRoute: DashboardLogisticsIncidentsRoute,
   DashboardLogisticsInventoryRoute: DashboardLogisticsInventoryRoute,
   DashboardLogisticsPackingRoute: DashboardLogisticsPackingRoute,

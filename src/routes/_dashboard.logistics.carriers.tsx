@@ -39,7 +39,7 @@ function CarriersPage() {
       <PageIntro
         eyebrow="Fulfillly"
         title="Transportadoras"
-        description="Prioridade e seleção automática por lojista."
+        description="Prioridade e seleção automática por lojista. Correios, Jadlog e demais carriers são cotados via Melhor Envio (proxy) — configure ME como provedor principal."
         action={<Truck className="size-5 text-primary" />}
       />
 

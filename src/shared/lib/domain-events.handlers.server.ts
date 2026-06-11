@@ -227,6 +227,33 @@ onDomainEvent("return.inspected", async (payload) => {
   }
 });
 
+onDomainEvent("picking.completed", async (payload) => {
+  const clientId = String(payload.clientId ?? "");
+  const orderId = String(payload.orderId ?? "");
+  const hasIssue = Boolean(payload.hasIssue);
+  if (!clientId || !orderId) return;
+
+  const { data: order } = await supabaseAdmin
+    .from("orders")
+    .select("external_id")
+    .eq("id", orderId)
+    .maybeSingle();
+
+  const label = order?.external_id ?? orderId.slice(0, 8);
+  const message = hasIssue
+    ? `⚠️ Picking do pedido ${label} concluído com itens não encontrados. Revise no dashboard.`
+    : `✅ Picking do pedido ${label} concluído — pronto para packing.`;
+
+  try {
+    const { sendWhatsAppToClient } = await import(
+      "@/modules/logistics/notifications/whatsapp-alerts.server"
+    );
+    await sendWhatsAppToClient(clientId, message);
+  } catch (err) {
+    console.error("[picking] picking.completed notification:", err);
+  }
+});
+
 onDomainEvent("receiving.completed", async (payload) => {
   const clientId = String(payload.clientId ?? "");
   const sessionId = String(payload.sessionId ?? "");
