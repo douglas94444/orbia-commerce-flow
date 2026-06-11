@@ -27,6 +27,7 @@ import {
   upsertCarrierConfigFn,
   getReturnReasonsReportFn,
   createReturnRequestFn,
+  getLogisticsAnalyticsFn,
 } from "../fulfillly.actions.functions";
 
 export function useWarehouseLocations() {
@@ -255,6 +256,14 @@ export function useUpsertCarrierConfig() {
       toast.success("Transportadora salva");
     },
     onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useLogisticsAnalytics() {
+  return useQuery({
+    queryKey: ["logistics-analytics"],
+    queryFn: () => getLogisticsAnalyticsFn(),
+    staleTime: 60_000,
   });
 }
 

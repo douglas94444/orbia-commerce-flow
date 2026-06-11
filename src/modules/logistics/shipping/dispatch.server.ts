@@ -1,6 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getCarrierProvider } from "@/integrations/carriers";
-import { getTracking } from "@/integrations/melhor-envio";
 import { emitDomainEvent } from "@/shared/lib/domain-events.server";
 import { itemsFromOrderMetadata } from "../stock-reservation.server";
 import type { NormalizedOrderItem } from "../order-ingestion.server";
@@ -72,6 +71,11 @@ export async function dispatchOrder(orderId: string): Promise<{ trackingCode: st
       carrier,
       tracking_code: trackingCode,
       shipment_external_id: shipmentId,
+      metadata: {
+        ...row.metadata,
+        carrier_provider_id: quote.providerId,
+        shipping_cost_cents: quote.priceCents,
+      },
       updated_at: new Date().toISOString(),
     })
     .eq("id", orderId);
@@ -104,10 +108,16 @@ const TRACKING_TO_STATUS: Record<string, string> = {
   delivered_to_receiver: "entregue",
 };
 
+function resolveCarrierProviderId(metadata: Record<string, unknown>): string {
+  const fromMeta = metadata.carrier_provider_id;
+  if (typeof fromMeta === "string" && fromMeta.length > 0) return fromMeta;
+  return "melhor_envio";
+}
+
 export async function syncOrderTracking(orderId: string): Promise<{ status: string }> {
   const { data: order, error } = await supabaseAdmin
     .from("orders")
-    .select("id, client_id, status, shipment_external_id, tracking_code")
+    .select("id, client_id, status, shipment_external_id, tracking_code, metadata")
     .eq("id", orderId)
     .single();
 
@@ -118,11 +128,13 @@ export async function syncOrderTracking(orderId: string): Promise<{ status: stri
     throw new Error("Pedido sem envio vinculado");
   }
 
-  const token = await getCarrierToken(row.client_id, "melhor_envio");
+  const providerId = resolveCarrierProviderId(row.metadata ?? {});
+  const provider = getCarrierProvider(providerId);
+  const token = await getCarrierToken(row.client_id, providerId);
   let trackingStatus = "in_transit";
 
-  if (token) {
-    const tracking = await getTracking(token, row.shipment_external_id);
+  if (provider && token) {
+    const tracking = await provider.getTracking(row.shipment_external_id, token);
     trackingStatus = tracking.status;
   } else if (row.status === "despachado") {
     trackingStatus = "in_transit";
@@ -141,8 +153,8 @@ export async function syncOrderTracking(orderId: string): Promise<{ status: stri
   await supabaseAdmin.from("order_events").insert({
     order_id: orderId,
     status: newStatus,
-    source: "carrier_sync",
-    metadata: { tracking_status: trackingStatus },
+    source: providerId,
+    metadata: { tracking_status: trackingStatus, carrier_provider_id: providerId },
   });
 
   if (newStatus === "entregue") {

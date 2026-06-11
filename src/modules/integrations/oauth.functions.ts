@@ -9,6 +9,9 @@ import { buildMetaWhatsAppAuthUrl } from "@/integrations/meta/whatsapp-oauth";
 import { buildNuvemshopAuthUrl } from "@/integrations/nuvemshop";
 import { buildShopeeAuthUrl } from "@/integrations/shopee";
 import { buildShopifyAuthUrl } from "@/integrations/shopify";
+import { buildAmazonAuthUrl } from "@/integrations/amazon";
+import { buildTikTokAuthUrl } from "@/integrations/tiktok";
+import { buildInstagramAuthUrl } from "@/integrations/instagram";
 import { createOAuthState } from "./oauth.server";
 
 async function requireStaff(
@@ -112,4 +115,52 @@ export const startWhatsAppOAuth = createServerFn({ method: "POST" })
     await requireStaff(context.userId, context.supabase);
     const state = await createOAuthState(context.userId, data.clientId, "whatsapp");
     return { url: buildMetaWhatsAppAuthUrl(state) };
+  });
+
+const amazonStartSchema = z.object({
+  clientId: z.string().uuid(),
+  sellerId: z.string().min(1).max(100).optional(),
+});
+
+export const startAmazonOAuth = createServerFn({ method: "POST" })
+  .inputValidator(amazonStartSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await requireStaff(context.userId, context.supabase);
+    const state = await createOAuthState(context.userId, data.clientId, "amazon", {
+      seller_id: data.sellerId,
+    });
+    return { url: buildAmazonAuthUrl(state) };
+  });
+
+const tiktokStartSchema = z.object({
+  clientId: z.string().uuid(),
+  shopId: z.string().min(1).max(50),
+});
+
+export const startTikTokOAuth = createServerFn({ method: "POST" })
+  .inputValidator(tiktokStartSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await requireStaff(context.userId, context.supabase);
+    const state = await createOAuthState(context.userId, data.clientId, "tiktok", {
+      shop_id: data.shopId,
+    });
+    return { url: buildTikTokAuthUrl(state) };
+  });
+
+const instagramStartSchema = z.object({
+  clientId: z.string().uuid(),
+  pageId: z.string().min(1).max(50),
+});
+
+export const startInstagramOAuth = createServerFn({ method: "POST" })
+  .inputValidator(instagramStartSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await requireStaff(context.userId, context.supabase);
+    const state = await createOAuthState(context.userId, data.clientId, "instagram", {
+      page_id: data.pageId,
+    });
+    return { url: buildInstagramAuthUrl(state) };
   });

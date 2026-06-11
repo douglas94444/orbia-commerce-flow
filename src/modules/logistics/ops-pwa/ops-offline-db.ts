@@ -4,7 +4,12 @@ const QUEUE_STORE = "action_queue";
 
 export interface OfflineAction {
   id: string;
-  type: "confirm_pick" | "confirm_receive" | "confirm_pack";
+  type:
+    | "confirm_pick"
+    | "confirm_receive"
+    | "confirm_pack"
+    | "start_pack"
+    | "complete_pack";
   payload: Record<string, unknown>;
   createdAt: string;
   retries: number;
@@ -50,7 +55,11 @@ export async function listOfflineActions(): Promise<OfflineAction[]> {
   const items = await new Promise<OfflineAction[]>((resolve, reject) => {
     const tx = db.transaction(QUEUE_STORE, "readonly");
     const req = tx.objectStore(QUEUE_STORE).getAll();
-    req.onsuccess = () => resolve(req.result as OfflineAction[]);
+    req.onsuccess = () => {
+      const all = req.result as OfflineAction[];
+      all.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+      resolve(all);
+    };
     req.onerror = () => reject(req.error);
   });
   db.close();

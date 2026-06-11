@@ -1,1 +1,1 @@
-export { getAmazonAuthUrl } from "./oauth";
+export { buildAmazonAuthUrl, exchangeAmazonCode, getAmazonAuthUrl } from "./oauth";

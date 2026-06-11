@@ -19,6 +19,9 @@ import {
   useStartMelhorEnvioOAuth,
   useStartGoogleOAuth,
   useStartWhatsAppOAuth,
+  useStartAmazonOAuth,
+  useStartTikTokOAuth,
+  useStartInstagramOAuth,
 } from '@/modules/integrations/hooks/use-oauth'
 
 export const Route = createFileRoute('/_dashboard/clients/$id')({
@@ -34,6 +37,7 @@ const PROVIDER_LABEL: Record<string, string> = {
   shopee:       'Shopee',
   amazon:       'Amazon BR',
   tiktok:       'TikTok Shop',
+  instagram:    'Instagram Commerce',
   nuvemshop:    'Nuvemshop',
   melhor_envio: 'Melhor Envio',
   whatsapp:     'WhatsApp Business',
@@ -42,11 +46,14 @@ const PROVIDER_LABEL: Record<string, string> = {
 const MODULE_PROVIDERS: Array<{ label: string; providers: string[] }> = [
   { label: 'Tráfego',    providers: ['meta', 'google'] },
   { label: 'Retenção',   providers: ['whatsapp'] },
-  { label: 'Logística',  providers: ['mercado_livre', 'shopify', 'shopee', 'amazon', 'tiktok', 'nuvemshop', 'melhor_envio'] },
+  { label: 'Logística',  providers: ['mercado_livre', 'shopify', 'shopee', 'amazon', 'tiktok', 'instagram', 'nuvemshop', 'melhor_envio'] },
   { label: 'Fiscal',     providers: ['focus_nfe'] },
 ]
 
-const CONNECTABLE = new Set(['nuvemshop', 'shopify', 'mercado_livre', 'shopee', 'meta', 'google', 'melhor_envio', 'whatsapp'])
+const CONNECTABLE = new Set([
+  'nuvemshop', 'shopify', 'mercado_livre', 'shopee', 'meta', 'google',
+  'melhor_envio', 'whatsapp', 'amazon', 'tiktok', 'instagram',
+])
 
 function ClientDetailPage() {
   const { id } = Route.useParams()
@@ -60,8 +67,13 @@ function ClientDetailPage() {
   const melhorEnvioOAuth = useStartMelhorEnvioOAuth()
   const googleOAuth = useStartGoogleOAuth()
   const whatsappOAuth = useStartWhatsAppOAuth()
+  const amazonOAuth = useStartAmazonOAuth()
+  const tiktokOAuth = useStartTikTokOAuth()
+  const instagramOAuth = useStartInstagramOAuth()
   const [shopDomain, setShopDomain] = useState('')
   const [shopeeShopId, setShopeeShopId] = useState('')
+  const [tiktokShopId, setTiktokShopId] = useState('')
+  const [instagramPageId, setInstagramPageId] = useState('')
 
   const isStaff = profile?.role === 'orbia_admin' || profile?.role === 'orbia_staff'
 
@@ -206,6 +218,44 @@ function ClientDetailPage() {
                                 Conectar
                               </Button>
                             </div>
+                          ) : p === 'tiktok' ? (
+                            <div className="ml-2 flex items-center gap-1">
+                              <Input
+                                placeholder="shop_id"
+                                className="h-7 w-24 text-xs"
+                                value={tiktokShopId}
+                                onChange={(e) => setTiktokShopId(e.target.value)}
+                              />
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 gap-1 px-2 text-xs"
+                                disabled={!tiktokShopId || tiktokOAuth.isPending}
+                                onClick={() => tiktokOAuth.mutate({ clientId: id, shopId: tiktokShopId })}
+                              >
+                                {tiktokOAuth.isPending ? <Loader2 className="size-3 animate-spin" /> : <Link2 className="size-3" />}
+                                Conectar
+                              </Button>
+                            </div>
+                          ) : p === 'instagram' ? (
+                            <div className="ml-2 flex items-center gap-1">
+                              <Input
+                                placeholder="page_id"
+                                className="h-7 w-24 text-xs"
+                                value={instagramPageId}
+                                onChange={(e) => setInstagramPageId(e.target.value)}
+                              />
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 gap-1 px-2 text-xs"
+                                disabled={!instagramPageId || instagramOAuth.isPending}
+                                onClick={() => instagramOAuth.mutate({ clientId: id, pageId: instagramPageId })}
+                              >
+                                {instagramOAuth.isPending ? <Loader2 className="size-3 animate-spin" /> : <Link2 className="size-3" />}
+                                Conectar
+                              </Button>
+                            </div>
                           ) : (
                             <Button
                               size="sm"
@@ -217,7 +267,8 @@ function ClientDetailPage() {
                                 (p === 'meta' && metaOAuth.isPending) ||
                                 (p === 'melhor_envio' && melhorEnvioOAuth.isPending) ||
                                 (p === 'google' && googleOAuth.isPending) ||
-                                (p === 'whatsapp' && whatsappOAuth.isPending)
+                                (p === 'whatsapp' && whatsappOAuth.isPending) ||
+                                (p === 'amazon' && amazonOAuth.isPending)
                               }
                               onClick={() => {
                                 if (p === 'nuvemshop') nuvemshopOAuth.mutate(id)
@@ -226,6 +277,7 @@ function ClientDetailPage() {
                                 else if (p === 'google') googleOAuth.mutate(id)
                                 else if (p === 'whatsapp') whatsappOAuth.mutate(id)
                                 else if (p === 'melhor_envio') melhorEnvioOAuth.mutate(id)
+                                else if (p === 'amazon') amazonOAuth.mutate({ clientId: id })
                               }}
                             >
                               {(p === 'nuvemshop' && nuvemshopOAuth.isPending) ||
@@ -233,7 +285,8 @@ function ClientDetailPage() {
                               (p === 'meta' && metaOAuth.isPending) ||
                               (p === 'melhor_envio' && melhorEnvioOAuth.isPending) ||
                               (p === 'google' && googleOAuth.isPending) ||
-                              (p === 'whatsapp' && whatsappOAuth.isPending) ? (
+                              (p === 'whatsapp' && whatsappOAuth.isPending) ||
+                              (p === 'amazon' && amazonOAuth.isPending) ? (
                                 <Loader2 className="size-3 animate-spin" />
                               ) : (
                                 <Link2 className="size-3" />

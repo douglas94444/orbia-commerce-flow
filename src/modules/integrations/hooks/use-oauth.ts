@@ -9,6 +9,9 @@ import {
   startMelhorEnvioOAuth,
   startGoogleOAuth,
   startWhatsAppOAuth,
+  startAmazonOAuth,
+  startTikTokOAuth,
+  startInstagramOAuth,
 } from "../oauth.functions";
 
 export function useStartNuvemshopOAuth() {
@@ -86,6 +89,39 @@ export function useStartMelhorEnvioOAuth() {
 export function useStartWhatsAppOAuth() {
   return useMutation({
     mutationFn: (clientId: string) => startWhatsAppOAuth({ data: { clientId } }),
+    onSuccess: (result) => {
+      if (result.url) window.location.href = result.url;
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useStartAmazonOAuth() {
+  return useMutation({
+    mutationFn: ({ clientId, sellerId }: { clientId: string; sellerId?: string }) =>
+      startAmazonOAuth({ data: { clientId, sellerId } }),
+    onSuccess: (result) => {
+      if (result.url) window.location.href = result.url;
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useStartTikTokOAuth() {
+  return useMutation({
+    mutationFn: ({ clientId, shopId }: { clientId: string; shopId: string }) =>
+      startTikTokOAuth({ data: { clientId, shopId } }),
+    onSuccess: (result) => {
+      if (result.url) window.location.href = result.url;
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useStartInstagramOAuth() {
+  return useMutation({
+    mutationFn: ({ clientId, pageId }: { clientId: string; pageId: string }) =>
+      startInstagramOAuth({ data: { clientId, pageId } }),
     onSuccess: (result) => {
       if (result.url) window.location.href = result.url;
     },

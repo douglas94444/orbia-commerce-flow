@@ -38,6 +38,18 @@ function OpsPackingPage() {
     reader.readAsDataURL(file);
   };
 
+  const submitStartPacking = async () => {
+    const localSessionId = crypto.randomUUID();
+    if (await queueAction("start_pack", { orderId, localSessionId })) {
+      setSessionId(localSessionId);
+      toast.success("Início de packing salvo offline");
+      return;
+    }
+    startPacking.mutate(orderId, {
+      onSuccess: (id) => setSessionId(id as string),
+    });
+  };
+
   const submitPackItem = async () => {
     const payload = { orderId, sku, qty };
     if (await queueAction("confirm_pack", payload)) {
@@ -46,6 +58,15 @@ function OpsPackingPage() {
       return;
     }
     confirmItem.mutate(payload);
+  };
+
+  const submitComplete = async () => {
+    if (await queueAction("complete_pack", { sessionId, photoUrls, orderId })) {
+      toast.success("Fechamento salvo offline — fotos sincronizam ao reconectar");
+      setPhotoUrls([]);
+      return;
+    }
+    complete.mutate({ sessionId, photoUrls });
   };
 
   return (
@@ -64,11 +85,7 @@ function OpsPackingPage() {
         <Button
           className="w-full"
           variant="outline"
-          onClick={() =>
-            startPacking.mutate(orderId, {
-              onSuccess: (id) => setSessionId(id as string),
-            })
-          }
+          onClick={() => void submitStartPacking()}
           disabled={!orderId || startPacking.isPending}
         >
           Iniciar packing
@@ -100,7 +117,7 @@ function OpsPackingPage() {
           <Button
             className="w-full"
             variant="default"
-            onClick={() => complete.mutate({ sessionId, photoUrls })}
+            onClick={() => void submitComplete()}
             disabled={complete.isPending}
           >
             Fechar embalagem

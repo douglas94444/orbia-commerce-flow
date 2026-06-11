@@ -43,6 +43,7 @@ import {
   upsertClientCarrierConfig,
 } from "./shipping/carrier-config.server";
 import { getReturnReasonsReport } from "./returns/returns.server";
+import { getLogisticsAnalytics } from "./analytics/logistics-analytics.server";
 
 async function getClientIdForUser(
   userId: string,
@@ -368,4 +369,11 @@ export const getReturnReasonsReportFn = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const clientId = await getClientIdForUser(context.userId, context.supabase);
     return getReturnReasonsReport(clientId);
+  });
+
+export const getLogisticsAnalyticsFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return getLogisticsAnalytics(clientId);
   });

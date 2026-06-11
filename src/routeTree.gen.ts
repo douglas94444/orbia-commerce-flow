@@ -57,16 +57,20 @@ import { Route as DashboardLogisticsPickingRouteImport } from './routes/_dashboa
 import { Route as DashboardLogisticsPackingRouteImport } from './routes/_dashboard.logistics.packing'
 import { Route as DashboardLogisticsIncidentsRouteImport } from './routes/_dashboard.logistics.incidents'
 import { Route as DashboardLogisticsCarriersRouteImport } from './routes/_dashboard.logistics.carriers'
+import { Route as DashboardLogisticsAnalyticsRouteImport } from './routes/_dashboard.logistics.analytics'
 import { Route as DashboardFiscalConfigRouteImport } from './routes/_dashboard.fiscal.config'
 import { Route as DashboardClientsIdRouteImport } from './routes/_dashboard.clients.$id'
 import { Route as ApiOauthWhatsappCallbackRouteImport } from './routes/api/oauth/whatsapp/callback'
+import { Route as ApiOauthTiktokCallbackRouteImport } from './routes/api/oauth/tiktok/callback'
 import { Route as ApiOauthShopifyCallbackRouteImport } from './routes/api/oauth/shopify/callback'
 import { Route as ApiOauthShopeeCallbackRouteImport } from './routes/api/oauth/shopee/callback'
 import { Route as ApiOauthNuvemshopCallbackRouteImport } from './routes/api/oauth/nuvemshop/callback'
 import { Route as ApiOauthMetaCallbackRouteImport } from './routes/api/oauth/meta/callback'
 import { Route as ApiOauthMercadoLivreCallbackRouteImport } from './routes/api/oauth/mercado-livre/callback'
 import { Route as ApiOauthMelhorEnvioCallbackRouteImport } from './routes/api/oauth/melhor-envio/callback'
+import { Route as ApiOauthInstagramCallbackRouteImport } from './routes/api/oauth/instagram/callback'
 import { Route as ApiOauthGoogleCallbackRouteImport } from './routes/api/oauth/google/callback'
+import { Route as ApiOauthAmazonCallbackRouteImport } from './routes/api/oauth/amazon/callback'
 
 const PortalRoute = PortalRouteImport.update({
   id: '/portal',
@@ -315,6 +319,12 @@ const DashboardLogisticsCarriersRoute =
     path: '/carriers',
     getParentRoute: () => DashboardLogisticsRoute,
   } as any)
+const DashboardLogisticsAnalyticsRoute =
+  DashboardLogisticsAnalyticsRouteImport.update({
+    id: '/analytics',
+    path: '/analytics',
+    getParentRoute: () => DashboardLogisticsRoute,
+  } as any)
 const DashboardFiscalConfigRoute = DashboardFiscalConfigRouteImport.update({
   id: '/config',
   path: '/config',
@@ -331,6 +341,11 @@ const ApiOauthWhatsappCallbackRoute =
     path: '/api/oauth/whatsapp/callback',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiOauthTiktokCallbackRoute = ApiOauthTiktokCallbackRouteImport.update({
+  id: '/api/oauth/tiktok/callback',
+  path: '/api/oauth/tiktok/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiOauthShopifyCallbackRoute = ApiOauthShopifyCallbackRouteImport.update({
   id: '/api/oauth/shopify/callback',
   path: '/api/oauth/shopify/callback',
@@ -364,9 +379,20 @@ const ApiOauthMelhorEnvioCallbackRoute =
     path: '/api/oauth/melhor-envio/callback',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiOauthInstagramCallbackRoute =
+  ApiOauthInstagramCallbackRouteImport.update({
+    id: '/api/oauth/instagram/callback',
+    path: '/api/oauth/instagram/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiOauthGoogleCallbackRoute = ApiOauthGoogleCallbackRouteImport.update({
   id: '/api/oauth/google/callback',
   path: '/api/oauth/google/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiOauthAmazonCallbackRoute = ApiOauthAmazonCallbackRouteImport.update({
+  id: '/api/oauth/amazon/callback',
+  path: '/api/oauth/amazon/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -398,6 +424,7 @@ export interface FileRoutesByFullPath {
   '/ops/': typeof OpsIndexRoute
   '/clients/$id': typeof DashboardClientsIdRoute
   '/fiscal/config': typeof DashboardFiscalConfigRoute
+  '/logistics/analytics': typeof DashboardLogisticsAnalyticsRoute
   '/logistics/carriers': typeof DashboardLogisticsCarriersRoute
   '/logistics/incidents': typeof DashboardLogisticsIncidentsRoute
   '/logistics/packing': typeof DashboardLogisticsPackingRoute
@@ -420,13 +447,16 @@ export interface FileRoutesByFullPath {
   '/api/webhooks/shopify': typeof ApiWebhooksShopifyRoute
   '/api/webhooks/tiktok': typeof ApiWebhooksTiktokRoute
   '/api/webhooks/whatsapp': typeof ApiWebhooksWhatsappRoute
+  '/api/oauth/amazon/callback': typeof ApiOauthAmazonCallbackRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
+  '/api/oauth/instagram/callback': typeof ApiOauthInstagramCallbackRoute
   '/api/oauth/melhor-envio/callback': typeof ApiOauthMelhorEnvioCallbackRoute
   '/api/oauth/mercado-livre/callback': typeof ApiOauthMercadoLivreCallbackRoute
   '/api/oauth/meta/callback': typeof ApiOauthMetaCallbackRoute
   '/api/oauth/nuvemshop/callback': typeof ApiOauthNuvemshopCallbackRoute
   '/api/oauth/shopee/callback': typeof ApiOauthShopeeCallbackRoute
   '/api/oauth/shopify/callback': typeof ApiOauthShopifyCallbackRoute
+  '/api/oauth/tiktok/callback': typeof ApiOauthTiktokCallbackRoute
   '/api/oauth/whatsapp/callback': typeof ApiOauthWhatsappCallbackRoute
 }
 export interface FileRoutesByTo {
@@ -456,6 +486,7 @@ export interface FileRoutesByTo {
   '/ops': typeof OpsIndexRoute
   '/clients/$id': typeof DashboardClientsIdRoute
   '/fiscal/config': typeof DashboardFiscalConfigRoute
+  '/logistics/analytics': typeof DashboardLogisticsAnalyticsRoute
   '/logistics/carriers': typeof DashboardLogisticsCarriersRoute
   '/logistics/incidents': typeof DashboardLogisticsIncidentsRoute
   '/logistics/packing': typeof DashboardLogisticsPackingRoute
@@ -478,13 +509,16 @@ export interface FileRoutesByTo {
   '/api/webhooks/shopify': typeof ApiWebhooksShopifyRoute
   '/api/webhooks/tiktok': typeof ApiWebhooksTiktokRoute
   '/api/webhooks/whatsapp': typeof ApiWebhooksWhatsappRoute
+  '/api/oauth/amazon/callback': typeof ApiOauthAmazonCallbackRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
+  '/api/oauth/instagram/callback': typeof ApiOauthInstagramCallbackRoute
   '/api/oauth/melhor-envio/callback': typeof ApiOauthMelhorEnvioCallbackRoute
   '/api/oauth/mercado-livre/callback': typeof ApiOauthMercadoLivreCallbackRoute
   '/api/oauth/meta/callback': typeof ApiOauthMetaCallbackRoute
   '/api/oauth/nuvemshop/callback': typeof ApiOauthNuvemshopCallbackRoute
   '/api/oauth/shopee/callback': typeof ApiOauthShopeeCallbackRoute
   '/api/oauth/shopify/callback': typeof ApiOauthShopifyCallbackRoute
+  '/api/oauth/tiktok/callback': typeof ApiOauthTiktokCallbackRoute
   '/api/oauth/whatsapp/callback': typeof ApiOauthWhatsappCallbackRoute
 }
 export interface FileRoutesById {
@@ -517,6 +551,7 @@ export interface FileRoutesById {
   '/ops/': typeof OpsIndexRoute
   '/_dashboard/clients/$id': typeof DashboardClientsIdRoute
   '/_dashboard/fiscal/config': typeof DashboardFiscalConfigRoute
+  '/_dashboard/logistics/analytics': typeof DashboardLogisticsAnalyticsRoute
   '/_dashboard/logistics/carriers': typeof DashboardLogisticsCarriersRoute
   '/_dashboard/logistics/incidents': typeof DashboardLogisticsIncidentsRoute
   '/_dashboard/logistics/packing': typeof DashboardLogisticsPackingRoute
@@ -539,13 +574,16 @@ export interface FileRoutesById {
   '/api/webhooks/shopify': typeof ApiWebhooksShopifyRoute
   '/api/webhooks/tiktok': typeof ApiWebhooksTiktokRoute
   '/api/webhooks/whatsapp': typeof ApiWebhooksWhatsappRoute
+  '/api/oauth/amazon/callback': typeof ApiOauthAmazonCallbackRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
+  '/api/oauth/instagram/callback': typeof ApiOauthInstagramCallbackRoute
   '/api/oauth/melhor-envio/callback': typeof ApiOauthMelhorEnvioCallbackRoute
   '/api/oauth/mercado-livre/callback': typeof ApiOauthMercadoLivreCallbackRoute
   '/api/oauth/meta/callback': typeof ApiOauthMetaCallbackRoute
   '/api/oauth/nuvemshop/callback': typeof ApiOauthNuvemshopCallbackRoute
   '/api/oauth/shopee/callback': typeof ApiOauthShopeeCallbackRoute
   '/api/oauth/shopify/callback': typeof ApiOauthShopifyCallbackRoute
+  '/api/oauth/tiktok/callback': typeof ApiOauthTiktokCallbackRoute
   '/api/oauth/whatsapp/callback': typeof ApiOauthWhatsappCallbackRoute
 }
 export interface FileRouteTypes {
@@ -578,6 +616,7 @@ export interface FileRouteTypes {
     | '/ops/'
     | '/clients/$id'
     | '/fiscal/config'
+    | '/logistics/analytics'
     | '/logistics/carriers'
     | '/logistics/incidents'
     | '/logistics/packing'
@@ -600,13 +639,16 @@ export interface FileRouteTypes {
     | '/api/webhooks/shopify'
     | '/api/webhooks/tiktok'
     | '/api/webhooks/whatsapp'
+    | '/api/oauth/amazon/callback'
     | '/api/oauth/google/callback'
+    | '/api/oauth/instagram/callback'
     | '/api/oauth/melhor-envio/callback'
     | '/api/oauth/mercado-livre/callback'
     | '/api/oauth/meta/callback'
     | '/api/oauth/nuvemshop/callback'
     | '/api/oauth/shopee/callback'
     | '/api/oauth/shopify/callback'
+    | '/api/oauth/tiktok/callback'
     | '/api/oauth/whatsapp/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -636,6 +678,7 @@ export interface FileRouteTypes {
     | '/ops'
     | '/clients/$id'
     | '/fiscal/config'
+    | '/logistics/analytics'
     | '/logistics/carriers'
     | '/logistics/incidents'
     | '/logistics/packing'
@@ -658,13 +701,16 @@ export interface FileRouteTypes {
     | '/api/webhooks/shopify'
     | '/api/webhooks/tiktok'
     | '/api/webhooks/whatsapp'
+    | '/api/oauth/amazon/callback'
     | '/api/oauth/google/callback'
+    | '/api/oauth/instagram/callback'
     | '/api/oauth/melhor-envio/callback'
     | '/api/oauth/mercado-livre/callback'
     | '/api/oauth/meta/callback'
     | '/api/oauth/nuvemshop/callback'
     | '/api/oauth/shopee/callback'
     | '/api/oauth/shopify/callback'
+    | '/api/oauth/tiktok/callback'
     | '/api/oauth/whatsapp/callback'
   id:
     | '__root__'
@@ -696,6 +742,7 @@ export interface FileRouteTypes {
     | '/ops/'
     | '/_dashboard/clients/$id'
     | '/_dashboard/fiscal/config'
+    | '/_dashboard/logistics/analytics'
     | '/_dashboard/logistics/carriers'
     | '/_dashboard/logistics/incidents'
     | '/_dashboard/logistics/packing'
@@ -718,13 +765,16 @@ export interface FileRouteTypes {
     | '/api/webhooks/shopify'
     | '/api/webhooks/tiktok'
     | '/api/webhooks/whatsapp'
+    | '/api/oauth/amazon/callback'
     | '/api/oauth/google/callback'
+    | '/api/oauth/instagram/callback'
     | '/api/oauth/melhor-envio/callback'
     | '/api/oauth/mercado-livre/callback'
     | '/api/oauth/meta/callback'
     | '/api/oauth/nuvemshop/callback'
     | '/api/oauth/shopee/callback'
     | '/api/oauth/shopify/callback'
+    | '/api/oauth/tiktok/callback'
     | '/api/oauth/whatsapp/callback'
   fileRoutesById: FileRoutesById
 }
@@ -747,13 +797,16 @@ export interface RootRouteChildren {
   ApiWebhooksShopifyRoute: typeof ApiWebhooksShopifyRoute
   ApiWebhooksTiktokRoute: typeof ApiWebhooksTiktokRoute
   ApiWebhooksWhatsappRoute: typeof ApiWebhooksWhatsappRoute
+  ApiOauthAmazonCallbackRoute: typeof ApiOauthAmazonCallbackRoute
   ApiOauthGoogleCallbackRoute: typeof ApiOauthGoogleCallbackRoute
+  ApiOauthInstagramCallbackRoute: typeof ApiOauthInstagramCallbackRoute
   ApiOauthMelhorEnvioCallbackRoute: typeof ApiOauthMelhorEnvioCallbackRoute
   ApiOauthMercadoLivreCallbackRoute: typeof ApiOauthMercadoLivreCallbackRoute
   ApiOauthMetaCallbackRoute: typeof ApiOauthMetaCallbackRoute
   ApiOauthNuvemshopCallbackRoute: typeof ApiOauthNuvemshopCallbackRoute
   ApiOauthShopeeCallbackRoute: typeof ApiOauthShopeeCallbackRoute
   ApiOauthShopifyCallbackRoute: typeof ApiOauthShopifyCallbackRoute
+  ApiOauthTiktokCallbackRoute: typeof ApiOauthTiktokCallbackRoute
   ApiOauthWhatsappCallbackRoute: typeof ApiOauthWhatsappCallbackRoute
 }
 
@@ -1095,6 +1148,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardLogisticsCarriersRouteImport
       parentRoute: typeof DashboardLogisticsRoute
     }
+    '/_dashboard/logistics/analytics': {
+      id: '/_dashboard/logistics/analytics'
+      path: '/analytics'
+      fullPath: '/logistics/analytics'
+      preLoaderRoute: typeof DashboardLogisticsAnalyticsRouteImport
+      parentRoute: typeof DashboardLogisticsRoute
+    }
     '/_dashboard/fiscal/config': {
       id: '/_dashboard/fiscal/config'
       path: '/config'
@@ -1114,6 +1174,13 @@ declare module '@tanstack/react-router' {
       path: '/api/oauth/whatsapp/callback'
       fullPath: '/api/oauth/whatsapp/callback'
       preLoaderRoute: typeof ApiOauthWhatsappCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/oauth/tiktok/callback': {
+      id: '/api/oauth/tiktok/callback'
+      path: '/api/oauth/tiktok/callback'
+      fullPath: '/api/oauth/tiktok/callback'
+      preLoaderRoute: typeof ApiOauthTiktokCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/oauth/shopify/callback': {
@@ -1158,11 +1225,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiOauthMelhorEnvioCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/oauth/instagram/callback': {
+      id: '/api/oauth/instagram/callback'
+      path: '/api/oauth/instagram/callback'
+      fullPath: '/api/oauth/instagram/callback'
+      preLoaderRoute: typeof ApiOauthInstagramCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/oauth/google/callback': {
       id: '/api/oauth/google/callback'
       path: '/api/oauth/google/callback'
       fullPath: '/api/oauth/google/callback'
       preLoaderRoute: typeof ApiOauthGoogleCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/oauth/amazon/callback': {
+      id: '/api/oauth/amazon/callback'
+      path: '/api/oauth/amazon/callback'
+      fullPath: '/api/oauth/amazon/callback'
+      preLoaderRoute: typeof ApiOauthAmazonCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -1192,6 +1273,7 @@ const DashboardFiscalRouteWithChildren = DashboardFiscalRoute._addFileChildren(
 )
 
 interface DashboardLogisticsRouteChildren {
+  DashboardLogisticsAnalyticsRoute: typeof DashboardLogisticsAnalyticsRoute
   DashboardLogisticsCarriersRoute: typeof DashboardLogisticsCarriersRoute
   DashboardLogisticsIncidentsRoute: typeof DashboardLogisticsIncidentsRoute
   DashboardLogisticsPackingRoute: typeof DashboardLogisticsPackingRoute
@@ -1204,6 +1286,7 @@ interface DashboardLogisticsRouteChildren {
 }
 
 const DashboardLogisticsRouteChildren: DashboardLogisticsRouteChildren = {
+  DashboardLogisticsAnalyticsRoute: DashboardLogisticsAnalyticsRoute,
   DashboardLogisticsCarriersRoute: DashboardLogisticsCarriersRoute,
   DashboardLogisticsIncidentsRoute: DashboardLogisticsIncidentsRoute,
   DashboardLogisticsPackingRoute: DashboardLogisticsPackingRoute,
@@ -1306,13 +1389,16 @@ const rootRouteChildren: RootRouteChildren = {
   ApiWebhooksShopifyRoute: ApiWebhooksShopifyRoute,
   ApiWebhooksTiktokRoute: ApiWebhooksTiktokRoute,
   ApiWebhooksWhatsappRoute: ApiWebhooksWhatsappRoute,
+  ApiOauthAmazonCallbackRoute: ApiOauthAmazonCallbackRoute,
   ApiOauthGoogleCallbackRoute: ApiOauthGoogleCallbackRoute,
+  ApiOauthInstagramCallbackRoute: ApiOauthInstagramCallbackRoute,
   ApiOauthMelhorEnvioCallbackRoute: ApiOauthMelhorEnvioCallbackRoute,
   ApiOauthMercadoLivreCallbackRoute: ApiOauthMercadoLivreCallbackRoute,
   ApiOauthMetaCallbackRoute: ApiOauthMetaCallbackRoute,
   ApiOauthNuvemshopCallbackRoute: ApiOauthNuvemshopCallbackRoute,
   ApiOauthShopeeCallbackRoute: ApiOauthShopeeCallbackRoute,
   ApiOauthShopifyCallbackRoute: ApiOauthShopifyCallbackRoute,
+  ApiOauthTiktokCallbackRoute: ApiOauthTiktokCallbackRoute,
   ApiOauthWhatsappCallbackRoute: ApiOauthWhatsappCallbackRoute,
 }
 export const routeTree = rootRouteImport

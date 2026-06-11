@@ -64,6 +64,7 @@ function LogisticsPage() {
         <Link to="/logistics/incidents"><Button variant="outline" size="sm">Incidentes</Button></Link>
         <Link to="/logistics/returns"><Button variant="outline" size="sm">Devoluções</Button></Link>
         <Link to="/logistics/carriers"><Button variant="outline" size="sm">Transportadoras</Button></Link>
+        <Link to="/logistics/analytics"><Button variant="outline" size="sm">Analytics</Button></Link>
         <Link to="/ops"><Button size="sm">App Ops</Button></Link>
       </div>
 

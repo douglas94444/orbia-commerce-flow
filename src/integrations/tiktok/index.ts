@@ -1,1 +1,1 @@
-export { getTikTokAuthUrl } from "./oauth";
+export { buildTikTokAuthUrl, exchangeTikTokCode, getTikTokAuthUrl } from "./oauth";

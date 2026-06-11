@@ -14,6 +14,9 @@ import { exchangeMelhorEnvioCode } from "@/integrations/melhor-envio";
 import { exchangeGoogleCode, listAccessibleCustomers } from "@/integrations/google";
 import { exchangeMetaCode, getMetaAdAccounts } from "@/integrations/meta";
 import { exchangeMetaCode as exchangeWhatsAppCode } from "@/integrations/meta/whatsapp-oauth";
+import { exchangeAmazonCode } from "@/integrations/amazon";
+import { exchangeTikTokCode } from "@/integrations/tiktok";
+import { exchangeInstagramCode } from "@/integrations/instagram";
 import { logAudit, logIntegration } from "@/shared/lib/logger";
 
 export type OAuthProvider =
@@ -24,7 +27,10 @@ export type OAuthProvider =
   | "meta"
   | "google"
   | "melhor_envio"
-  | "whatsapp";
+  | "whatsapp"
+  | "amazon"
+  | "tiktok"
+  | "instagram";
 
 export async function createOAuthState(
   userId: string,
@@ -451,6 +457,120 @@ export async function completeMetaWhatsAppOAuth(code: string, state: string): Pr
     operation: "whatsapp_oauth_connect",
     status: "success",
     metadata: { phone_number_id: wa.phoneNumberId },
+  });
+
+  return oauthState.redirect_to ?? `/clients/${oauthState.client_id}`;
+}
+
+export async function completeAmazonOAuth(
+  code: string,
+  state: string,
+  sellingPartnerId: string,
+): Promise<string> {
+  const oauthState = await consumeOAuthState(state);
+  if (oauthState.provider !== "amazon" || !oauthState.client_id) {
+    throw new Error("Invalid OAuth state for Amazon");
+  }
+
+  const token = await exchangeAmazonCode(code);
+  const expiresAt = new Date(Date.now() + token.expires_in * 1000).toISOString();
+  const sellerId =
+    sellingPartnerId ||
+    String((oauthState.metadata as Record<string, unknown>)?.seller_id ?? "amazon-seller");
+
+  await storeOAuthConnection({
+    clientId: oauthState.client_id,
+    provider: "amazon",
+    externalAccount: sellerId,
+    accessToken: token.access_token,
+    refreshToken: token.refresh_token ?? null,
+    tokenExpiresAt: expiresAt,
+    userId: oauthState.user_id,
+  });
+
+  await logIntegration({
+    client_id: oauthState.client_id,
+    provider: "amazon",
+    operation: "oauth_connect",
+    status: "success",
+    metadata: { selling_partner_id: sellerId },
+  });
+
+  return oauthState.redirect_to ?? `/clients/${oauthState.client_id}`;
+}
+
+export async function completeTikTokOAuth(
+  code: string,
+  state: string,
+  shopId: string,
+): Promise<string> {
+  const oauthState = await consumeOAuthState(state);
+  if (oauthState.provider !== "tiktok" || !oauthState.client_id) {
+    throw new Error("Invalid OAuth state for TikTok");
+  }
+
+  const token = await exchangeTikTokCode(code);
+  const resolvedShopId =
+    shopId ||
+    token.shop_id ||
+    String((oauthState.metadata as Record<string, unknown>)?.shop_id ?? "");
+  if (!resolvedShopId) throw new Error("shop_id ausente no callback TikTok");
+
+  const expiresAt = new Date(Date.now() + token.access_token_expire_in * 1000).toISOString();
+
+  await storeOAuthConnection({
+    clientId: oauthState.client_id,
+    provider: "tiktok",
+    externalAccount: resolvedShopId,
+    accessToken: token.access_token,
+    refreshToken: token.refresh_token ?? null,
+    tokenExpiresAt: expiresAt,
+    metadata: { shop_id: resolvedShopId },
+    userId: oauthState.user_id,
+  });
+
+  await logIntegration({
+    client_id: oauthState.client_id,
+    provider: "tiktok",
+    operation: "oauth_connect",
+    status: "success",
+    metadata: { shop_id: resolvedShopId },
+  });
+
+  return oauthState.redirect_to ?? `/clients/${oauthState.client_id}`;
+}
+
+export async function completeInstagramOAuth(code: string, state: string): Promise<string> {
+  const oauthState = await consumeOAuthState(state);
+  if (oauthState.provider !== "instagram" || !oauthState.client_id) {
+    throw new Error("Invalid OAuth state for Instagram");
+  }
+
+  const pageId = String((oauthState.metadata as Record<string, unknown>)?.page_id ?? "");
+  if (!pageId) throw new Error("page_id ausente no estado OAuth Instagram");
+
+  const token = await exchangeInstagramCode(code);
+  const expiresAt = token.expires_in
+    ? new Date(Date.now() + token.expires_in * 1000).toISOString()
+    : null;
+
+  await storeOAuthConnection({
+    clientId: oauthState.client_id,
+    provider: "instagram",
+    externalAccount: pageId,
+    accessToken: token.access_token,
+    tokenExpiresAt: expiresAt,
+    scopes: ["commerce_account_read", "instagram_basic"],
+    metadata: { page_id: pageId },
+    userId: oauthState.user_id,
+  });
+
+  await logIntegration({
+    client_id: oauthState.client_id,
+    provider: "instagram",
+    operation: "oauth_connect",
+    status: "success",
+    metadata: { page_id: pageId },
   });
 
   return oauthState.redirect_to ?? `/clients/${oauthState.client_id}`;

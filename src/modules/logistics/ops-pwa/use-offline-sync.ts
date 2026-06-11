@@ -3,6 +3,8 @@ import {
   confirmPickLineFn,
   confirmReceivingLineFn,
   confirmPackingItemFn,
+  startPackingFn,
+  completePackingFn,
 } from "../fulfillly.actions.functions";
 import {
   enqueueOfflineAction,
@@ -24,6 +26,8 @@ export function useOfflineSync() {
 
   const syncQueue = useCallback(async () => {
     const items = await listOfflineActions();
+    const sessionMap = new Map<string, string>();
+
     for (const action of items) {
       try {
         if (action.type === "confirm_pick") {
@@ -34,6 +38,18 @@ export function useOfflineSync() {
           await confirmReceivingLineFn({ data: action.payload as never });
         } else if (action.type === "confirm_pack") {
           await confirmPackingItemFn({ data: action.payload as never });
+        } else if (action.type === "start_pack") {
+          const localSessionId = String(action.payload.localSessionId ?? "");
+          const orderId = String(action.payload.orderId ?? "");
+          const realId = await startPackingFn({ data: { orderId } });
+          if (localSessionId && realId) {
+            sessionMap.set(localSessionId, realId as string);
+          }
+        } else if (action.type === "complete_pack") {
+          const rawSessionId = String(action.payload.sessionId ?? "");
+          const sessionId = sessionMap.get(rawSessionId) ?? rawSessionId;
+          const photoUrls = (action.payload.photoUrls as string[] | undefined) ?? [];
+          await completePackingFn({ data: { sessionId, photoUrls } });
         }
         await removeOfflineAction(action.id);
       } catch {
