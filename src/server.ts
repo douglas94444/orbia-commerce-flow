@@ -70,7 +70,7 @@ export default {
         "sync-tracking",
         "sync-return-tracking",
       ],
-      "*/10 * * * *": ["check-sla"],
+      "*/10 * * * *": ["check-sla", "check-marketplace-penalties"],
       "*/5 * * * *": ["process-outbox"],
       "0 6 * * *": [
         "health-recalc",
@@ -81,6 +81,7 @@ export default {
         "check-stock-alerts",
         "schedule-pickup",
       ],
+      "0 6 1 * *": ["sla-monthly-report"],
       "0 */6 * * *": ["sync-catalog", "compute-rfm"],
       "0 3 * * *": ["cleanup-oauth"],
     };

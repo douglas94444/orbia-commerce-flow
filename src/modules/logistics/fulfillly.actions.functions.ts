@@ -48,7 +48,13 @@ import {
   confirmPackingItem,
   completePackingSession,
 } from "./packing/packing.server";
-import { getSlaDashboard } from "./sla/sla-engine.server";
+import {
+  getSlaDashboard,
+  listSlaAtRiskOrders,
+  listChannelSlaRules,
+  upsertChannelSlaRule,
+} from "./sla/sla-engine.server";
+import { buildSlaMonthlyReport, exportSlaReportCsv } from "./sla/sla-report.server";
 import {
   createReturnRequest,
   approveReturnRequest,
@@ -244,7 +250,64 @@ export const getSlaDashboardFn = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const clientId = await getClientIdForUser(context.userId, context.supabase);
-    return getSlaDashboard(clientId);
+    const [dashboard, rules] = await Promise.all([
+      getSlaDashboard(clientId),
+      listChannelSlaRules(clientId),
+    ]);
+    return { ...dashboard, rules };
+  });
+
+export const listSlaOrdersFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      bucket: z.enum(["on_time", "at_risk", "breached"]).optional(),
+    }),
+  )
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return listSlaAtRiskOrders(clientId, data.bucket);
+  });
+
+export const exportSlaReportCsvFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ month: z.string().optional() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return { csv: await exportSlaReportCsv(clientId, data.month) };
+  });
+
+export const getSlaMonthlyReportFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ month: z.string().optional() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return buildSlaMonthlyReport(clientId, data.month);
+  });
+
+export const upsertChannelSlaRuleFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      channel: z.string().min(1),
+      dispatchHours: z.number().int().positive(),
+      alertHoursBefore: z.number().int().positive(),
+      clientId: z.string().uuid().nullable().optional(),
+      trackingDeadlineHours: z.number().int().positive().nullable().optional(),
+      penaltyDescription: z.string().nullable().optional(),
+    }),
+  )
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const tenantId = await getClientIdForUser(context.userId, context.supabase);
+    await upsertChannelSlaRule({
+      channel: data.channel,
+      dispatchHours: data.dispatchHours,
+      alertHoursBefore: data.alertHoursBefore,
+      clientId: data.clientId ?? tenantId,
+      trackingDeadlineHours: data.trackingDeadlineHours,
+      penaltyDescription: data.penaltyDescription,
+    });
+    return { ok: true };
   });
 
 const receivingSchema = z.object({

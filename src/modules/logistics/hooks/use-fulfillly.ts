@@ -14,6 +14,9 @@ import {
   confirmPackingItemFn,
   completePackingFn,
   getSlaDashboardFn,
+  listSlaOrdersFn,
+  exportSlaReportCsvFn,
+  upsertChannelSlaRuleFn,
   getOpsTasksFn,
   createReceivingAppointmentFn,
   confirmReceivingLineFn,
@@ -89,6 +92,38 @@ export function useSlaDashboard() {
   return useQuery({
     queryKey: ["sla-dashboard"],
     queryFn: () => getSlaDashboardFn(),
+  });
+}
+
+export function useSlaOrders(bucket?: "on_time" | "at_risk" | "breached") {
+  return useQuery({
+    queryKey: ["sla-orders", bucket ?? "all"],
+    queryFn: () => listSlaOrdersFn({ data: bucket ? { bucket } : {} }),
+    staleTime: 10_000,
+  });
+}
+
+export function useExportSlaReportCsv() {
+  return useMutation({
+    mutationFn: (month?: string) => exportSlaReportCsvFn({ data: month ? { month } : {} }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useUpsertChannelSlaRule() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      channel: string;
+      dispatchHours: number;
+      alertHoursBefore: number;
+      trackingDeadlineHours?: number | null;
+      penaltyDescription?: string | null;
+    }) => upsertChannelSlaRuleFn({ data: input }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["sla-dashboard"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 }
 

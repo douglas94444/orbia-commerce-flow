@@ -68,6 +68,9 @@ export function getServerConfig() {
     cron: {
       secret: process.env.CRON_SECRET,
     },
+    orbia: {
+      opsWhatsapp: process.env.ORBIA_OPS_WHATSAPP,
+    },
     pagarMe: {
       apiKey: process.env.PAGARME_API_KEY,
       webhookSecret: process.env.PAGARME_WEBHOOK_SECRET,

@@ -42,6 +42,8 @@ export type CronJobName =
   | "stock-sync-outbox"
   | "schedule-pickup"
   | "sync-return-tracking"
+  | "check-marketplace-penalties"
+  | "sla-monthly-report"
   | "all";
 
 export interface JobResult {
@@ -184,6 +186,20 @@ async function runJob(name: Exclude<CronJobName, "all">): Promise<JobResult> {
         metadata = await syncAllReturnTracking();
         break;
       }
+      case "check-marketplace-penalties": {
+        const { checkMarketplacePenalties } = await import(
+          "@/modules/logistics/sla/marketplace-penalties.server"
+        );
+        metadata = await checkMarketplacePenalties();
+        break;
+      }
+      case "sla-monthly-report": {
+        const { runMonthlySlaReportJob } = await import(
+          "@/modules/logistics/sla/sla-report.server"
+        );
+        metadata = await runMonthlySlaReportJob();
+        break;
+      }
     }
 
     const durationMs = end();
@@ -218,6 +234,7 @@ const JOB_SEQUENCE: Array<Exclude<CronJobName, "all">> = [
   "health-recalc",
   "check-alerts",
   "check-sla",
+  "check-marketplace-penalties",
   "sync-tracking",
   "sync-return-tracking",
   "sync-campaigns",

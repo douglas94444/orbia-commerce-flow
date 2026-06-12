@@ -338,12 +338,44 @@ export async function upsertOrderFromWebhook(
     if (order.shipping.postalCode) metadata.postal_code = order.shipping.postalCode;
   }
 
-  const slaDeadline = await computeSlaDeadline(order.channel);
-
-  const { data, error } = await supabaseAdmin
+  const { data: existing } = await supabaseAdmin
     .from("orders")
-    .upsert(
-      {
+    .select("id, status, nf_status, metadata, channel")
+    .eq("client_id", clientId)
+    .eq("channel", order.channel)
+    .eq("external_id", order.externalId)
+    .maybeSingle();
+
+  let data: { id: string; status: string; nf_status: string };
+
+  if (existing) {
+    const prevMeta = (existing.metadata ?? {}) as Record<string, unknown>;
+    const mergedMetadata = { ...prevMeta, ...metadata };
+    const updatePayload: Record<string, unknown> = {
+      value_cents: order.valueCents,
+      city: order.city,
+      metadata: mergedMetadata,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (order.paymentStatus === "cancelled" || order.paymentStatus === "refunded") {
+      updatePayload.status = "cancelado";
+    }
+
+    const { data: updated, error: updateErr } = await supabaseAdmin
+      .from("orders")
+      .update(updatePayload)
+      .eq("id", existing.id)
+      .select("id, status, nf_status")
+      .single();
+
+    if (updateErr) throw new Error(`Order update failed: ${updateErr.message}`);
+    data = updated;
+  } else {
+    const slaDeadline = await computeSlaDeadline(order.channel, clientId);
+    const { data: inserted, error } = await supabaseAdmin
+      .from("orders")
+      .insert({
         client_id: clientId,
         external_id: order.externalId,
         channel: order.channel,
@@ -355,14 +387,13 @@ export async function upsertOrderFromWebhook(
         sla_deadline_at: slaDeadline,
         sla_alert_sent: false,
         sla_breached: false,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "client_id,channel,external_id" },
-    )
-    .select("id, status, nf_status")
-    .single();
+      })
+      .select("id, status, nf_status")
+      .single();
 
-  if (error) throw new Error(`Order upsert failed: ${error.message}`);
+    if (error) throw new Error(`Order insert failed: ${error.message}`);
+    data = inserted;
+  }
 
   await upsertOrderItems(data.id, order.items, clientId);
   await recordFulfillmentUsage(clientId, "orders_processed");

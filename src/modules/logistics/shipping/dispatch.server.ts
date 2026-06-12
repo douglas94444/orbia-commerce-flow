@@ -23,6 +23,7 @@ interface OrderRow {
   metadata: Record<string, unknown>;
   shipment_external_id: string | null;
   tracking_code: string | null;
+  sla_deadline_at: string | null;
 }
 
 function orderItems(metadata: Record<string, unknown>): NormalizedOrderItem[] {
@@ -55,7 +56,7 @@ export async function dispatchOrder(
   const { data: order, error } = await supabaseAdmin
     .from("orders")
     .select(
-      "id, client_id, external_id, channel, status, nf_status, metadata, shipment_external_id, tracking_code",
+      "id, client_id, external_id, channel, status, nf_status, metadata, shipment_external_id, tracking_code, sla_deadline_at",
     )
     .eq("id", orderId)
     .single();
@@ -96,6 +97,28 @@ export async function dispatchOrder(
   const carrier = quote.providerName;
   const trackingCode = label.trackingCode;
   const shipmentId = label.shipmentId;
+  const dispatchedAt = new Date().toISOString();
+  const slaMet =
+    row.sla_deadline_at != null
+      ? new Date(dispatchedAt) <= new Date(row.sla_deadline_at)
+      : null;
+
+  const customerPhone = String(row.metadata.customer_phone ?? row.metadata.phone ?? "");
+  const nextMetadata: Record<string, unknown> = {
+    ...row.metadata,
+    carrier_provider_id: quote.providerId,
+    shipping_cost_cents: quote.priceCents,
+    label_url: label.labelUrl ?? null,
+    packing_weight_kg: specs.weightKg,
+    packing_length_cm: specs.lengthCm,
+    packing_width_cm: specs.widthCm,
+    packing_height_cm: specs.heightCm,
+    sla_met: slaMet,
+    sla_dispatched_at: dispatchedAt,
+  };
+  if (customerPhone && !row.metadata.tracking_notified_dispatched) {
+    nextMetadata.tracking_notified_dispatched = true;
+  }
 
   const { error: updateErr } = await supabaseAdmin
     .from("orders")
@@ -104,17 +127,8 @@ export async function dispatchOrder(
       carrier,
       tracking_code: trackingCode,
       shipment_external_id: shipmentId,
-      metadata: {
-        ...row.metadata,
-        carrier_provider_id: quote.providerId,
-        shipping_cost_cents: quote.priceCents,
-        label_url: label.labelUrl ?? null,
-        packing_weight_kg: specs.weightKg,
-        packing_length_cm: specs.lengthCm,
-        packing_width_cm: specs.widthCm,
-        packing_height_cm: specs.heightCm,
-      },
-      updated_at: new Date().toISOString(),
+      metadata: nextMetadata,
+      updated_at: dispatchedAt,
     })
     .eq("id", orderId);
 
@@ -148,7 +162,6 @@ export async function dispatchOrder(
     trackingCode,
   );
 
-  const customerPhone = String(row.metadata.customer_phone ?? row.metadata.phone ?? "");
   if (customerPhone && !row.metadata.tracking_notified_dispatched) {
     const { sendTrackingWhatsApp } = await import("../notifications/whatsapp-alerts.server");
     await sendTrackingWhatsApp(
@@ -158,23 +171,6 @@ export async function dispatchOrder(
       trackingCode,
       row.external_id,
     );
-    await supabaseAdmin
-      .from("orders")
-      .update({
-        metadata: {
-          ...row.metadata,
-          carrier_provider_id: quote.providerId,
-          shipping_cost_cents: quote.priceCents,
-          label_url: label.labelUrl ?? null,
-          packing_weight_kg: specs.weightKg,
-          packing_length_cm: specs.lengthCm,
-          packing_width_cm: specs.widthCm,
-          packing_height_cm: specs.heightCm,
-          tracking_notified_dispatched: true,
-        },
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", orderId);
   }
 
   const stockItems = itemsFromOrderMetadata(orderItems(row.metadata));

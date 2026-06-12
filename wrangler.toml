@@ -11,7 +11,7 @@ compatibility_flags = ["nodejs_compat"]
 #   "0 */6 * * *"  — every 6 hours    (sync-campaigns, sync-catalog)
 #   "*/5 * * * *"  — every 5 minutes  (process-outbox)
 [triggers]
-crons = ["0 6 * * *", "0 */6 * * *", "*/5 * * * *", "*/15 * * * *", "*/10 * * * *"]
+crons = ["0 6 * * *", "0 6 1 * *", "0 */6 * * *", "*/5 * * * *", "*/15 * * * *", "*/10 * * * *"]
 
 [vars]
 # Non-secret runtime vars (secrets go in Workers dashboard or via wrangler secret put)

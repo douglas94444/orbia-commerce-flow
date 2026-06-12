@@ -25,6 +25,31 @@ export async function notifyCsOnDeliveryProblem(
   }
 }
 
+/** Abre ticket CS quando SLA de despacho estoura. */
+export async function notifyCsOnSlaBreach(
+  orderId: string,
+  clientId: string,
+  externalId: string,
+): Promise<void> {
+  const { data: staff } = await supabaseAdmin
+    .from("profiles")
+    .select("id")
+    .in("role", ["orbia_admin", "orbia_staff"])
+    .limit(1)
+    .maybeSingle();
+
+  if (staff?.id) {
+    await supabaseAdmin.from("cs_activities").insert({
+      client_id: clientId,
+      staff_id: staff.id,
+      kind: "support_ticket",
+      notes: `SLA de despacho estourado — pedido ${externalId}. Priorizar expedição.`,
+      metadata: { order_id: orderId, auto: true, type: "sla_breach" },
+    });
+    await refreshClientLastContact(clientId);
+  }
+}
+
 /** Notifica CS quando pedido é entregue — cria nota de onboarding e alerta se SLA longo. */
 export async function notifyCsOnOrderDelivered(
   orderId: string,

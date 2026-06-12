@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { dispatchOrder as dispatchOrderInternal } from "./shipping.server";
+import { getSlaDashboard } from "./sla/sla-engine.server";
 import type {
   Order,
   OrderStatus,
@@ -99,9 +100,17 @@ export const getLogisticsStats = createServerFn({ method: "GET" })
     const awaitingNf = orders.filter(
       (o: { status: string }) => o.status === "aguardando_nf",
     ).length;
-    const delivered = orders.filter((o: { status: string }) => o.status === "entregue").length;
-    const total = orders.length;
-    const slaPercent = total > 0 ? Math.round((delivered / total) * 100 * 10) / 10 : 0;
+    const { data: member } = await context.supabase
+      .from("client_members")
+      .select("client_id")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+
+    let slaPercent = 100;
+    if (member?.client_id) {
+      const slaDash = await getSlaDashboard(member.client_id as string);
+      slaPercent = slaDash.compliancePercent;
+    }
 
     const criticalSkus = (inventory as Array<{ sku: string; units: number; reserved: number }>).filter(
       (i) => {

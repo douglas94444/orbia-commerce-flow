@@ -1,5 +1,31 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { getServerConfig } from "@/lib/config.server";
 import { logIntegration } from "@/shared/lib/logger";
+
+export async function sendWhatsAppToOrbiaOps(message: string): Promise<void> {
+  const phone = getServerConfig().orbia.opsWhatsapp;
+  if (!phone) {
+    await logIntegration({
+      provider: "whatsapp",
+      operation: "orbia_ops_alert_skipped",
+      status: "success",
+      metadata: { reason: "ORBIA_OPS_WHATSAPP not configured" },
+    });
+    return;
+  }
+
+  try {
+    const { sendWhatsAppMessageSimple } = await import("@/integrations/whatsapp/client");
+    await sendWhatsAppMessageSimple({ to: phone, body: message });
+  } catch (err) {
+    await logIntegration({
+      provider: "whatsapp",
+      operation: "orbia_ops_alert",
+      status: "error",
+      error_message: (err as Error).message,
+    });
+  }
+}
 
 export async function sendWhatsAppToClient(
   clientId: string,
