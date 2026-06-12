@@ -11,6 +11,15 @@ import {
   resolveOperationAlert,
   toggleOnboardingTask,
 } from "../actions.functions";
+import {
+  getClientLogisticsReportFn,
+  exportClientLogisticsQbrFn,
+  getClientSlaRulesFn,
+  upsertClientSlaRuleFn,
+  getPackingProfileFn,
+  upsertPackingProfileFn,
+} from "@/modules/logistics/fulfillly.actions.functions";
+import { listClientsWithOverageFn } from "@/modules/billing/actions.functions";
 import { ALERTS_KEY } from "@/modules/analytics/hooks/use-analytics";
 
 export const SUCCESS_PORTFOLIO_KEY = ["success-portfolio"] as const;
@@ -111,5 +120,83 @@ export function useResolveOperationAlert() {
       toast.success("Alerta resolvido.");
     },
     onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useClientLogisticsReport(clientId: string) {
+  return useQuery({
+    queryKey: ["client-logistics-report", clientId],
+    queryFn: () => getClientLogisticsReportFn({ data: { clientId } }),
+    staleTime: 60_000,
+  });
+}
+
+export function useExportClientLogisticsQbr(clientId: string) {
+  return useMutation({
+    mutationFn: () => exportClientLogisticsQbrFn({ data: { clientId } }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useClientSlaRules(clientId: string) {
+  return useQuery({
+    queryKey: ["client-sla-rules", clientId],
+    queryFn: () => getClientSlaRulesFn({ data: { clientId } }),
+    staleTime: 60_000,
+  });
+}
+
+export function useUpsertClientSlaRule(clientId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      channel: string;
+      dispatchHours: number;
+      alertHoursBefore: number;
+    }) =>
+      upsertClientSlaRuleFn({
+        data: { clientId, ...input },
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["client-sla-rules", clientId] });
+      qc.invalidateQueries({ queryKey: ["client-logistics-report", clientId] });
+      toast.success("Regra SLA salva.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useClientPackingProfile(clientId: string) {
+  return useQuery({
+    queryKey: ["packing-profile", clientId],
+    queryFn: () => getPackingProfileFn({ data: { clientId } }),
+    staleTime: 60_000,
+  });
+}
+
+export function useUpsertPackingProfile(clientId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      checklistItems: string[];
+      brandingUrl?: string | null;
+      insertMaterialSku?: string | null;
+    }) =>
+      upsertPackingProfileFn({
+        data: { clientId, ...input },
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["packing-profile", clientId] });
+      toast.success("Perfil de embalagem salvo.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useClientsWithOverage() {
+  return useQuery({
+    queryKey: ["clients-with-overage"],
+    queryFn: () => listClientsWithOverageFn(),
+    staleTime: 60_000,
   });
 }

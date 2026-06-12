@@ -87,8 +87,13 @@ import { listDispatchQueue } from "./shipping/dispatch-queue.server";
 import {
   listClientCarrierConfigs,
   listAvailableCarrierProviders,
+  listClientOAuthConnections,
   upsertClientCarrierConfig,
 } from "./shipping/carrier-config.server";
+import {
+  getPackingProfile,
+  upsertPackingProfile,
+} from "./packing/packing-profile.server";
 import { getReturnReasonsReport } from "./returns/returns.server";
 import { getLogisticsAnalytics } from "./analytics/logistics-analytics.server";
 import { getOpsPickQueue, getOpsPickOrderProgress } from "./ops/ops-tasks.server";
@@ -101,10 +106,44 @@ import {
   exportCountReport,
 } from "./wms/inventory-count.server";
 
+async function requireStaff(
+  userId: string,
+  supabase: { from: (t: string) => ReturnType<typeof supabaseAdmin.from> },
+) {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", userId)
+    .single();
+  if (!profile || !["orbia_admin", "orbia_staff"].includes(profile.role as string)) {
+    throw new Error("Apenas equipe Orbia.");
+  }
+}
+
 async function getClientIdForUser(
   userId: string,
   supabase: { from: (t: string) => ReturnType<typeof supabaseAdmin.from> },
+  explicitClientId?: string,
 ): Promise<string> {
+  if (explicitClientId) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", userId)
+      .single();
+    if (profile && ["orbia_admin", "orbia_staff"].includes(profile.role as string)) {
+      return explicitClientId;
+    }
+    const { data: membership } = await supabase
+      .from("client_members")
+      .select("client_id")
+      .eq("user_id", userId)
+      .eq("client_id", explicitClientId)
+      .eq("status", "active")
+      .maybeSingle();
+    if (membership?.client_id) return explicitClientId;
+  }
+
   const { data } = await supabase
     .from("client_members")
     .select("client_id")
@@ -656,11 +695,12 @@ export const listCarrierConfigsFn = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const clientId = await getClientIdForUser(context.userId, context.supabase);
-    const [configs, providers] = await Promise.all([
+    const [configs, providers, oauthConnections] = await Promise.all([
       listClientCarrierConfigs(clientId),
       Promise.resolve(listAvailableCarrierProviders()),
+      listClientOAuthConnections(clientId),
     ]);
-    return { configs, providers };
+    return { configs, providers, oauthConnections };
   });
 
 const carrierConfigSchema = z.object({
@@ -884,4 +924,122 @@ export const listRecentStockSyncsFn = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const clientId = await getClientIdForUser(context.userId, context.supabase);
     return listRecentStockSyncs(clientId);
+  });
+
+export const checkOpsAccessFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: profile } = await context.supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", context.userId)
+      .single();
+
+    if (profile && ["orbia_admin", "orbia_staff"].includes(profile.role as string)) {
+      return { allowed: true as const, role: profile.role as string };
+    }
+
+    const { data: membership } = await context.supabase
+      .from("client_members")
+      .select("role, client_id")
+      .eq("user_id", context.userId)
+      .eq("status", "active")
+      .maybeSingle();
+
+    const opsRoles = new Set(["owner", "admin", "manager", "fulfillment_operator"]);
+    if (membership && opsRoles.has(membership.role as string)) {
+      return {
+        allowed: true as const,
+        role: membership.role as string,
+        clientId: membership.client_id as string,
+      };
+    }
+
+    return { allowed: false as const, role: (membership?.role as string | null) ?? null };
+  });
+
+export const getClientLogisticsReportFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ clientId: z.string().uuid() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await requireStaff(context.userId, context.supabase);
+    const { buildClientLogisticsReport } = await import(
+      "./analytics/client-logistics-report.server"
+    );
+    return buildClientLogisticsReport(data.clientId);
+  });
+
+export const exportClientLogisticsQbrFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ clientId: z.string().uuid() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await requireStaff(context.userId, context.supabase);
+    const { exportClientLogisticsQbrCsv } = await import(
+      "./analytics/client-logistics-report.server"
+    );
+    return { csv: await exportClientLogisticsQbrCsv(data.clientId) };
+  });
+
+export const getClientSlaRulesFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ clientId: z.string().uuid() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await requireStaff(context.userId, context.supabase);
+    return listChannelSlaRules(data.clientId);
+  });
+
+const clientSlaRuleSchema = z.object({
+  clientId: z.string().uuid(),
+  channel: z.string().min(1),
+  dispatchHours: z.number().int().min(1),
+  alertHoursBefore: z.number().int().min(0),
+  trackingDeadlineHours: z.number().int().nullable().optional(),
+  penaltyDescription: z.string().nullable().optional(),
+});
+
+export const upsertClientSlaRuleFn = createServerFn({ method: "POST" })
+  .inputValidator(clientSlaRuleSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await requireStaff(context.userId, context.supabase);
+    await upsertChannelSlaRule({
+      channel: data.channel,
+      dispatchHours: data.dispatchHours,
+      alertHoursBefore: data.alertHoursBefore,
+      clientId: data.clientId,
+      trackingDeadlineHours: data.trackingDeadlineHours,
+      penaltyDescription: data.penaltyDescription,
+    });
+    return { ok: true };
+  });
+
+export const getPackingProfileFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ clientId: z.string().uuid().optional() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = data.clientId
+      ? await getClientIdForUser(context.userId, context.supabase, data.clientId)
+      : await getClientIdForUser(context.userId, context.supabase);
+    return getPackingProfile(clientId);
+  });
+
+const packingProfileSchema = z.object({
+  clientId: z.string().uuid().optional(),
+  checklistItems: z.array(z.string()).min(1),
+  brandingUrl: z.string().nullable().optional(),
+  insertMaterialSku: z.string().nullable().optional(),
+});
+
+export const upsertPackingProfileFn = createServerFn({ method: "POST" })
+  .inputValidator(packingProfileSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = data.clientId
+      ? await getClientIdForUser(context.userId, context.supabase, data.clientId)
+      : await getClientIdForUser(context.userId, context.supabase);
+    return upsertPackingProfile(clientId, {
+      checklistItems: data.checklistItems,
+      brandingUrl: data.brandingUrl,
+      insertMaterialSku: data.insertMaterialSku,
+    });
   });

@@ -15,10 +15,12 @@ import { StatusPill } from "@/components/dashboard/status-pill";
 import { Button } from "@/components/ui/button";
 import {
   useAtRiskClients,
+  useClientsWithOverage,
   useOnboardingPipeline,
   useResolveOperationAlert,
   useSuccessPortfolio,
 } from "@/modules/admin/hooks/use-admin";
+import { formatBRL } from "@/lib/format";
 import { useOperationAlerts } from "@/modules/analytics/hooks/use-analytics";
 import type { PlanTier } from "@/types/orbia";
 
@@ -33,6 +35,7 @@ function SuccessPage() {
   const { data: atRisk = [], isLoading: loadingAtRisk } = useAtRiskClients();
   const { data: alerts = [], isLoading: loadingAlerts } = useOperationAlerts();
   const resolveAlert = useResolveOperationAlert();
+  const { data: overageClients = [], isLoading: loadingOverage } = useClientsWithOverage();
 
   const loading = loadingPortfolio || loadingPipeline;
 
@@ -44,7 +47,7 @@ function SuccessPage() {
         description="Carteira ativa, onboarding, NPS, QBRs e triagem de alertas operacionais."
       />
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
         <KpiCard
           label="NPS (90d)"
           value={loadingPortfolio ? "—" : portfolio?.avgNps90d != null ? String(portfolio.avgNps90d) : "—"}
@@ -73,7 +76,72 @@ function SuccessPage() {
           icon={Users}
           accent="warning"
         />
+        <KpiCard
+          label="Pedidos Fulfillly"
+          value={loadingPortfolio ? "—" : String(portfolio?.fulfillmentOrdersMonth ?? 0)}
+          hint="Carteira — mês corrente"
+          icon={Users}
+          accent="primary"
+        />
+        <KpiCard
+          label="Excedente fulfillment"
+          value={
+            loadingPortfolio
+              ? "—"
+              : formatBRL((portfolio?.fulfillmentOverageCents ?? 0) / 100, true)
+          }
+          hint={`${portfolio?.clientsWithOverage ?? 0} clientes · SLA médio ${portfolio?.avgSlaCompliance ?? 100}%`}
+          icon={AlertTriangle}
+          accent="warning"
+        />
       </div>
+
+      <Panel title="Excedentes de fulfillment" subtitle="Clientes acima da franquia — mês corrente">
+        {loadingOverage ? (
+          <div className="h-24 animate-pulse rounded-xl bg-muted/40" />
+        ) : overageClients.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhum excedente pendente.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs uppercase text-muted-foreground">
+                  <th className="pb-2 pr-4">Cliente</th>
+                  <th className="pb-2 pr-4">Plano</th>
+                  <th className="pb-2 pr-4">Pedidos</th>
+                  <th className="pb-2 pr-4">Excedente</th>
+                  <th className="pb-2 pr-4">Valor</th>
+                  <th className="pb-2">Cobrado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {overageClients.map((row) => (
+                  <tr key={row.clientId} className="border-b border-border/50">
+                    <td className="py-2 pr-4">
+                      <Link
+                        to="/clients/$id"
+                        params={{ id: row.clientId }}
+                        className="hover:text-primary"
+                      >
+                        {row.clientName}
+                      </Link>
+                    </td>
+                    <td className="py-2 pr-4">
+                      <PlanBadge plan={row.plan as PlanTier} />
+                    </td>
+                    <td className="py-2 pr-4 font-mono">
+                      {row.ordersProcessed}/{row.included}
+                    </td>
+                    <td className="py-2 pr-4 font-mono text-warning">{row.overageOrders}</td>
+                    <td className="py-2 pr-4 font-mono">{formatBRL(row.overageCents / 100)}</td>
+                    <td className="py-2 font-mono text-xs">{row.charged ? "Sim" : "Pendente"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
         <div className="space-y-6">

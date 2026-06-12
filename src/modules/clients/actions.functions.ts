@@ -267,7 +267,7 @@ export const getCurrentClient = createServerFn({ method: "GET" })
 
 const inviteSchema = z.object({
   email: z.string().email(),
-  role: z.enum(["admin", "manager", "viewer"]).default("viewer"),
+  role: z.enum(["admin", "manager", "viewer", "fulfillment_operator"]).default("viewer"),
   clientId: z.string().uuid().optional(),
 });
 

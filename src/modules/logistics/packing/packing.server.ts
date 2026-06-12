@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { getPackingProfile } from "./packing-profile.server";
 
 export interface BoxSuggestion {
   boxType: string;
@@ -21,10 +22,17 @@ export function suggestBoxType(
   return { boxType: "XL", reason: "Pacote extra grande" };
 }
 
+export interface PackingSessionStart {
+  sessionId: string;
+  checklist: string[];
+  brandingUrl: string | null;
+  insertMaterialSku: string | null;
+}
+
 export async function startPackingSession(
   orderId: string,
   operatorId: string,
-): Promise<string> {
+): Promise<PackingSessionStart> {
   const { data: order } = await supabaseAdmin
     .from("orders")
     .select("id, client_id, status")
@@ -68,7 +76,14 @@ export async function startPackingSession(
     .single();
 
   if (error) throw new Error(error.message);
-  return data.id as string;
+
+  const profile = await getPackingProfile(order.client_id as string);
+  return {
+    sessionId: data.id as string,
+    checklist: profile.checklistItems,
+    brandingUrl: profile.brandingUrl,
+    insertMaterialSku: profile.insertMaterialSku,
+  };
 }
 
 export async function confirmPackingItem(

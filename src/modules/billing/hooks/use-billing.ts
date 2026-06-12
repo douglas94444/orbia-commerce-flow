@@ -8,6 +8,7 @@ import {
   startMercadoPagoCheckout,
   getClientSubscription,
   getFulfillmentBillingSummary,
+  listFulfillmentUsageHistoryFn,
 } from "../actions.functions";
 
 export const SUBSCRIPTIONS_KEY = ["subscriptions"] as const;
@@ -48,6 +49,16 @@ export function useFulfillmentBilling() {
   return useQuery({
     queryKey: FULFILLMENT_BILLING_KEY,
     queryFn: () => getFulfillmentBillingSummary(),
+    staleTime: 60_000,
+  });
+}
+
+export const FULFILLMENT_HISTORY_KEY = ["fulfillment-usage-history"] as const;
+
+export function useFulfillmentUsageHistory() {
+  return useQuery({
+    queryKey: FULFILLMENT_HISTORY_KEY,
+    queryFn: () => listFulfillmentUsageHistoryFn(),
     staleTime: 60_000,
   });
 }

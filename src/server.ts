@@ -81,7 +81,7 @@ export default {
         "check-stock-alerts",
         "schedule-pickup",
       ],
-      "0 6 1 * *": ["sla-monthly-report"],
+      "0 6 1 * *": ["sla-monthly-report", "charge-fulfillment-overage"],
       "0 */6 * * *": ["sync-catalog", "compute-rfm"],
       "0 3 * * *": ["cleanup-oauth"],
     };

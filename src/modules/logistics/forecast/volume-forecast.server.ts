@@ -73,4 +73,11 @@ export async function recordFulfillmentUsage(
       [field]: 1,
     });
   }
+
+  if (field === "orders_processed") {
+    const { checkFulfillmentQuotaAlerts } = await import(
+      "@/modules/billing/fulfillment-billing.server"
+    );
+    await checkFulfillmentQuotaAlerts(clientId).catch(() => undefined);
+  }
 }

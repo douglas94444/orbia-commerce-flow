@@ -4,6 +4,7 @@ import { useSession } from "@/modules/auth/hooks/use-session";
 import { useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useOfflineSync } from "@/modules/logistics/ops-pwa/use-offline-sync";
+import { useOpsAccess } from "@/modules/auth/hooks/use-ops-access";
 
 export const Route = createFileRoute("/ops")({
   head: () => ({ meta: [{ title: "Fulfillly Ops — Orbia" }] }),
@@ -14,10 +15,17 @@ function OpsLayout() {
   const { session, loading } = useSession();
   const navigate = useNavigate();
   const { isOnline, pendingCount } = useOfflineSync();
+  const { data: opsAccess, isLoading: loadingOps } = useOpsAccess();
 
   useEffect(() => {
     if (!loading && !session) navigate({ to: "/login" });
   }, [loading, session, navigate]);
+
+  useEffect(() => {
+    if (!loadingOps && opsAccess && !opsAccess.allowed) {
+      navigate({ to: "/login" });
+    }
+  }, [loadingOps, opsAccess, navigate]);
 
   useEffect(() => {
     if ("serviceWorker" in navigator) {

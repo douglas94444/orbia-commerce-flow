@@ -3,7 +3,7 @@ import { Banknote } from 'lucide-react'
 import { PageIntro, Panel } from '@/components/dashboard/panel'
 import { PlanBadge } from '@/components/dashboard/plan-badge'
 import { formatBRL } from '@/lib/format'
-import { useMrrStats, useSubscriptions, useTransactions, useFulfillmentBilling } from '@/modules/billing/hooks/use-billing'
+import { useMrrStats, useSubscriptions, useTransactions, useFulfillmentBilling, useFulfillmentUsageHistory } from '@/modules/billing/hooks/use-billing'
 
 export const Route = createFileRoute('/_dashboard/billing')({
   head: () => ({ meta: [{ title: 'Billing — Orbia' }] }),
@@ -15,6 +15,7 @@ function BillingPage() {
   const { data: subs = [], isLoading: loadingSubs } = useSubscriptions()
   const { data: txs = [], isLoading: loadingTxs } = useTransactions()
   const { data: fulfillment, isLoading: loadingFulfillment } = useFulfillmentBilling()
+  const { data: fulfillmentHistory = [], isLoading: loadingHistory } = useFulfillmentUsageHistory()
 
   return (
     <div className="space-y-6">
@@ -71,6 +72,37 @@ function BillingPage() {
                 {fulfillment.picksCompleted} / {fulfillment.packsCompleted} / {fulfillment.returnsHandled}
               </p>
             </div>
+          </div>
+        )}
+      </Panel>
+
+      <Panel title="Histórico fulfillment" subtitle="Últimos 6 meses">
+        {loadingHistory ? (
+          <div className="h-24 animate-pulse rounded-xl bg-muted/40" />
+        ) : fulfillmentHistory.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Sem histórico registrado.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs uppercase text-muted-foreground">
+                  <th className="pb-2 pr-4">Mês</th>
+                  <th className="pb-2 pr-4">Pedidos</th>
+                  <th className="pb-2 pr-4">Excedente</th>
+                  <th className="pb-2">Cobrança</th>
+                </tr>
+              </thead>
+              <tbody>
+                {fulfillmentHistory.map((row) => (
+                  <tr key={row.periodMonth} className="border-b border-border/50">
+                    <td className="py-2 pr-4 font-mono">{row.periodMonth.slice(0, 7)}</td>
+                    <td className="py-2 pr-4 font-mono">{row.ordersProcessed}</td>
+                    <td className="py-2 pr-4 font-mono text-warning">{row.overageOrders}</td>
+                    <td className="py-2 font-mono">{formatBRL(row.overageCents / 100)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </Panel>

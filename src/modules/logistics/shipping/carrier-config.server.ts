@@ -33,6 +33,31 @@ export function listAvailableCarrierProviders(): Array<{ id: string; name: strin
   return listCarrierProviders().map((p) => ({ id: p.id, name: p.name }));
 }
 
+export interface ClientOAuthConnectionOption {
+  id: string;
+  provider: string;
+  externalAccount: string | null;
+}
+
+export async function listClientOAuthConnections(
+  clientId: string,
+): Promise<ClientOAuthConnectionOption[]> {
+  const { data, error } = await supabaseAdmin
+    .from("oauth_connections")
+    .select("id, provider, external_account")
+    .eq("client_id", clientId)
+    .eq("is_active", true)
+    .order("provider");
+
+  if (error) throw new Error(error.message);
+
+  return (data ?? []).map((row) => ({
+    id: row.id as string,
+    provider: row.provider as string,
+    externalAccount: (row.external_account as string | null) ?? null,
+  }));
+}
+
 export async function upsertClientCarrierConfig(
   clientId: string,
   input: {

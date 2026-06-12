@@ -41,6 +41,7 @@ function PortalSettingsPage() {
   const { data: currentClient } = useCurrentClient()
   const { mutate, isPending } = useUpdateProfile()
   const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteRole, setInviteRole] = useState<'admin' | 'manager' | 'viewer' | 'fulfillment_operator'>('viewer')
   const [inviting, setInviting] = useState(false)
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm({
@@ -65,7 +66,7 @@ function PortalSettingsPage() {
     if (!inviteEmail) return
     setInviting(true)
     try {
-      await inviteClientMember({ data: { email: inviteEmail, role: 'viewer' } })
+      await inviteClientMember({ data: { email: inviteEmail, role: inviteRole } })
       toast.success('Convite enviado.')
       setInviteEmail('')
     } catch (err) {
@@ -191,12 +192,25 @@ function PortalSettingsPage() {
 
       {canInvite && (
         <Panel title="Convidar membro" action={<UserPlus className="size-4 text-muted-foreground" />}>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Input
+              className="min-w-[200px] flex-1"
               placeholder="email@loja.com"
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
             />
+            <select
+              className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              value={inviteRole}
+              onChange={(e) =>
+                setInviteRole(e.target.value as typeof inviteRole)
+              }
+            >
+              <option value="viewer">Visualizador</option>
+              <option value="manager">Gerente</option>
+              <option value="admin">Admin</option>
+              <option value="fulfillment_operator">Operador galpão</option>
+            </select>
             <Button type="button" disabled={inviting || !inviteEmail} onClick={handleInvite}>
               Convidar
             </Button>

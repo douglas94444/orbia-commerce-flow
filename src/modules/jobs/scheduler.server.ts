@@ -44,6 +44,7 @@ export type CronJobName =
   | "sync-return-tracking"
   | "check-marketplace-penalties"
   | "sla-monthly-report"
+  | "charge-fulfillment-overage"
   | "all";
 
 export interface JobResult {
@@ -152,15 +153,11 @@ async function runJob(name: Exclude<CronJobName, "all">): Promise<JobResult> {
         const { predictStockRupture } = await import(
           "@/modules/logistics/wms/stock-rupture.server"
         );
-        const { chargeFulfillmentOverage } = await import(
-          "@/modules/billing/fulfillment-billing.server"
-        );
         for (const c of clients ?? []) {
           const skus = await checkMinStockAlerts(c.id);
           critical += skus.length;
           const forecasts = await predictStockRupture(c.id);
           ruptureRisk += forecasts.filter((f) => f.risk === "critico").length;
-          await chargeFulfillmentOverage(c.id).catch(() => null);
         }
         metadata = { critical, ruptureRisk };
         break;
@@ -198,6 +195,13 @@ async function runJob(name: Exclude<CronJobName, "all">): Promise<JobResult> {
           "@/modules/logistics/sla/sla-report.server"
         );
         metadata = await runMonthlySlaReportJob();
+        break;
+      }
+      case "charge-fulfillment-overage": {
+        const { runFulfillmentOverageJob } = await import(
+          "@/modules/billing/fulfillment-billing.server"
+        );
+        metadata = await runFulfillmentOverageJob();
         break;
       }
     }
@@ -245,6 +249,7 @@ const JOB_SEQUENCE: Array<Exclude<CronJobName, "all">> = [
   "forecast-volume",
   "check-stock-alerts",
   "schedule-pickup",
+  "charge-fulfillment-overage",
   "cleanup-oauth",
 ];
 

@@ -23,6 +23,7 @@ function CarriersPage() {
 
   const configs = data?.configs ?? [];
   const providers = data?.providers ?? [];
+  const oauthConnections = data?.oauthConnections ?? [];
 
   const handleSave = () => {
     upsert.mutate({
@@ -75,12 +76,20 @@ function CarriersPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-muted-foreground">Ref. credenciais (opcional)</label>
-            <Input
-              placeholder="oauth_connections / env ref"
+            <label className="mb-1 block text-xs text-muted-foreground">Conexão OAuth</label>
+            <select
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
               value={credentialsRef}
               onChange={(e) => setCredentialsRef(e.target.value)}
-            />
+            >
+              <option value="">— Padrão / env —</option>
+              {oauthConnections.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.provider}
+                  {c.externalAccount ? ` (${c.externalAccount})` : ""}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex flex-col gap-3 pt-2">
             <label className="flex items-center justify-between text-sm">

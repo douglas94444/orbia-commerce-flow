@@ -361,13 +361,40 @@ export const chargeFulfillmentOverageFn = createServerFn({ method: "POST" })
       .select("id")
       .eq("status", "active");
 
-    const { chargeFulfillmentOverage } = await import("./fulfillment-billing.server");
-    let charged = 0;
-    for (const c of clients ?? []) {
-      const txId = await chargeFulfillmentOverage(c.id);
-      if (txId) charged += 1;
+    const { runFulfillmentOverageJob } = await import("./fulfillment-billing.server");
+    return runFulfillmentOverageJob();
+  });
+
+export const listFulfillmentUsageHistoryFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: membership } = await context.supabase
+      .from("client_members")
+      .select("client_id")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+
+    if (!membership) return [];
+
+    const { listFulfillmentUsageHistory } = await import("./fulfillment-billing.server");
+    return listFulfillmentUsageHistory(membership.client_id);
+  });
+
+export const listClientsWithOverageFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: profile } = await context.supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", context.userId)
+      .single();
+
+    if (!profile || !["orbia_admin", "orbia_staff"].includes(profile.role as string)) {
+      throw new Error("Apenas equipe Orbia.");
     }
-    return { charged };
+
+    const { listClientsWithOverage } = await import("./fulfillment-billing.server");
+    return listClientsWithOverage();
   });
 
 export const cancelSubscription = createServerFn({ method: "POST" })

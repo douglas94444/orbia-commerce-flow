@@ -30,6 +30,11 @@ export interface SuccessPortfolio {
   qbrsNext14d: number;
   criticalAlerts: number;
   staleContactClients: number;
+  fulfillmentOrdersMonth: number;
+  fulfillmentOverageOrders: number;
+  fulfillmentOverageCents: number;
+  clientsWithOverage: number;
+  avgSlaCompliance: number;
 }
 
 export interface OnboardingPipelineItem {
@@ -103,6 +108,11 @@ export const getSuccessPortfolio = createServerFn({ method: "GET" })
 
     const staleContactClients = (clients ?? []).filter((c) => (c.last_contact_days ?? 0) > 14).length;
 
+    const { getPortfolioFulfillmentStats } = await import(
+      "@/modules/logistics/analytics/client-logistics-report.server"
+    );
+    const fulfillment = await getPortfolioFulfillmentStats();
+
     return {
       activeClients,
       avgHealth,
@@ -110,6 +120,11 @@ export const getSuccessPortfolio = createServerFn({ method: "GET" })
       qbrsNext14d: qbrsNext14d ?? 0,
       criticalAlerts: criticalAlerts ?? 0,
       staleContactClients,
+      fulfillmentOrdersMonth: fulfillment.totalOrdersMonth,
+      fulfillmentOverageOrders: fulfillment.totalOverageOrders,
+      fulfillmentOverageCents: fulfillment.totalOverageCents,
+      clientsWithOverage: fulfillment.clientsWithOverage,
+      avgSlaCompliance: fulfillment.avgSlaCompliance,
     };
   });
 
