@@ -13,6 +13,9 @@ import {
   startPackingFn,
   confirmPackingItemFn,
   completePackingFn,
+  getPackingOrderItemsFn,
+  dispatchOpsOrderFn,
+  getOperatorPerformanceFn,
   getSlaDashboardFn,
   listSlaOrdersFn,
   exportSlaReportCsvFn,
@@ -241,17 +244,35 @@ export function useCompletePickTask() {
 }
 
 export function useStartPacking() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (orderId: string) => startPackingFn({ data: { orderId } }),
+    onSuccess: (_res, orderId) => {
+      qc.invalidateQueries({ queryKey: ["packing-order-items", orderId] });
+      toast.success("Sessão de packing iniciada");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 }
 
+export function usePackingOrderItems(orderId: string | undefined) {
+  return useQuery({
+    queryKey: ["packing-order-items", orderId],
+    queryFn: () => getPackingOrderItemsFn({ data: { orderId: orderId! } }),
+    enabled: !!orderId,
+    refetchInterval: 10_000,
+  });
+}
+
 export function useConfirmPackingItem() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: { orderId: string; sku: string; qty: number }) =>
       confirmPackingItemFn({ data: input }),
-    onSuccess: () => toast.success("Item embalado"),
+    onSuccess: (_res, vars) => {
+      qc.invalidateQueries({ queryKey: ["packing-order-items", vars.orderId] });
+      toast.success("Item embalado");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 }
@@ -428,6 +449,27 @@ export function useDispatchQueue() {
     queryKey: ["dispatch-queue"],
     queryFn: () => listDispatchQueueFn(),
     staleTime: 10_000,
+  });
+}
+
+export function useDispatchOpsOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (orderId: string) => dispatchOpsOrderFn({ data: { orderId } }),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ["dispatch-queue"] });
+      qc.invalidateQueries({ queryKey: ["orders"] });
+      toast.success(`Despachado — rastreio ${res.trackingCode}`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useOperatorPerformance() {
+  return useQuery({
+    queryKey: ["operator-performance"],
+    queryFn: () => getOperatorPerformanceFn(),
+    staleTime: 60_000,
   });
 }
 

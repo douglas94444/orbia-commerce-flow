@@ -86,6 +86,28 @@ export async function startPackingSession(
   };
 }
 
+export interface PackingOrderItem {
+  sku: string;
+  qty: number;
+  packedQty: number;
+}
+
+export async function getPackingOrderItems(orderId: string): Promise<PackingOrderItem[]> {
+  const { data, error } = await supabaseAdmin
+    .from("order_items")
+    .select("sku, qty, packed_qty")
+    .eq("order_id", orderId)
+    .order("sku");
+
+  if (error) throw new Error(error.message);
+
+  return (data ?? []).map((row) => ({
+    sku: row.sku as string,
+    qty: row.qty as number,
+    packedQty: (row.packed_qty as number) ?? 0,
+  }));
+}
+
 export async function confirmPackingItem(
   orderId: string,
   sku: string,

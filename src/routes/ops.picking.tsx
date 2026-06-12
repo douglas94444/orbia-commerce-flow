@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   useConfirmPickLine,
@@ -7,10 +7,16 @@ import {
   useOpsTasks,
 } from "@/modules/logistics/hooks/use-fulfillly";
 import { useOfflineSync } from "@/modules/logistics/ops-pwa/use-offline-sync";
+import { playOpsError, playOpsSuccess } from "@/modules/logistics/ops-pwa/use-ops-feedback";
+import {
+  getSlaBucket,
+  SLA_BUCKET_CLASS,
+  SLA_BUCKET_LABEL,
+} from "@/modules/logistics/ops-pwa/sla-bucket";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BarcodeScanner } from "@/modules/logistics/ops-pwa/barcode-scanner";
-import { AlertTriangle, CheckCircle2, Loader2, MapPin, Navigation } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, Loader2, MapPin, Navigation } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 
 type PickLine = {
@@ -20,7 +26,7 @@ type PickLine = {
   qtyRequired: number;
   orderExternalId: string;
   locationLabel: string | null;
-  sortOrder: number;
+  slaDeadlineAt: string | null;
 };
 
 type PickOrderProgress = {
@@ -28,6 +34,7 @@ type PickOrderProgress = {
   orderExternalId: string;
   pickedCount: number;
   totalCount: number;
+  slaDeadlineAt: string | null;
 };
 
 export const Route = createFileRoute("/ops/picking")({
@@ -49,13 +56,8 @@ function OpsPickingPage() {
   const notFound = useMarkPickLineNotFound();
   const { queueAction } = useOfflineSync();
 
-  const sortedLines = useMemo(
-    () => [...pickLines].sort((a, b) => a.sortOrder - b.sortOrder),
-    [pickLines],
-  );
-
-  const nextLine = sortedLines[0];
-  const visibleLines = guidedMode ? (nextLine ? [nextLine] : []) : sortedLines;
+  const nextLine = pickLines[0];
+  const visibleLines = guidedMode ? (nextLine ? [nextLine] : []) : pickLines;
 
   useEffect(() => {
     if (searchLineId) setActiveLineId(searchLineId);
@@ -67,6 +69,7 @@ function OpsPickingPage() {
 
   const submitPick = async (lineId: string, code: string) => {
     if (await queueAction("confirm_pick", { taskLineId: lineId, barcode: code })) {
+      playOpsSuccess();
       toast.success("Salvo offline — sincroniza ao reconectar");
       setManualBarcode("");
       await refetch();
@@ -75,10 +78,16 @@ function OpsPickingPage() {
     confirm.mutate(
       { taskLineId: lineId, barcode: code },
       {
-        onSuccess: () => {
+        onSuccess: (res) => {
+          if (!res.ok) {
+            playOpsError();
+            return;
+          }
+          playOpsSuccess();
           setManualBarcode("");
           void refetch();
         },
+        onError: () => playOpsError(),
       },
     );
   };
@@ -93,12 +102,29 @@ function OpsPickingPage() {
     } else if (activeLineId) {
       void submitPick(activeLineId, code);
     } else {
+      playOpsError();
       toast.error("Selecione uma linha ou escaneie um SKU da fila");
     }
   };
 
-  const handleNotFound = (lineId: string) => {
-    notFound.mutate(lineId, { onSuccess: () => void refetch() });
+  const handleNotFound = async (lineId: string) => {
+    if (await queueAction("mark_pick_not_found", { taskLineId: lineId })) {
+      playOpsSuccess();
+      toast.success("Salvo offline — sincroniza ao reconectar");
+      await refetch();
+      return;
+    }
+    notFound.mutate(lineId, {
+      onSuccess: (res) => {
+        if (!res.ok) {
+          playOpsError();
+          return;
+        }
+        playOpsSuccess();
+        void refetch();
+      },
+      onError: () => playOpsError(),
+    });
   };
 
   if (isLoading) {
@@ -129,7 +155,7 @@ function OpsPickingPage() {
           <h1 className="font-display text-xl font-semibold">Picking</h1>
           <p className="text-sm text-muted-foreground">
             {pickLines.length} linha(s) pendente(s)
-            {guidedMode && nextLine ? " — modo rota guiada" : ""}
+            {guidedMode && nextLine ? " — modo rota guiada (SLA)" : ""}
           </p>
         </div>
         <Button
@@ -145,14 +171,24 @@ function OpsPickingPage() {
       {orderProgress.length > 0 && (
         <div className="space-y-1 rounded-xl border border-border p-3">
           <p className="text-xs uppercase text-muted-foreground">Progresso por pedido</p>
-          {orderProgress.map((o) => (
-            <div key={o.taskId} className="flex items-center justify-between text-sm">
-              <span className="font-mono">{o.orderExternalId}</span>
-              <span className="font-mono text-primary">
-                {o.pickedCount}/{o.totalCount}
-              </span>
-            </div>
-          ))}
+          {orderProgress.map((o) => {
+            const bucket = getSlaBucket(o.slaDeadlineAt);
+            return (
+              <div key={o.taskId} className="flex items-center justify-between text-sm">
+                <span className="font-mono">{o.orderExternalId}</span>
+                <div className="flex items-center gap-2">
+                  {o.slaDeadlineAt && (
+                    <span className={cn("text-[10px] font-medium", SLA_BUCKET_CLASS[bucket])}>
+                      {SLA_BUCKET_LABEL[bucket]}
+                    </span>
+                  )}
+                  <span className="font-mono text-primary">
+                    {o.pickedCount}/{o.totalCount}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -175,30 +211,46 @@ function OpsPickingPage() {
       </div>
 
       <div className="space-y-2">
-        {visibleLines.map((line) => (
-          <button
-            key={line.lineId}
-            type="button"
-            onClick={() => setActiveLineId(line.lineId)}
-            className={cn(
-              "w-full rounded-xl border p-4 text-left transition-colors",
-              activeLineId === line.lineId
-                ? "border-primary bg-primary/10 ring-2 ring-primary/30"
-                : "border-border bg-card",
-            )}
-          >
-            <p className="font-mono text-lg font-semibold">{line.sku}</p>
-            <p className="text-xs text-muted-foreground">
-              {line.orderExternalId} · qtd {line.qtyRequired}
-            </p>
-            {line.locationLabel && (
-              <p className="mt-2 flex items-center gap-1 rounded-lg bg-primary/15 px-2 py-1 text-sm font-medium text-primary">
-                <MapPin className="size-4" />
-                {line.locationLabel}
+        {visibleLines.map((line) => {
+          const bucket = getSlaBucket(line.slaDeadlineAt);
+          return (
+            <button
+              key={line.lineId}
+              type="button"
+              onClick={() => setActiveLineId(line.lineId)}
+              className={cn(
+                "w-full rounded-xl border p-4 text-left transition-colors",
+                activeLineId === line.lineId
+                  ? "border-primary bg-primary/10 ring-2 ring-primary/30"
+                  : "border-border bg-card",
+              )}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <p className="font-mono text-lg font-semibold">{line.sku}</p>
+                {line.slaDeadlineAt && (
+                  <span
+                    className={cn(
+                      "flex shrink-0 items-center gap-1 text-[10px] font-medium",
+                      SLA_BUCKET_CLASS[bucket],
+                    )}
+                  >
+                    <Clock className="size-3" />
+                    {SLA_BUCKET_LABEL[bucket]}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {line.orderExternalId} · qtd {line.qtyRequired}
               </p>
-            )}
-          </button>
-        ))}
+              {line.locationLabel && (
+                <p className="mt-2 flex items-center gap-1 rounded-lg bg-primary/15 px-2 py-1 text-sm font-medium text-primary">
+                  <MapPin className="size-4" />
+                  {line.locationLabel}
+                </p>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {activeLine && (
@@ -215,7 +267,7 @@ function OpsPickingPage() {
           <Button
             className="w-full"
             variant="outline"
-            onClick={() => handleNotFound(activeLine.lineId)}
+            onClick={() => void handleNotFound(activeLine.lineId)}
             disabled={notFound.isPending}
           >
             <AlertTriangle className="mr-2 size-4" />

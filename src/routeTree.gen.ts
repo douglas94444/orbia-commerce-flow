@@ -24,6 +24,7 @@ import { Route as PortalCatalogRouteImport } from './routes/portal.catalog'
 import { Route as OpsReceivingRouteImport } from './routes/ops.receiving'
 import { Route as OpsPickingRouteImport } from './routes/ops.picking'
 import { Route as OpsPackingRouteImport } from './routes/ops.packing'
+import { Route as OpsDispatchRouteImport } from './routes/ops.dispatch'
 import { Route as DashboardTrafficRouteImport } from './routes/_dashboard.traffic'
 import { Route as DashboardSuccessRouteImport } from './routes/_dashboard.success'
 import { Route as DashboardSettingsRouteImport } from './routes/_dashboard.settings'
@@ -148,6 +149,11 @@ const OpsPickingRoute = OpsPickingRouteImport.update({
 const OpsPackingRoute = OpsPackingRouteImport.update({
   id: '/packing',
   path: '/packing',
+  getParentRoute: () => OpsRoute,
+} as any)
+const OpsDispatchRoute = OpsDispatchRouteImport.update({
+  id: '/dispatch',
+  path: '/dispatch',
   getParentRoute: () => OpsRoute,
 } as any)
 const DashboardTrafficRoute = DashboardTrafficRouteImport.update({
@@ -440,6 +446,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof DashboardSettingsRoute
   '/success': typeof DashboardSuccessRoute
   '/traffic': typeof DashboardTrafficRoute
+  '/ops/dispatch': typeof OpsDispatchRoute
   '/ops/packing': typeof OpsPackingRoute
   '/ops/picking': typeof OpsPickingRoute
   '/ops/receiving': typeof OpsReceivingRoute
@@ -506,6 +513,7 @@ export interface FileRoutesByTo {
   '/settings': typeof DashboardSettingsRoute
   '/success': typeof DashboardSuccessRoute
   '/traffic': typeof DashboardTrafficRoute
+  '/ops/dispatch': typeof OpsDispatchRoute
   '/ops/packing': typeof OpsPackingRoute
   '/ops/picking': typeof OpsPickingRoute
   '/ops/receiving': typeof OpsReceivingRoute
@@ -575,6 +583,7 @@ export interface FileRoutesById {
   '/_dashboard/settings': typeof DashboardSettingsRoute
   '/_dashboard/success': typeof DashboardSuccessRoute
   '/_dashboard/traffic': typeof DashboardTrafficRoute
+  '/ops/dispatch': typeof OpsDispatchRoute
   '/ops/packing': typeof OpsPackingRoute
   '/ops/picking': typeof OpsPickingRoute
   '/ops/receiving': typeof OpsReceivingRoute
@@ -644,6 +653,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/success'
     | '/traffic'
+    | '/ops/dispatch'
     | '/ops/packing'
     | '/ops/picking'
     | '/ops/receiving'
@@ -710,6 +720,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/success'
     | '/traffic'
+    | '/ops/dispatch'
     | '/ops/packing'
     | '/ops/picking'
     | '/ops/receiving'
@@ -778,6 +789,7 @@ export interface FileRouteTypes {
     | '/_dashboard/settings'
     | '/_dashboard/success'
     | '/_dashboard/traffic'
+    | '/ops/dispatch'
     | '/ops/packing'
     | '/ops/picking'
     | '/ops/receiving'
@@ -967,6 +979,13 @@ declare module '@tanstack/react-router' {
       path: '/packing'
       fullPath: '/ops/packing'
       preLoaderRoute: typeof OpsPackingRouteImport
+      parentRoute: typeof OpsRoute
+    }
+    '/ops/dispatch': {
+      id: '/ops/dispatch'
+      path: '/dispatch'
+      fullPath: '/ops/dispatch'
+      preLoaderRoute: typeof OpsDispatchRouteImport
       parentRoute: typeof OpsRoute
     }
     '/_dashboard/traffic': {
@@ -1422,6 +1441,7 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
 )
 
 interface OpsRouteChildren {
+  OpsDispatchRoute: typeof OpsDispatchRoute
   OpsPackingRoute: typeof OpsPackingRoute
   OpsPickingRoute: typeof OpsPickingRoute
   OpsReceivingRoute: typeof OpsReceivingRoute
@@ -1429,6 +1449,7 @@ interface OpsRouteChildren {
 }
 
 const OpsRouteChildren: OpsRouteChildren = {
+  OpsDispatchRoute: OpsDispatchRoute,
   OpsPackingRoute: OpsPackingRoute,
   OpsPickingRoute: OpsPickingRoute,
   OpsReceivingRoute: OpsReceivingRoute,

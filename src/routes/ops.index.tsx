@@ -2,6 +2,12 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useOpsTasks, useGeneratePickWave } from "@/modules/logistics/hooks/use-fulfillly";
 import { Button } from "@/components/ui/button";
 import { Loader2, AlertTriangle, MapPin } from "lucide-react";
+import {
+  getSlaBucket,
+  SLA_BUCKET_CLASS,
+  SLA_BUCKET_LABEL,
+} from "@/modules/logistics/ops-pwa/sla-bucket";
+import { cn } from "@/shared/lib/utils";
 
 export const Route = createFileRoute("/ops/")({
   component: OpsHomePage,
@@ -41,39 +47,42 @@ function OpsHomePage() {
             {pickLines.length === 0 ? (
               <p className="text-sm text-muted-foreground">Nenhuma linha pendente</p>
             ) : (
-              pickLines.slice(0, 15).map((line) => (
-                <Link
-                  key={line.lineId}
-                  to="/ops/picking"
-                  search={{ lineId: line.lineId }}
-                  className="block rounded-xl border border-border bg-card p-3 text-sm transition-colors hover:border-primary/40"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="font-mono font-medium">{line.sku}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Pedido {line.orderExternalId} · qtd {line.qtyRequired}
-                      </p>
-                      {line.locationLabel && (
-                        <p className="mt-1 flex items-center gap-1 text-xs text-primary">
-                          <MapPin className="size-3" />
-                          {line.locationLabel}
+              pickLines.slice(0, 15).map((line) => {
+                const bucket = getSlaBucket(line.slaDeadlineAt);
+                return (
+                  <Link
+                    key={line.lineId}
+                    to="/ops/picking"
+                    search={{ lineId: line.lineId }}
+                    className="block rounded-xl border border-border bg-card p-3 text-sm transition-colors hover:border-primary/40"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-mono font-medium">{line.sku}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Pedido {line.orderExternalId} · qtd {line.qtyRequired}
                         </p>
+                        {line.locationLabel && (
+                          <p className="mt-1 flex items-center gap-1 text-xs text-primary">
+                            <MapPin className="size-3" />
+                            {line.locationLabel}
+                          </p>
+                        )}
+                      </div>
+                      {line.slaDeadlineAt && (
+                        <span
+                          className={cn(
+                            "shrink-0 text-[10px] font-medium",
+                            SLA_BUCKET_CLASS[bucket],
+                          )}
+                        >
+                          {SLA_BUCKET_LABEL[bucket]}
+                        </span>
                       )}
                     </div>
-                    {line.slaDeadlineAt && (
-                      <span className="shrink-0 font-mono text-[10px] text-warning">
-                        SLA {new Date(line.slaDeadlineAt).toLocaleString("pt-BR", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    )}
-                  </div>
-                </Link>
-              ))
+                  </Link>
+                );
+              })
             )}
             {pickLines.length > 15 && (
               <Link to="/ops/picking">

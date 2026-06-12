@@ -47,7 +47,9 @@ import {
   startPackingSession,
   confirmPackingItem,
   completePackingSession,
+  getPackingOrderItems,
 } from "./packing/packing.server";
+import { getOperatorPerformance } from "./ops/operator-performance.server";
 import {
   getSlaDashboard,
   listSlaAtRiskOrders,
@@ -289,6 +291,42 @@ export const completePackingFn = createServerFn({ method: "POST" })
   .inputValidator(completePackSchema)
   .middleware([requireSupabaseAuth])
   .handler(async ({ data }) => completePackingSession(data.sessionId, data.photoUrls));
+
+export const getPackingOrderItemsFn = createServerFn({ method: "POST" })
+  .inputValidator(orderSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    const { data: order } = await supabaseAdmin
+      .from("orders")
+      .select("client_id")
+      .eq("id", data.orderId)
+      .single();
+    if (!order || order.client_id !== clientId) throw new Error("Pedido não encontrado");
+    return getPackingOrderItems(data.orderId);
+  });
+
+export const dispatchOpsOrderFn = createServerFn({ method: "POST" })
+  .inputValidator(orderSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    const { data: order } = await supabaseAdmin
+      .from("orders")
+      .select("client_id")
+      .eq("id", data.orderId)
+      .single();
+    if (!order || order.client_id !== clientId) throw new Error("Pedido não encontrado");
+    const { dispatchOrder } = await import("./shipping/dispatch.server");
+    return dispatchOrder(data.orderId, context.userId);
+  });
+
+export const getOperatorPerformanceFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return getOperatorPerformance(clientId);
+  });
 
 export const getSlaDashboardFn = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

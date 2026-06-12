@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
-import { ScanLine, Package, Truck, Inbox } from "lucide-react";
+import { ScanLine, Package, Truck, Inbox, Send } from "lucide-react";
 import { useSession } from "@/modules/auth/hooks/use-session";
 import { useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
@@ -64,6 +64,13 @@ function OpsLayout() {
               activeProps={{ className: "bg-primary/10 text-primary" }}
             >
               <Package className="size-5" />
+            </Link>
+            <Link
+              to="/ops/dispatch"
+              className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+              activeProps={{ className: "bg-primary/10 text-primary" }}
+            >
+              <Send className="size-5" />
             </Link>
             <Link
               to="/ops/receiving"

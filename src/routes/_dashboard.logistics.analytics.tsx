@@ -4,7 +4,11 @@ import { PageIntro, Panel } from "@/components/dashboard/panel";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { Button } from "@/components/ui/button";
 import { formatBRL } from "@/lib/format";
-import { useLogisticsAnalytics, useStockTurnover } from "@/modules/logistics/hooks/use-fulfillly";
+import {
+  useLogisticsAnalytics,
+  useOperatorPerformance,
+  useStockTurnover,
+} from "@/modules/logistics/hooks/use-fulfillly";
 import { PackageCheck, Truck, Target, AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/_dashboard/logistics/analytics")({
@@ -15,6 +19,7 @@ export const Route = createFileRoute("/_dashboard/logistics/analytics")({
 function LogisticsAnalyticsPage() {
   const { data, isLoading } = useLogisticsAnalytics();
   const { data: turnover = [], isLoading: loadingTurnover } = useStockTurnover();
+  const { data: operators = [], isLoading: loadingOperators } = useOperatorPerformance();
 
   return (
     <div className="space-y-6">
@@ -82,6 +87,41 @@ function LogisticsAnalyticsPage() {
                     <td className="py-2 font-mono">{row.unitsSold30d}</td>
                     <td className="py-2 font-mono">{row.avgInventory}</td>
                     <td className="py-2 font-mono">{row.turnover}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+
+      <Panel title="Ranking de operadores (30d)">
+        {loadingOperators ? (
+          <div className="h-24 animate-pulse rounded-xl bg-muted/40" />
+        ) : operators.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Sem dados de operadores no período</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs uppercase text-muted-foreground">
+                  <th className="pb-2">Operador</th>
+                  <th className="pb-2">Picks</th>
+                  <th className="pb-2">Packs</th>
+                  <th className="pb-2">Não encontrados</th>
+                  <th className="pb-2">Picks/h</th>
+                  <th className="pb-2">Acurácia</th>
+                </tr>
+              </thead>
+              <tbody>
+                {operators.map((row) => (
+                  <tr key={row.operatorId} className="border-b border-border/50">
+                    <td className="py-2">{row.operatorName}</td>
+                    <td className="py-2 font-mono">{row.picksCompleted}</td>
+                    <td className="py-2 font-mono">{row.packsCompleted}</td>
+                    <td className="py-2 font-mono">{row.notFoundCount}</td>
+                    <td className="py-2 font-mono">{row.picksPerHour}</td>
+                    <td className="py-2 font-mono">{row.accuracyPercent}%</td>
                   </tr>
                 ))}
               </tbody>

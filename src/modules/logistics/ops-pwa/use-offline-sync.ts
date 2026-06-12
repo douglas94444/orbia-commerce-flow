@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   confirmPickLineFn,
+  markPickLineNotFoundFn,
   confirmReceivingLineFn,
   confirmPackingItemFn,
   startPackingFn,
@@ -34,6 +35,10 @@ export function useOfflineSync() {
           await confirmPickLineFn({
             data: action.payload as { taskLineId: string; barcode: string },
           });
+        } else if (action.type === "mark_pick_not_found") {
+          await markPickLineNotFoundFn({
+            data: action.payload as { taskLineId: string },
+          });
         } else if (action.type === "confirm_receive") {
           await confirmReceivingLineFn({ data: action.payload as never });
         } else if (action.type === "confirm_pack") {
@@ -41,9 +46,13 @@ export function useOfflineSync() {
         } else if (action.type === "start_pack") {
           const localSessionId = String(action.payload.localSessionId ?? "");
           const orderId = String(action.payload.orderId ?? "");
-          const realId = await startPackingFn({ data: { orderId } });
+          const started = await startPackingFn({ data: { orderId } });
+          const realId =
+            typeof started === "object" && started && "sessionId" in started
+              ? String(started.sessionId)
+              : String(started);
           if (localSessionId && realId) {
-            sessionMap.set(localSessionId, realId as string);
+            sessionMap.set(localSessionId, realId);
           }
         } else if (action.type === "complete_pack") {
           const rawSessionId = String(action.payload.sessionId ?? "");

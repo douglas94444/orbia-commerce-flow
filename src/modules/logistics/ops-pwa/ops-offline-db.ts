@@ -6,6 +6,7 @@ export interface OfflineAction {
   id: string;
   type:
     | "confirm_pick"
+    | "mark_pick_not_found"
     | "confirm_receive"
     | "confirm_pack"
     | "start_pack"
