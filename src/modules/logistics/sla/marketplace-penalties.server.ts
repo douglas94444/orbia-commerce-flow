@@ -37,13 +37,23 @@ export async function checkMarketplacePenalties(): Promise<{
     if (meta.penalty_tracking_alert_sent) continue;
 
     missingTracking += 1;
+    const penaltyCents = 1500;
     await supabaseAdmin.from("operation_alerts").insert({
       client_id: order.client_id,
       kind: "sla",
       severity: "critical",
       title: "Risco penalidade marketplace",
-      message: `Pedido ${order.external_id} (${order.channel}) sem tracking após ${Math.round(hoursSince)}h — ${rule.penalty_description ?? "penalidade possível"}`,
+      message: `Pedido ${order.external_id} (${order.channel}) sem tracking após ${Math.round(hoursSince)}h — ${rule.penalty_description ?? "penalidade possível"} (est. R$ ${(penaltyCents / 100).toFixed(2)})`,
       is_resolved: false,
+    });
+
+    await supabaseAdmin.from("marketplace_penalty_records").insert({
+      client_id: order.client_id,
+      order_id: order.id,
+      channel: order.channel,
+      penalty_type: "late_tracking",
+      amount_cents: penaltyCents,
+      description: rule.penalty_description ?? "Tracking tardio",
     });
 
     await supabaseAdmin
@@ -74,13 +84,23 @@ export async function checkMarketplacePenalties(): Promise<{
     if (meta.penalty_nf_alert_sent) continue;
 
     nearDeadlineNoNf += 1;
+    const penaltyCents = 2500;
     await supabaseAdmin.from("operation_alerts").insert({
       client_id: order.client_id,
       kind: "sla",
       severity: "warning",
       title: "SLA em risco — NF pendente",
-      message: `Pedido ${order.external_id} (${order.channel}) sem NF autorizada e prazo em ${Math.round(hoursLeft)}h`,
+      message: `Pedido ${order.external_id} (${order.channel}) sem NF autorizada e prazo em ${Math.round(hoursLeft)}h (est. R$ ${(penaltyCents / 100).toFixed(2)})`,
       is_resolved: false,
+    });
+
+    await supabaseAdmin.from("marketplace_penalty_records").insert({
+      client_id: order.client_id,
+      order_id: order.id,
+      channel: order.channel,
+      penalty_type: "missing_nf",
+      amount_cents: penaltyCents,
+      description: "NF pendente perto do prazo SLA",
     });
 
     await supabaseAdmin

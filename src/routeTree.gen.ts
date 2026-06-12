@@ -57,6 +57,7 @@ import { Route as DashboardLogisticsReturnsRouteImport } from './routes/_dashboa
 import { Route as DashboardLogisticsReceivingRouteImport } from './routes/_dashboard.logistics.receiving'
 import { Route as DashboardLogisticsQuarantineRouteImport } from './routes/_dashboard.logistics.quarantine'
 import { Route as DashboardLogisticsProductsRouteImport } from './routes/_dashboard.logistics.products'
+import { Route as DashboardLogisticsPickupsRouteImport } from './routes/_dashboard.logistics.pickups'
 import { Route as DashboardLogisticsPickingRouteImport } from './routes/_dashboard.logistics.picking'
 import { Route as DashboardLogisticsPackingRouteImport } from './routes/_dashboard.logistics.packing'
 import { Route as DashboardLogisticsOpsDashboardRouteImport } from './routes/_dashboard.logistics.ops-dashboard'
@@ -324,6 +325,12 @@ const DashboardLogisticsProductsRoute =
     path: '/products',
     getParentRoute: () => DashboardLogisticsRoute,
   } as any)
+const DashboardLogisticsPickupsRoute =
+  DashboardLogisticsPickupsRouteImport.update({
+    id: '/pickups',
+    path: '/pickups',
+    getParentRoute: () => DashboardLogisticsRoute,
+  } as any)
 const DashboardLogisticsPickingRoute =
   DashboardLogisticsPickingRouteImport.update({
     id: '/picking',
@@ -481,6 +488,7 @@ export interface FileRoutesByFullPath {
   '/logistics/ops-dashboard': typeof DashboardLogisticsOpsDashboardRoute
   '/logistics/packing': typeof DashboardLogisticsPackingRoute
   '/logistics/picking': typeof DashboardLogisticsPickingRoute
+  '/logistics/pickups': typeof DashboardLogisticsPickupsRoute
   '/logistics/products': typeof DashboardLogisticsProductsRoute
   '/logistics/quarantine': typeof DashboardLogisticsQuarantineRoute
   '/logistics/receiving': typeof DashboardLogisticsReceivingRoute
@@ -550,6 +558,7 @@ export interface FileRoutesByTo {
   '/logistics/ops-dashboard': typeof DashboardLogisticsOpsDashboardRoute
   '/logistics/packing': typeof DashboardLogisticsPackingRoute
   '/logistics/picking': typeof DashboardLogisticsPickingRoute
+  '/logistics/pickups': typeof DashboardLogisticsPickupsRoute
   '/logistics/products': typeof DashboardLogisticsProductsRoute
   '/logistics/quarantine': typeof DashboardLogisticsQuarantineRoute
   '/logistics/receiving': typeof DashboardLogisticsReceivingRoute
@@ -622,6 +631,7 @@ export interface FileRoutesById {
   '/_dashboard/logistics/ops-dashboard': typeof DashboardLogisticsOpsDashboardRoute
   '/_dashboard/logistics/packing': typeof DashboardLogisticsPackingRoute
   '/_dashboard/logistics/picking': typeof DashboardLogisticsPickingRoute
+  '/_dashboard/logistics/pickups': typeof DashboardLogisticsPickupsRoute
   '/_dashboard/logistics/products': typeof DashboardLogisticsProductsRoute
   '/_dashboard/logistics/quarantine': typeof DashboardLogisticsQuarantineRoute
   '/_dashboard/logistics/receiving': typeof DashboardLogisticsReceivingRoute
@@ -694,6 +704,7 @@ export interface FileRouteTypes {
     | '/logistics/ops-dashboard'
     | '/logistics/packing'
     | '/logistics/picking'
+    | '/logistics/pickups'
     | '/logistics/products'
     | '/logistics/quarantine'
     | '/logistics/receiving'
@@ -763,6 +774,7 @@ export interface FileRouteTypes {
     | '/logistics/ops-dashboard'
     | '/logistics/packing'
     | '/logistics/picking'
+    | '/logistics/pickups'
     | '/logistics/products'
     | '/logistics/quarantine'
     | '/logistics/receiving'
@@ -834,6 +846,7 @@ export interface FileRouteTypes {
     | '/_dashboard/logistics/ops-dashboard'
     | '/_dashboard/logistics/packing'
     | '/_dashboard/logistics/picking'
+    | '/_dashboard/logistics/pickups'
     | '/_dashboard/logistics/products'
     | '/_dashboard/logistics/quarantine'
     | '/_dashboard/logistics/receiving'
@@ -1237,6 +1250,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardLogisticsProductsRouteImport
       parentRoute: typeof DashboardLogisticsRoute
     }
+    '/_dashboard/logistics/pickups': {
+      id: '/_dashboard/logistics/pickups'
+      path: '/pickups'
+      fullPath: '/logistics/pickups'
+      preLoaderRoute: typeof DashboardLogisticsPickupsRouteImport
+      parentRoute: typeof DashboardLogisticsRoute
+    }
     '/_dashboard/logistics/picking': {
       id: '/_dashboard/logistics/picking'
       path: '/picking'
@@ -1419,6 +1439,7 @@ interface DashboardLogisticsRouteChildren {
   DashboardLogisticsOpsDashboardRoute: typeof DashboardLogisticsOpsDashboardRoute
   DashboardLogisticsPackingRoute: typeof DashboardLogisticsPackingRoute
   DashboardLogisticsPickingRoute: typeof DashboardLogisticsPickingRoute
+  DashboardLogisticsPickupsRoute: typeof DashboardLogisticsPickupsRoute
   DashboardLogisticsProductsRoute: typeof DashboardLogisticsProductsRoute
   DashboardLogisticsQuarantineRoute: typeof DashboardLogisticsQuarantineRoute
   DashboardLogisticsReceivingRoute: typeof DashboardLogisticsReceivingRoute
@@ -1437,6 +1458,7 @@ const DashboardLogisticsRouteChildren: DashboardLogisticsRouteChildren = {
   DashboardLogisticsOpsDashboardRoute: DashboardLogisticsOpsDashboardRoute,
   DashboardLogisticsPackingRoute: DashboardLogisticsPackingRoute,
   DashboardLogisticsPickingRoute: DashboardLogisticsPickingRoute,
+  DashboardLogisticsPickupsRoute: DashboardLogisticsPickupsRoute,
   DashboardLogisticsProductsRoute: DashboardLogisticsProductsRoute,
   DashboardLogisticsQuarantineRoute: DashboardLogisticsQuarantineRoute,
   DashboardLogisticsReceivingRoute: DashboardLogisticsReceivingRoute,

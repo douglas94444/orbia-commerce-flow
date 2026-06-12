@@ -117,6 +117,35 @@ export function ClientFulfillmentPanel({ clientId }: ClientFulfillmentPanelProps
                 </p>
               </div>
             </div>
+            {report.slaByChannel.length > 0 && (
+              <div className="mb-4">
+                <p className="mb-2 text-xs font-medium uppercase text-muted-foreground">
+                  SLA por canal (mês)
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-left text-xs uppercase text-muted-foreground">
+                        <th className="pb-2">Canal</th>
+                        <th className="pb-2">Pedidos</th>
+                        <th className="pb-2">Compliance</th>
+                        <th className="pb-2">Estouros</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {report.slaByChannel.map((row) => (
+                        <tr key={row.dimensionValue} className="border-b border-border/50">
+                          <td className="py-2 capitalize">{row.dimensionValue}</td>
+                          <td className="py-2 font-mono">{row.total}</td>
+                          <td className="py-2 font-mono">{row.compliancePercent}%</td>
+                          <td className="py-2 font-mono">{row.breached}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
             <div className="flex flex-wrap gap-2">
               <Button
                 size="sm"

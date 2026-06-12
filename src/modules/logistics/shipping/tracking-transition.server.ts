@@ -178,6 +178,17 @@ export async function applyTrackingTransition(
       meta.tracking_notified_out_for_delivery = true;
       metaDirty = true;
     }
+    if (!meta.tracking_pushed_in_transit) {
+      const { pushOrderInTransitToChannel } = await import("./channel-status-push.server");
+      await pushOrderInTransitToChannel(
+        order.client_id,
+        order.channel,
+        order.external_id,
+        trackingCode,
+      );
+      meta.tracking_pushed_in_transit = true;
+      metaDirty = true;
+    }
   }
 
   if (statusChanged && newStatus === "entregue") {

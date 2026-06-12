@@ -12,7 +12,9 @@ import {
   useUnifiedOccurrences,
   useExportOccurrencesCsv,
 } from "@/modules/logistics/hooks/use-fulfillly";
-import { PackageCheck, Truck, Target, AlertTriangle, Clock } from "lucide-react";
+import { PackageCheck, Truck, Target, AlertTriangle, Clock, MapPin } from "lucide-react";
+import { ShippingCostTrendChart } from "@/components/dashboard/charts";
+import { useDeliveryHeatMap } from "@/modules/logistics/hooks/use-fulfillly";
 
 export const Route = createFileRoute("/_dashboard/logistics/analytics")({
   head: () => ({ meta: [{ title: "Analytics Logística — Orbia" }] }),
@@ -26,6 +28,7 @@ function LogisticsAnalyticsPage() {
   const exportCsv = useExportLogisticsAnalyticsCsv();
   const exportOccurrences = useExportOccurrencesCsv();
   const { data: occurrences = [], isLoading: loadingOccurrences } = useUnifiedOccurrences();
+  const { data: deliveryHeat = [], isLoading: loadingHeat } = useDeliveryHeatMap();
 
   const data = dashboard?.summary;
 
@@ -126,6 +129,22 @@ function LogisticsAnalyticsPage() {
         )}
       </Panel>
 
+      <Panel title="Tendência custo de frete (6 meses)" subtitle="Média por pedido despachado">
+        {isLoading ? (
+          <div className="h-48 animate-pulse rounded-xl bg-muted/40" />
+        ) : !dashboard?.monthlyShippingCosts?.length ? (
+          <p className="text-sm text-muted-foreground">Sem dados de frete no período</p>
+        ) : (
+          <ShippingCostTrendChart
+            data={dashboard.monthlyShippingCosts.map((r) => ({
+              month: r.month,
+              avgCost: r.avgCostCents,
+              orders: r.orderCount,
+            }))}
+          />
+        )}
+      </Panel>
+
       <div className="grid gap-6 lg:grid-cols-2">
         <Panel title="Custo por transportadora (30d)">
           {isLoading ? (
@@ -180,6 +199,42 @@ function LogisticsAnalyticsPage() {
           )}
         </Panel>
       </div>
+
+      <Panel title="Heat map de entregas (30d)" subtitle="Por cidade — entregues, em trânsito e incidentes">
+        {loadingHeat ? (
+          <div className="h-24 animate-pulse rounded-xl bg-muted/40" />
+        ) : deliveryHeat.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Sem entregas no período</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs uppercase text-muted-foreground">
+                  <th className="pb-2">Cidade</th>
+                  <th className="pb-2">UF</th>
+                  <th className="pb-2">Entregues</th>
+                  <th className="pb-2">Em trânsito</th>
+                  <th className="pb-2">Incidentes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {deliveryHeat.slice(0, 20).map((row) => (
+                  <tr key={`${row.city}-${row.state}`} className="border-b border-border/50">
+                    <td className="py-2 flex items-center gap-1">
+                      <MapPin className="size-3 text-muted-foreground" />
+                      {row.city}
+                    </td>
+                    <td className="py-2 font-mono">{row.state ?? "—"}</td>
+                    <td className="py-2 font-mono text-success">{row.delivered}</td>
+                    <td className="py-2 font-mono">{row.inTransit}</td>
+                    <td className="py-2 font-mono text-warning">{row.incidents}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
 
       <Panel title="Ocorrências unificadas (30d)" subtitle="Incidentes, devoluções e quarentena">
         {loadingOccurrences ? (

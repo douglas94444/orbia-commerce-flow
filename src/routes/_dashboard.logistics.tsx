@@ -69,6 +69,7 @@ function LogisticsPage() {
         <Link to="/logistics/incidents"><Button variant="outline" size="sm">Incidentes</Button></Link>
         <Link to="/logistics/returns"><Button variant="outline" size="sm">Devoluções</Button></Link>
         <Link to="/logistics/carriers"><Button variant="outline" size="sm">Transportadoras</Button></Link>
+        <Link to="/logistics/pickups"><Button variant="outline" size="sm">Coletas</Button></Link>
         <Link to="/logistics/analytics"><Button variant="outline" size="sm">Analytics</Button></Link>
         <Link to="/logistics/ops-dashboard"><Button variant="outline" size="sm">Ops ao vivo</Button></Link>
         <Link to="/logistics/quarantine"><Button variant="outline" size="sm">Quarentena</Button></Link>

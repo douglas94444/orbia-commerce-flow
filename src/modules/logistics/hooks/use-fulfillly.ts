@@ -19,7 +19,14 @@ import {
   getSlaDashboardFn,
   listSlaOrdersFn,
   exportSlaReportCsvFn,
+  getSlaMonthlyReportFn,
   upsertChannelSlaRuleFn,
+  generatePackingLabelFn,
+  listCarrierPickupsFn,
+  scheduleCarrierPickupFn,
+  getDeliveryHeatMapFn,
+  listWarehousesFn,
+  upsertWarehouseFn,
   getOpsTasksFn,
   createReceivingAppointmentFn,
   confirmReceivingLineFn,
@@ -119,6 +126,70 @@ export function useSlaOrders(bucket?: "on_time" | "at_risk" | "breached") {
 export function useExportSlaReportCsv() {
   return useMutation({
     mutationFn: (month?: string) => exportSlaReportCsvFn({ data: month ? { month } : {} }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useSlaMonthlyReport(month?: string) {
+  return useQuery({
+    queryKey: ["sla-monthly-report", month ?? "current"],
+    queryFn: () => getSlaMonthlyReportFn({ data: month ? { month } : {} }),
+  });
+}
+
+export function useGeneratePackingLabel() {
+  return useMutation({
+    mutationFn: (orderId: string) => generatePackingLabelFn({ data: { orderId } }),
+    onSuccess: () => toast.success("Etiqueta gerada"),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useCarrierPickups() {
+  return useQuery({
+    queryKey: ["carrier-pickups"],
+    queryFn: () => listCarrierPickupsFn(),
+    refetchInterval: 60_000,
+  });
+}
+
+export function useScheduleCarrierPickup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { provider: string; scheduledAt: string; notes?: string }) =>
+      scheduleCarrierPickupFn({ data: input }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["carrier-pickups"] });
+      toast.success("Coleta agendada");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useDeliveryHeatMap() {
+  return useQuery({
+    queryKey: ["delivery-heatmap"],
+    queryFn: () => getDeliveryHeatMapFn(),
+    staleTime: 60_000,
+  });
+}
+
+export function useWarehouses() {
+  return useQuery({
+    queryKey: ["warehouses"],
+    queryFn: () => listWarehousesFn(),
+  });
+}
+
+export function useUpsertWarehouse() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { name: string; code: string; isDefault?: boolean }) =>
+      upsertWarehouseFn({ data: input }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["warehouses"] });
+      toast.success("Galpão salvo");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 }

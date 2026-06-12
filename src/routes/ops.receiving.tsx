@@ -10,6 +10,7 @@ import {
   useWarehouseLocations,
 } from "@/modules/logistics/hooks/use-fulfillly";
 import { useOfflineSync } from "@/modules/logistics/ops-pwa/use-offline-sync";
+import { playOpsError, playOpsSuccess } from "@/modules/logistics/ops-pwa/use-ops-feedback";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BarcodeScanner } from "@/modules/logistics/ops-pwa/barcode-scanner";
@@ -65,6 +66,7 @@ function OpsReceivingPage() {
       onSuccess: (id) => {
         setSessionId(id as string);
         setSelectedSku("");
+        playOpsSuccess();
         toast.success("Sessão iniciada");
       },
     });
@@ -100,14 +102,19 @@ function OpsReceivingPage() {
     };
 
     if (await queueAction("confirm_receive", payload)) {
+      playOpsSuccess();
       toast.success("Salvo offline — sincroniza ao reconectar");
       setSelectedSku("");
       return;
     }
 
     confirm.mutate(payload, {
-      onError: (e) => setLastError(e.message),
+      onError: (e) => {
+        playOpsError();
+        setLastError(e.message);
+      },
       onSuccess: () => {
+        playOpsSuccess();
         setBarcodeScanned("");
         setPhotoDataUrl(null);
         setSelectedSku("");
@@ -119,14 +126,17 @@ function OpsReceivingPage() {
   const submitComplete = () => {
     if (!sessionId) return;
     if (pendingItems.length > 0) {
+      playOpsError();
       toast.error(`Faltam ${pendingItems.length} SKU(s) para conferir`);
       return;
     }
     complete.mutate(sessionId, {
       onSuccess: () => {
+        playOpsSuccess();
         setSessionId("");
         setSelectedSku("");
       },
+      onError: () => playOpsError(),
     });
   };
 

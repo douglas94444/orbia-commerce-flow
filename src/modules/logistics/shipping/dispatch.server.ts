@@ -20,6 +20,7 @@ interface OrderRow {
   channel: string;
   status: string;
   nf_status: string;
+  carrier: string | null;
   metadata: Record<string, unknown>;
   shipment_external_id: string | null;
   tracking_code: string | null;
@@ -56,7 +57,7 @@ export async function dispatchOrder(
   const { data: order, error } = await supabaseAdmin
     .from("orders")
     .select(
-      "id, client_id, external_id, channel, status, nf_status, metadata, shipment_external_id, tracking_code, sla_deadline_at",
+      "id, client_id, external_id, channel, status, nf_status, carrier, metadata, shipment_external_id, tracking_code, sla_deadline_at",
     )
     .eq("id", orderId)
     .single();
@@ -72,31 +73,52 @@ export async function dispatchOrder(
   }
 
   const specs = await computeOrderShipmentSpecs(orderId);
-  const postal = String(row.metadata.postal_code ?? "01310100");
-  const quote = await selectBestCarrier(row.client_id, {
-    toPostalCode: postal,
-    weightKg: specs.weightKg,
-    lengthCm: specs.lengthCm,
-    widthCm: specs.widthCm,
-    heightCm: specs.heightCm,
-  });
+  const existingLabelUrl = row.metadata.label_url as string | undefined;
+  const existingTracking = row.tracking_code;
+  const existingShipmentId = row.shipment_external_id;
 
-  if (!quote) {
-    throw new Error("Nenhuma transportadora disponível para este CEP.");
+  let carrier: string;
+  let trackingCode: string;
+  let shipmentId: string;
+  let labelUrl: string | undefined;
+  let quoteProviderId = String(row.metadata.carrier_provider_id ?? "melhor_envio");
+  let shippingCostCents = row.metadata.shipping_cost_cents as number | undefined;
+
+  if (existingTracking && existingShipmentId) {
+    carrier = String(row.metadata.carrier ?? row.carrier ?? "transportadora");
+    trackingCode = existingTracking;
+    shipmentId = existingShipmentId;
+    labelUrl = existingLabelUrl;
+  } else {
+    const postal = String(row.metadata.postal_code ?? "01310100");
+    const quote = await selectBestCarrier(row.client_id, {
+      toPostalCode: postal,
+      weightKg: specs.weightKg,
+      lengthCm: specs.lengthCm,
+      widthCm: specs.widthCm,
+      heightCm: specs.heightCm,
+    });
+
+    if (!quote) {
+      throw new Error("Nenhuma transportadora disponível para este CEP.");
+    }
+
+    const provider = getCarrierProvider(quote.providerId);
+    if (!provider) throw new Error(`Provider ${quote.providerId} não configurado`);
+
+    const token = await getCarrierToken(row.client_id, quote.providerId);
+    if (!token) {
+      throw new Error(`Token OAuth ausente para ${quote.providerName}`);
+    }
+
+    const label = await provider.purchaseLabel(quote.externalId, token);
+    carrier = quote.providerName;
+    trackingCode = label.trackingCode;
+    shipmentId = label.shipmentId;
+    labelUrl = label.labelUrl;
+    quoteProviderId = quote.providerId;
+    shippingCostCents = quote.priceCents;
   }
-
-  const provider = getCarrierProvider(quote.providerId);
-  if (!provider) throw new Error(`Provider ${quote.providerId} não configurado`);
-
-  const token = await getCarrierToken(row.client_id, quote.providerId);
-  if (!token) {
-    throw new Error(`Token OAuth ausente para ${quote.providerName}`);
-  }
-
-  const label = await provider.purchaseLabel(quote.externalId, token);
-  const carrier = quote.providerName;
-  const trackingCode = label.trackingCode;
-  const shipmentId = label.shipmentId;
   const dispatchedAt = new Date().toISOString();
   const slaMet =
     row.sla_deadline_at != null
@@ -106,9 +128,9 @@ export async function dispatchOrder(
   const customerPhone = String(row.metadata.customer_phone ?? row.metadata.phone ?? "");
   const nextMetadata: Record<string, unknown> = {
     ...row.metadata,
-    carrier_provider_id: quote.providerId,
-    shipping_cost_cents: quote.priceCents,
-    label_url: label.labelUrl ?? null,
+    carrier_provider_id: quoteProviderId,
+    shipping_cost_cents: shippingCostCents ?? row.metadata.shipping_cost_cents,
+    label_url: labelUrl ?? null,
     packing_weight_kg: specs.weightKg,
     packing_length_cm: specs.lengthCm,
     packing_width_cm: specs.widthCm,
@@ -134,23 +156,25 @@ export async function dispatchOrder(
 
   if (updateErr) throw new Error(`Failed to update order: ${updateErr.message}`);
 
-  await recordShipmentRow({
-    clientId: row.client_id,
-    orderId,
-    provider: quote.providerId,
-    trackingCode,
-    shipmentId,
-    labelUrl: label.labelUrl,
-  });
+  if (!existingTracking) {
+    await recordShipmentRow({
+      clientId: row.client_id,
+      orderId,
+      provider: quoteProviderId,
+      trackingCode,
+      shipmentId,
+      labelUrl,
+    });
+  }
 
   await supabaseAdmin.from("order_events").insert({
     order_id: orderId,
     status: "despachado",
-    source: quote.providerId,
+    source: quoteProviderId,
     metadata: {
       tracking_code: trackingCode,
       shipment_id: shipmentId,
-      label_url: label.labelUrl ?? null,
+      label_url: labelUrl ?? null,
     },
   });
 
@@ -191,7 +215,7 @@ export async function dispatchOrder(
     });
   }
 
-  return { trackingCode, labelUrl: label.labelUrl };
+  return { trackingCode, labelUrl };
 }
 
 function resolveCarrierProviderId(metadata: Record<string, unknown>): string {

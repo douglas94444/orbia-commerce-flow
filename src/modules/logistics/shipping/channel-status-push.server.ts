@@ -4,6 +4,80 @@ import { logIntegration } from "@/shared/lib/logger";
 import { shopifyFetch } from "@/integrations/shopify/client";
 import { nuvemshopFetch } from "@/integrations/nuvemshop/client";
 
+export async function pushOrderInTransitToChannel(
+  clientId: string,
+  channel: string,
+  externalOrderId: string,
+  trackingCode?: string,
+): Promise<void> {
+  const providerKey =
+    channel === "mercado_livre" ? "mercado_livre" : channel === "nuvemshop" ? "nuvemshop" : channel;
+
+  const { data: conn } = await supabaseAdmin
+    .from("oauth_connections")
+    .select("access_token, external_account")
+    .eq("client_id", clientId)
+    .eq("provider", providerKey)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (!conn?.access_token) return;
+
+  const token = decryptToken(conn.access_token);
+
+  try {
+    if (channel === "mercado_livre") {
+      await fetch(`https://api.mercadolibre.com/orders/${externalOrderId}/shipments`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "in_transit", tracking_number: trackingCode ?? undefined }),
+      });
+    } else if (channel === "shopee") {
+      const { updateShopeeOrderStatus } = await import("@/integrations/shopee/orders");
+      await updateShopeeOrderStatus(externalOrderId, "IN_TRANSIT", token);
+    } else if (channel === "amazon") {
+      const { updateAmazonShipmentStatus } = await import("@/integrations/amazon/orders");
+      await updateAmazonShipmentStatus(externalOrderId, "InTransit", token);
+    } else if (channel === "tiktok") {
+      const { updateTiktokShipmentStatus } = await import("@/integrations/tiktok/orders");
+      await updateTiktokShipmentStatus(externalOrderId, "IN_TRANSIT", token);
+    } else if (channel === "shopify" && trackingCode) {
+      const shop = conn.external_account as string;
+      await shopifyFetch(shop, token, `/orders/${externalOrderId}/fulfillments.json`, {
+        method: "POST",
+        body: JSON.stringify({
+          fulfillment: { tracking_number: trackingCode, notify_customer: true },
+        }),
+      });
+    } else if (channel === "nuvemshop") {
+      const storeId = conn.external_account as string;
+      await nuvemshopFetch(storeId, token, `/orders/${externalOrderId}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          shipping_status: "in_transit",
+          shipping_tracking_number: trackingCode ?? null,
+        }),
+      });
+    }
+
+    await logIntegration({
+      client_id: clientId,
+      provider: channel,
+      operation: "push_status_in_transit",
+      status: "success",
+      metadata: { externalOrderId, trackingCode },
+    });
+  } catch (err) {
+    await logIntegration({
+      client_id: clientId,
+      provider: channel,
+      operation: "push_status_in_transit",
+      status: "error",
+      error_message: (err as Error).message,
+    });
+  }
+}
+
 export async function pushOrderStatusToChannel(
   clientId: string,
   channel: string,

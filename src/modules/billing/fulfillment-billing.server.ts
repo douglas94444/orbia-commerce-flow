@@ -288,6 +288,51 @@ export async function chargeFulfillmentOverageWithGateway(clientId: string): Pro
     } catch {
       // fallback ledger
     }
+  } else if (sub?.provider === "pagar_me" && sub.provider_sub_id) {
+    try {
+      const { getServerConfig } = await import("@/lib/config.server");
+      const { pagarMe } = getServerConfig();
+      if (pagarMe.apiKey) {
+        const encoded = Buffer.from(`${pagarMe.apiKey}:`).toString("base64");
+        const res = await fetch("https://api.pagar.me/core/v5/orders", {
+          method: "POST",
+          headers: {
+            Authorization: `Basic ${encoded}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            customer_id: sub.provider_sub_id,
+            items: [
+              {
+                amount: summary.overageCents,
+                description: `Fulfillment excedente ${summary.periodMonth}`,
+                quantity: 1,
+                code: `fulfillment_${summary.periodMonth}`,
+              },
+            ],
+            payments: [
+              {
+                payment_method: "credit_card",
+                credit_card: { recurrence: true },
+                amount: summary.overageCents,
+              },
+            ],
+          }),
+        });
+        const body = (await res.json()) as Record<string, unknown>;
+        if (res.ok) {
+          provider = "pagar_me";
+          const charges = body.charges;
+          const firstCharge =
+            Array.isArray(charges) && charges[0] && typeof charges[0] === "object"
+              ? (charges[0] as Record<string, unknown>).id
+              : undefined;
+          providerTxId = String(body.id ?? firstCharge ?? "");
+        }
+      }
+    } catch {
+      // fallback ledger
+    }
   }
 
   const { data: tx, error } = await supabaseAdmin

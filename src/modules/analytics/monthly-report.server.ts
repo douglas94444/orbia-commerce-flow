@@ -1,4 +1,6 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { sendEmail } from "@/integrations/resend";
+import { getServerConfig } from "@/lib/config.server";
 import { logJob } from "@/shared/lib/logger";
 
 export async function buildMonthlyReportHtml(clientId: string): Promise<string> {
@@ -51,17 +53,70 @@ export async function buildMonthlyReportHtml(clientId: string): Promise<string> 
 </html>`;
 }
 
-export async function runMonthlyAnalyticsReportJob(): Promise<{ reports: number }> {
+export async function sendMonthlyReportEmail(
+  clientId: string,
+  toEmail: string,
+): Promise<{ sent: boolean }> {
+  const html = await buildMonthlyReportHtml(clientId);
+  const month = new Date().toISOString().slice(0, 7);
+  const { data: client } = await supabaseAdmin
+    .from("clients")
+    .select("name")
+    .eq("id", clientId)
+    .single();
+
+  const { resend } = getServerConfig();
+  if (!resend.apiKey) return { sent: false };
+
+  await sendEmail({
+    to: toEmail,
+    subject: `Relatório mensal Orbia — ${client?.name ?? "Cliente"} — ${month}`,
+    html: `${html}<p style="margin-top:1rem;font-size:12px;color:#666">Para salvar como PDF: Arquivo → Imprimir → Salvar como PDF</p>`,
+    clientId,
+  });
+
+  return { sent: true };
+}
+
+async function resolveCsEmails(): Promise<string[]> {
+  const { data: staff } = await supabaseAdmin
+    .from("client_members")
+    .select("user_id")
+    .in("role", ["orbia_admin", "orbia_staff"])
+    .eq("status", "active")
+    .limit(20);
+
+  const emails: string[] = [];
+  for (const s of staff ?? []) {
+    const { data: user } = await supabaseAdmin.auth.admin.getUserById(s.user_id as string);
+    if (user.user?.email) emails.push(user.user.email);
+  }
+  return [...new Set(emails)];
+}
+
+export async function runMonthlyAnalyticsReportJob(): Promise<{ reports: number; emails: number }> {
   const end = Date.now();
   const { data: clients } = await supabaseAdmin
     .from("clients")
     .select("id")
     .eq("status", "active");
 
+  const csEmails = await resolveCsEmails();
   let reports = 0;
+  let emails = 0;
+
   for (const c of clients ?? []) {
     await buildMonthlyReportHtml(c.id as string);
     reports += 1;
+
+    for (const email of csEmails) {
+      try {
+        const result = await sendMonthlyReportEmail(c.id as string, email);
+        if (result.sent) emails += 1;
+      } catch {
+        // continua para próximo destinatário
+      }
+    }
   }
 
   await logJob({
@@ -69,8 +124,8 @@ export async function runMonthlyAnalyticsReportJob(): Promise<{ reports: number 
     job_id: crypto.randomUUID(),
     status: "completed",
     duration_ms: Date.now() - end,
-    metadata: { reports },
+    metadata: { reports, emails },
   });
 
-  return { reports };
+  return { reports, emails };
 }

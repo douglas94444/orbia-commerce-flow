@@ -7,6 +7,8 @@ import {
   useUpsertWarehouseLocation,
   useLocationStock,
   useExpiringLots,
+  useWarehouses,
+  useUpsertWarehouse,
 } from "@/modules/logistics/hooks/use-fulfillly";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +27,10 @@ function WarehousePage() {
   const { data: expiringLots = [] } = useExpiringLots();
   const adjust = useAdjustStock();
   const upsertLocation = useUpsertWarehouseLocation();
+  const { data: warehouses = [] } = useWarehouses();
+  const upsertWarehouse = useUpsertWarehouse();
+  const [whName, setWhName] = useState("");
+  const [whCode, setWhCode] = useState("");
   const [sku, setSku] = useState("");
   const [delta, setDelta] = useState(0);
   const [reason, setReason] = useState("");
@@ -51,6 +57,31 @@ function WarehousePage() {
           <Button variant="outline" size="sm">Quarentena</Button>
         </Link>
       </div>
+
+      <Panel title="Galpões" subtitle="Multi-galpão por lojista">
+        {warehouses.length > 0 && (
+          <ul className="mb-4 space-y-1 text-sm">
+            {warehouses.map((w) => (
+              <li key={w.id} className="font-mono text-xs text-muted-foreground">
+                {w.code} — {w.name}
+                {w.isDefault ? " (padrão)" : ""}
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Input placeholder="Nome do galpão" value={whName} onChange={(e) => setWhName(e.target.value)} />
+          <Input placeholder="Código (ex. SP01)" value={whCode} onChange={(e) => setWhCode(e.target.value)} />
+        </div>
+        <Button
+          className="mt-3"
+          size="sm"
+          disabled={!whName || !whCode || upsertWarehouse.isPending}
+          onClick={() => upsertWarehouse.mutate({ name: whName, code: whCode.toUpperCase() })}
+        >
+          Adicionar galpão
+        </Button>
+      </Panel>
 
       <Panel title="Nova posição">
         <div className="grid gap-3 sm:grid-cols-3">

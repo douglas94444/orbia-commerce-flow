@@ -107,6 +107,19 @@ function CarriersPage() {
         </Button>
       </Panel>
 
+      <Panel title="Integração via Melhor Envio">
+        <p className="text-sm text-muted-foreground">
+          Correios, Jadlog, J&amp;T, Total Express, Latam e Azul são cotados automaticamente pelo{" "}
+          <strong>Melhor Envio</strong> quando configurado como provedor principal. Integrações diretas
+          com contrato próprio ficam no roadmap — use ME para cotação e etiquetas hoje.
+        </p>
+        <Link to="/logistics/pickups" className="mt-3 inline-block">
+          <Button variant="outline" size="sm">
+            Agendar coleta transportadora
+          </Button>
+        </Link>
+      </Panel>
+
       <Panel title="Configurações ativas">
         {isLoading ? (
           <div className="h-24 animate-pulse rounded-xl bg-muted/40" />

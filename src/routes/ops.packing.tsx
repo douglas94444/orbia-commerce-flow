@@ -6,6 +6,7 @@ import {
   useConfirmPackingItem,
   useCompletePacking,
   usePackingOrderItems,
+  useGeneratePackingLabel,
 } from "@/modules/logistics/hooks/use-fulfillly";
 import { useOfflineSync } from "@/modules/logistics/ops-pwa/use-offline-sync";
 import { playOpsError, playOpsSuccess } from "@/modules/logistics/ops-pwa/use-ops-feedback";
@@ -13,7 +14,7 @@ import type { PackingSessionStart } from "@/modules/logistics/packing/packing.se
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BarcodeScanner } from "@/modules/logistics/ops-pwa/barcode-scanner";
-import { Check, CheckCircle2, Loader2, Package } from "lucide-react";
+import { Check, CheckCircle2, Loader2, Package, Tag } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 
 export const Route = createFileRoute("/ops/packing")({
@@ -32,6 +33,8 @@ function OpsPackingPage() {
   const startPacking = useStartPacking();
   const confirmItem = useConfirmPackingItem();
   const complete = useCompletePacking();
+  const generateLabel = useGeneratePackingLabel();
+  const [labelUrl, setLabelUrl] = useState<string | null>(null);
   const { queueAction } = useOfflineSync();
   const { data: orderItems = [], isLoading: loadingItems, refetch: refetchItems } =
     usePackingOrderItems(session ? orderId : undefined);
@@ -288,6 +291,39 @@ function OpsPackingPage() {
               <p className="mt-1 text-xs text-success">{photoUrls.length} foto(s) anexada(s)</p>
             )}
           </div>
+
+          <Button
+            className="w-full"
+            variant="outline"
+            onClick={() =>
+              generateLabel.mutate(orderId, {
+                onSuccess: (res) => {
+                  playOpsSuccess();
+                  if (res.labelUrl) {
+                    setLabelUrl(res.labelUrl);
+                    window.open(res.labelUrl, "_blank");
+                  }
+                  toast.success(`Etiqueta ${res.trackingCode}`);
+                },
+                onError: () => playOpsError(),
+              })
+            }
+            disabled={generateLabel.isPending || !allItemsPacked}
+          >
+            <Tag className="mr-2 size-4" />
+            Gerar etiqueta na estação
+          </Button>
+
+          {labelUrl && (
+            <a
+              href={labelUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="block text-center text-xs text-primary underline"
+            >
+              Reabrir etiqueta
+            </a>
+          )}
 
           <Button
             className="w-full"

@@ -1119,3 +1119,70 @@ export const upsertPackingProfileFn = createServerFn({ method: "POST" })
       insertMaterialSku: data.insertMaterialSku,
     });
   });
+
+export const generatePackingLabelFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ orderId: z.string().uuid() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { purchasePackingLabel } = await import("./shipping/packing-label.server");
+    return purchasePackingLabel(data.orderId, context.userId);
+  });
+
+export const listCarrierPickupsFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    const { listCarrierPickups } = await import("./shipping/pickup.server");
+    return listCarrierPickups(clientId);
+  });
+
+export const scheduleCarrierPickupFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      provider: z.string().min(1),
+      scheduledAt: z.string(),
+      notes: z.string().optional(),
+    }),
+  )
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    const { scheduleCarrierPickup } = await import("./shipping/pickup.server");
+    return scheduleCarrierPickup(clientId, data, context.userId);
+  });
+
+export const getDeliveryHeatMapFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    const { buildDeliveryHeatMap } = await import("./analytics/delivery-heatmap.server");
+    return buildDeliveryHeatMap(clientId);
+  });
+
+export const listWarehousesFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    const { listWarehouses, ensureDefaultWarehouse } = await import("./wms/warehouses.server");
+    const warehouses = await listWarehouses(clientId);
+    if (warehouses.length === 0) {
+      await ensureDefaultWarehouse(clientId);
+      return listWarehouses(clientId);
+    }
+    return warehouses;
+  });
+
+export const upsertWarehouseFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      name: z.string().min(1),
+      code: z.string().min(1),
+      isDefault: z.boolean().optional(),
+    }),
+  )
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    const { upsertWarehouse } = await import("./wms/warehouses.server");
+    return upsertWarehouse(clientId, data, context.userId);
+  });

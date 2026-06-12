@@ -9,6 +9,7 @@ import {
   useSlaDashboard,
   useSlaOrders,
   useExportSlaReportCsv,
+  useSlaMonthlyReport,
   useUpsertChannelSlaRule,
 } from "@/modules/logistics/hooks/use-fulfillly";
 import { Clock, AlertTriangle, CheckCircle, Download, ArrowLeft } from "lucide-react";
@@ -32,8 +33,10 @@ function SlaPage() {
   const [editChannel, setEditChannel] = useState("");
   const [dispatchHours, setDispatchHours] = useState(48);
   const [alertHours, setAlertHours] = useState(6);
+  const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
 
   const { data, isLoading } = useSlaDashboard();
+  const { data: monthlyReport, isLoading: loadingReport } = useSlaMonthlyReport(reportMonth);
   const { data: orders = [], isLoading: loadingOrders } = useSlaOrders(bucket);
   const exportReport = useExportSlaReportCsv();
   const upsertRule = useUpsertChannelSlaRule();
@@ -175,6 +178,57 @@ function SlaPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+      </Panel>
+
+      <Panel
+        title={`Relatório SLA mensal — ${monthlyReport?.month ?? reportMonth}`}
+        action={
+          <Input
+            type="month"
+            className="w-40"
+            value={reportMonth}
+            onChange={(e) => setReportMonth(e.target.value)}
+          />
+        }
+      >
+        {loadingReport ? (
+          <div className="h-32 animate-pulse rounded-xl bg-muted/40" />
+        ) : (
+          <div className="grid gap-6 lg:grid-cols-3">
+            {(
+              [
+                { key: "byChannel" as const, title: "Por canal" },
+                { key: "byCarrier" as const, title: "Por transportadora" },
+                { key: "byRegion" as const, title: "Por região" },
+              ] as const
+            ).map(({ key, title }) => (
+              <div key={key}>
+                <p className="mb-2 text-xs font-medium uppercase text-muted-foreground">{title}</p>
+                {(monthlyReport?.[key] ?? []).length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Sem pedidos</p>
+                ) : (
+                  <div className="space-y-2">
+                    {(monthlyReport?.[key] ?? []).map((row) => (
+                      <div
+                        key={row.dimensionValue}
+                        className="rounded-lg border border-border px-3 py-2 text-sm"
+                      >
+                        <div className="flex justify-between font-medium">
+                          <span>{row.dimensionValue}</span>
+                          <span className="font-mono">{row.compliancePercent}%</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {row.total} ped. · {row.breached} estouro(s)
+                          {row.avgHoursToDispatch != null && ` · ${row.avgHoursToDispatch}h despacho`}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </Panel>

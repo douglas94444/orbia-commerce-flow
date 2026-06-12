@@ -89,6 +89,58 @@ interface ChannelRoasChartProps {
   data?: ChannelRoasPoint[];
 }
 
+export interface ShippingCostTrendPoint {
+  month: string;
+  avgCost: number;
+  orders: number;
+}
+
+interface ShippingCostTrendChartProps {
+  data?: ShippingCostTrendPoint[];
+}
+
+export function ShippingCostTrendChart({ data = [] }: ShippingCostTrendChartProps) {
+  const chartData =
+    data.length > 0
+      ? data.map((d) => ({
+          month: d.month.slice(5),
+          avgCost: d.avgCost / 100,
+          orders: d.orders,
+        }))
+      : [{ month: "—", avgCost: 0, orders: 0 }];
+
+  return (
+    <ResponsiveContainer width="100%" height={260}>
+      <BarChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: -8 }}>
+        <CartesianGrid stroke="var(--border)" vertical={false} />
+        <XAxis
+          dataKey="month"
+          tick={{ fill: "var(--muted-foreground)", fontSize: 10, fontFamily: "var(--font-mono)" }}
+          tickLine={false}
+          axisLine={false}
+        />
+        <YAxis
+          tick={{ fill: "var(--muted-foreground)", fontSize: 10, fontFamily: "var(--font-mono)" }}
+          tickLine={false}
+          axisLine={false}
+          tickFormatter={(v: number) => `R$${v.toFixed(0)}`}
+        />
+        <Tooltip
+          cursor={{ fill: "color-mix(in oklab, var(--foreground) 5%, transparent)" }}
+          contentStyle={tooltipStyle}
+          formatter={(value: number, name) =>
+            name === "avgCost"
+              ? [`R$ ${value.toFixed(2)}`, "Custo médio"]
+              : [value, "Pedidos"]
+          }
+          labelFormatter={(l) => `Mês ${l}`}
+        />
+        <Bar dataKey="avgCost" fill="var(--primary)" radius={[6, 6, 0, 0]} maxBarSize={40} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
 export function ChannelRoasChart({ data = [] }: ChannelRoasChartProps) {
   const colors = ["var(--primary)", "var(--chart-2)", "var(--chart-4)", "var(--success)"];
   const chartData = data.length > 0 ? data : [{ channel: "—", roas: 0 }];

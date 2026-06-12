@@ -1,7 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useOpsTasks, useGeneratePickWave } from "@/modules/logistics/hooks/use-fulfillly";
+import {
+  useOpsTasks,
+  useGeneratePickWave,
+  useOperatorPerformance,
+} from "@/modules/logistics/hooks/use-fulfillly";
 import { Button } from "@/components/ui/button";
-import { Loader2, AlertTriangle, MapPin } from "lucide-react";
+import { Loader2, AlertTriangle, MapPin, Trophy } from "lucide-react";
 import {
   getSlaBucket,
   SLA_BUCKET_CLASS,
@@ -16,6 +20,7 @@ export const Route = createFileRoute("/ops/")({
 function OpsHomePage() {
   const { data, isLoading } = useOpsTasks();
   const generateWave = useGeneratePickWave();
+  const { data: operators = [] } = useOperatorPerformance();
   const pickLines = data?.pickLines ?? [];
 
   return (
@@ -90,6 +95,33 @@ function OpsHomePage() {
                   Ver todas ({pickLines.length})
                 </Button>
               </Link>
+            )}
+          </section>
+
+          <section className="space-y-2">
+            <h2 className="flex items-center gap-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <Trophy className="size-3" />
+              Ranking operadores (30d)
+            </h2>
+            {operators.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Sem dados</p>
+            ) : (
+              operators.slice(0, 5).map((op, idx) => (
+                <div
+                  key={op.operatorId}
+                  className="flex items-center justify-between rounded-xl border border-border bg-card p-3 text-sm"
+                >
+                  <div>
+                    <p className="font-medium">
+                      #{idx + 1} {op.operatorName}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {op.picksCompleted} picks · {op.accuracyPercent}% acurácia
+                    </p>
+                  </div>
+                  <span className="font-mono text-xs">{op.picksPerHour}/h</span>
+                </div>
+              ))
             )}
           </section>
 
