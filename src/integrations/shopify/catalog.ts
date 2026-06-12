@@ -7,6 +7,7 @@ export interface CatalogProductRow {
   externalProductId: string;
   externalVariantId: string;
   stockQty: number;
+  listingMetadata?: Record<string, unknown>;
 }
 
 interface ShopifyProductsResponse {
@@ -18,15 +19,29 @@ interface ShopifyProductsResponse {
       sku: string | null;
       price: string;
       inventory_quantity: number;
+      inventory_item_id: number;
     }>;
   }>;
+}
+
+interface ShopifyLocationsResponse {
+  locations: Array<{ id: number; active: boolean }>;
 }
 
 export async function pullShopifyProducts(
   shop: string,
   accessToken: string,
 ): Promise<CatalogProductRow[]> {
-  const data = await shopifyFetch<ShopifyProductsResponse>(shop, accessToken, "/products.json?limit=250");
+  const [data, locationsData] = await Promise.all([
+    shopifyFetch<ShopifyProductsResponse>(shop, accessToken, "/products.json?limit=250"),
+    shopifyFetch<ShopifyLocationsResponse>(shop, accessToken, "/locations.json"),
+  ]);
+
+  const locationId =
+    locationsData.locations?.find((l) => l.active)?.id ??
+    locationsData.locations?.[0]?.id ??
+    null;
+
   const rows: CatalogProductRow[] = [];
 
   for (const product of data.products ?? []) {
@@ -39,6 +54,10 @@ export async function pullShopifyProducts(
         externalProductId: String(product.id),
         externalVariantId: String(variant.id),
         stockQty: variant.inventory_quantity ?? 0,
+        listingMetadata: {
+          inventory_item_id: variant.inventory_item_id,
+          ...(locationId != null ? { location_id: locationId } : {}),
+        },
       });
     }
   }

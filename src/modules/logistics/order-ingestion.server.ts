@@ -1,8 +1,6 @@
 // Unified order ingestion from marketplace webhooks.
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { getOrder as getMlOrder } from "@/integrations/mercado-livre";
-import { decryptToken } from "@/lib/crypto.server";
 import { emitNfeForOrder } from "@/modules/fiscal/emit-order-nfe.server";
 import { recalculateClientMetrics } from "@/modules/analytics/health-score.server";
 import { resolveOrderItemsSkus } from "@/modules/catalog/sku-resolution.server";
@@ -19,6 +17,8 @@ import { recordFulfillmentUsage } from "./forecast/volume-forecast.server";
 import { normalizeAmazonOrder } from "@/integrations/amazon/orders";
 import { normalizeTiktokOrder } from "@/integrations/tiktok/orders";
 import { normalizeInstagramOrder } from "@/integrations/instagram/orders";
+
+export { enrichMercadoLivrePayload } from "./order-enrichment.server";
 
 export type MarketplaceChannel =
   | "nuvemshop"
@@ -62,34 +62,6 @@ export interface NormalizedOrder {
   customerPhone?: string;
   shipping?: OrderShipping;
   raw: Record<string, unknown>;
-}
-
-export async function enrichMercadoLivrePayload(payload: unknown): Promise<unknown> {
-  const body = payload as Record<string, unknown>;
-  const data = (body.data ?? body) as Record<string, unknown>;
-  if (data.order_items) return payload;
-
-  const resource = String(body.resource ?? "");
-  const orderId = resource.split("/").pop();
-  const userId = String(body.user_id ?? "");
-  if (!orderId || !userId) return payload;
-
-  const clientId = await resolveClientId("mercado_livre", userId);
-  if (!clientId) return payload;
-
-  const { data: conn } = await supabaseAdmin
-    .from("oauth_connections")
-    .select("access_token")
-    .eq("client_id", clientId)
-    .eq("provider", "mercado_livre")
-    .eq("external_account", userId)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (!conn?.access_token) return payload;
-
-  const order = await getMlOrder(orderId, decryptToken(conn.access_token));
-  return { ...body, data: order, user_id: userId };
 }
 
 export async function resolveClientId(
@@ -461,7 +433,15 @@ export async function ingestStoreWebhook(
 
   if (!relevantEvents.has(eventType)) return;
 
-  const normalized = normalizeByProvider(provider, payload);
+  let enrichedPayload = payload;
+  try {
+    const { enrichOrderPayload } = await import("./order-enrichment.server");
+    enrichedPayload = await enrichOrderPayload(provider, payload, clientId);
+  } catch (err) {
+    console.error(`[ingest/${provider}] enrich error:`, err);
+  }
+
+  const normalized = normalizeByProvider(provider, enrichedPayload);
   if (!normalized) throw new Error(`Could not normalize ${provider} order payload`);
 
   let resolvedClientId = clientId;
@@ -499,6 +479,14 @@ export async function ingestStoreWebhook(
     } catch {
       // May not have been reserved yet
     }
+
+    const { handleChannelCancellation } = await import("./channel-cancellation.server");
+    await handleChannelCancellation({
+      clientId: resolvedClientId,
+      channel: provider,
+      externalOrderId: normalized.externalId,
+      reason: normalized.paymentStatus,
+    }).catch(() => undefined);
   }
 
   const orderId = await upsertOrderFromWebhook(resolvedClientId, normalized);

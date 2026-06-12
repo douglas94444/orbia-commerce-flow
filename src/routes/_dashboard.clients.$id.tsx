@@ -57,6 +57,20 @@ const CONNECTABLE = new Set([
   'melhor_envio', 'whatsapp', 'amazon', 'tiktok', 'instagram',
 ])
 
+const HEALTH_TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral'> = {
+  healthy: 'success',
+  degraded: 'warning',
+  down: 'danger',
+  unknown: 'neutral',
+}
+
+const HEALTH_LABEL: Record<string, string> = {
+  healthy: 'Saudável',
+  degraded: 'Degradado',
+  down: 'Offline',
+  unknown: '—',
+}
+
 function ClientDetailPage() {
   const { id } = Route.useParams()
   const { data: client, isLoading, error } = useClientDetail(id)
@@ -176,6 +190,13 @@ function ClientDetailPage() {
                         <span className={active ? 'text-foreground' : 'text-muted-foreground/60'}>
                           {PROVIDER_LABEL[p] ?? p}
                         </span>
+                        {active && conn?.healthStatus && conn.healthStatus !== 'unknown' && (
+                          <StatusPill
+                            label={HEALTH_LABEL[conn.healthStatus] ?? conn.healthStatus}
+                            tone={HEALTH_TONE[conn.healthStatus] ?? 'neutral'}
+                            dot
+                          />
+                        )}
                         {conn?.externalAccount && (
                           <span className="font-mono text-[10px] text-muted-foreground/60">
                             {conn.externalAccount}

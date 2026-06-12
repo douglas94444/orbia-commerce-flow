@@ -44,6 +44,27 @@ export async function exchangeAmazonCode(code: string): Promise<AmazonTokenRespo
   return res.json() as Promise<AmazonTokenResponse>;
 }
 
+export async function refreshAmazonToken(refreshToken: string): Promise<AmazonTokenResponse> {
+  const { amazon } = getServerConfig();
+  const res = await fetch("https://api.amazon.com/auth/o2/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+      client_id: amazon.clientId ?? "",
+      client_secret: amazon.clientSecret ?? "",
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Amazon token refresh failed: ${body}`);
+  }
+
+  return res.json() as Promise<AmazonTokenResponse>;
+}
+
 /** @deprecated Use buildAmazonAuthUrl */
 export function getAmazonAuthUrl(state: string, _clientId: string): string {
   return buildAmazonAuthUrl(state);

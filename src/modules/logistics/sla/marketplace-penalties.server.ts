@@ -4,6 +4,8 @@ export async function checkMarketplacePenalties(): Promise<{
   missingTracking: number;
   nearDeadlineNoNf: number;
   alertsCreated: number;
+  shopeeHealthChecked: number;
+  amazonHealthChecked: number;
 }> {
   const now = Date.now();
   let missingTracking = 0;
@@ -114,5 +116,14 @@ export async function checkMarketplacePenalties(): Promise<{
     alertsCreated += 1;
   }
 
-  return { missingTracking, nearDeadlineNoNf, alertsCreated };
+  const { runMarketplaceHealthChecks } = await import("@/modules/marketplaces");
+  const health = await runMarketplaceHealthChecks();
+
+  return {
+    missingTracking,
+    nearDeadlineNoNf,
+    alertsCreated,
+    shopeeHealthChecked: health.shopee,
+    amazonHealthChecked: health.amazon,
+  };
 }

@@ -44,5 +44,23 @@ export async function exchangeInstagramCode(code: string): Promise<InstagramToke
     throw new Error(`Instagram token exchange failed: ${body}`);
   }
 
+  return body;
+}
+
+export async function refreshInstagramToken(refreshToken: string): Promise<InstagramTokenResponse> {
+  const { meta } = getServerConfig();
+  const params = new URLSearchParams({
+    grant_type: "fb_exchange_token",
+    client_id: meta.appId ?? "",
+    client_secret: meta.appSecret ?? "",
+    fb_exchange_token: refreshToken,
+  });
+
+  const res = await fetch(`https://graph.facebook.com/v21.0/oauth/access_token?${params}`);
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Instagram token refresh failed: ${body}`);
+  }
+
   return res.json() as Promise<InstagramTokenResponse>;
 }

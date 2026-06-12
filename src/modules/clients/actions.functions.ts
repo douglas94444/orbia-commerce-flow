@@ -93,6 +93,7 @@ export interface ClientDetail extends Client {
     externalAccount: string | null;
     isActive: boolean;
     lastRefreshed: string | null;
+    healthStatus?: "healthy" | "degraded" | "down" | "unknown";
   }>;
   recentActivity: Array<{ provider: string; operation: string; status: string; createdAt: string }>;
 }
@@ -120,6 +121,12 @@ export const getClient = createServerFn({ method: "GET" })
     if (clientResult.error) throw new Error(clientResult.error.message);
     const row = clientResult.data;
 
+    const { getIntegrationHealthForClient } = await import(
+      "@/modules/integrations/integration-health.server"
+    );
+    const healthRows = await getIntegrationHealthForClient(data.id);
+    const healthByProvider = new Map(healthRows.map((h) => [h.provider, h.status]));
+
     return {
       ...toUiClient(row),
       connections: (connectionsResult.data ?? []).map((c) => ({
@@ -127,6 +134,7 @@ export const getClient = createServerFn({ method: "GET" })
         externalAccount: c.external_account,
         isActive: c.is_active,
         lastRefreshed: c.last_refreshed_at,
+        healthStatus: healthByProvider.get(c.provider) ?? "unknown",
       })),
       recentActivity: (activityResult.data ?? []).map((a) => ({
         provider: a.provider,

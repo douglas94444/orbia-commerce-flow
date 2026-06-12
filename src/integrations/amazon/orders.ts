@@ -1,7 +1,57 @@
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { decryptToken } from "@/lib/crypto.server";
 import type {
   NormalizedOrder,
   NormalizedOrderItem,
 } from "@/modules/logistics/order-ingestion.server";
+
+export async function fetchAmazonOrder(
+  clientId: string,
+  amazonOrderId: string,
+): Promise<Record<string, unknown> | null> {
+  const { data: conn } = await supabaseAdmin
+    .from("oauth_connections")
+    .select("access_token")
+    .eq("client_id", clientId)
+    .eq("provider", "amazon")
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (!conn?.access_token) return null;
+  const token = decryptToken(conn.access_token);
+
+  const res = await fetch(
+    `https://sellingpartnerapi-na.amazon.com/orders/v0/orders/${amazonOrderId}?MarketplaceIds=A2Q3Y263D00KWC`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "x-amz-access-token": token,
+      },
+    },
+  );
+
+  if (!res.ok) return null;
+  const body = (await res.json()) as { payload?: Record<string, unknown> };
+  const order = body.payload ?? null;
+  if (!order) return null;
+
+  const itemsRes = await fetch(
+    `https://sellingpartnerapi-na.amazon.com/orders/v0/orders/${amazonOrderId}/orderItems`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "x-amz-access-token": token,
+      },
+    },
+  );
+
+  if (itemsRes.ok) {
+    const itemsBody = (await itemsRes.json()) as { payload?: { OrderItems?: unknown[] } };
+    return { ...order, OrderItems: itemsBody.payload?.OrderItems ?? [] };
+  }
+
+  return order;
+}
 
 export function normalizeAmazonOrder(payload: unknown): NormalizedOrder | null {
   const body = payload as Record<string, unknown>;

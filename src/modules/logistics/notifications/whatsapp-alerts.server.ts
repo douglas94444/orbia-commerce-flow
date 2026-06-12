@@ -66,7 +66,7 @@ export async function sendWhatsAppToClient(
   }
 }
 
-export async function sendStockCriticalWhatsApp(
+export async function sendLowStockWhatsApp(
   clientId: string,
   sku: string,
   available: number,
@@ -131,4 +131,17 @@ export async function sendTrackingWhatsApp(
       error_message: (err as Error).message,
     });
   }
+}
+
+export async function notifyIntegrationDown(
+  clientId: string,
+  provider: string,
+): Promise<void> {
+  await sendWhatsAppToClient(
+    clientId,
+    `⚠️ Integração ${provider} com falhas repetidas. Reconecte o canal no painel Orbia.`,
+  );
+  await sendWhatsAppToOrbiaOps(
+    `Integração ${provider} DOWN para client ${clientId}. Verificar oauth_connections e webhooks.`,
+  );
 }

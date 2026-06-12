@@ -3,14 +3,35 @@ import { encryptToken, decryptToken } from "@/lib/crypto.server";
 import { refreshMercadoLivreToken } from "@/integrations/mercado-livre/oauth";
 import { refreshGoogleToken } from "@/integrations/google/oauth";
 import { refreshMelhorEnvioToken } from "@/integrations/melhor-envio/oauth";
+import { refreshShopeeToken } from "@/integrations/shopee/oauth";
+import { refreshAmazonToken } from "@/integrations/amazon/oauth";
+import { refreshTikTokToken } from "@/integrations/tiktok/oauth";
+import { refreshInstagramToken } from "@/integrations/instagram/oauth";
 import { logIntegration } from "@/shared/lib/logger";
 
-type RefreshableProvider = "mercado_livre" | "google" | "melhor_envio";
-const REFRESHABLE: RefreshableProvider[] = ["mercado_livre", "google", "melhor_envio"];
+type RefreshableProvider =
+  | "mercado_livre"
+  | "google"
+  | "melhor_envio"
+  | "shopee"
+  | "amazon"
+  | "tiktok"
+  | "instagram";
+
+const REFRESHABLE: RefreshableProvider[] = [
+  "mercado_livre",
+  "google",
+  "melhor_envio",
+  "shopee",
+  "amazon",
+  "tiktok",
+  "instagram",
+];
 
 async function doRefresh(
   provider: RefreshableProvider,
   refreshToken: string,
+  externalAccount?: string,
 ): Promise<{ accessToken: string; newRefreshToken?: string; expiresIn: number }> {
   switch (provider) {
     case "mercado_livre": {
@@ -25,6 +46,34 @@ async function doRefresh(
       const t = await refreshMelhorEnvioToken(refreshToken);
       return { accessToken: t.access_token, newRefreshToken: t.refresh_token, expiresIn: t.expires_in };
     }
+    case "shopee": {
+      const t = await refreshShopeeToken(externalAccount ?? "", refreshToken);
+      return {
+        accessToken: t.access_token,
+        newRefreshToken: t.refresh_token,
+        expiresIn: t.expire_in,
+      };
+    }
+    case "amazon": {
+      const t = await refreshAmazonToken(refreshToken);
+      return {
+        accessToken: t.access_token,
+        newRefreshToken: t.refresh_token,
+        expiresIn: t.expires_in,
+      };
+    }
+    case "tiktok": {
+      const t = await refreshTikTokToken(refreshToken);
+      return {
+        accessToken: t.access_token,
+        newRefreshToken: t.refresh_token,
+        expiresIn: t.access_token_expire_in,
+      };
+    }
+    case "instagram": {
+      const t = await refreshInstagramToken(refreshToken);
+      return { accessToken: t.access_token, expiresIn: t.expires_in ?? 3600 };
+    }
   }
 }
 
@@ -36,7 +85,7 @@ export async function refreshExpiredTokens(): Promise<{
 
   const { data: expiring, error } = await supabaseAdmin
     .from("oauth_connections")
-    .select("id, client_id, provider, refresh_token, token_expires_at")
+    .select("id, client_id, provider, external_account, refresh_token, token_expires_at")
     .in("provider", REFRESHABLE)
     .eq("is_active", true)
     .not("refresh_token", "is", null)
@@ -55,7 +104,11 @@ export async function refreshExpiredTokens(): Promise<{
     const decryptedRefresh = decryptToken(rawRefreshToken);
 
     try {
-      const result = await doRefresh(provider, decryptedRefresh);
+      const result = await doRefresh(
+        provider,
+        decryptedRefresh,
+        conn.external_account as string | undefined,
+      );
       const expiresAt = new Date(Date.now() + result.expiresIn * 1000).toISOString();
 
       await supabaseAdmin

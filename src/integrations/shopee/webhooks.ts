@@ -1,5 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { getServerConfig } from "@/lib/config.server";
+import { logIntegration, startTimer } from "@/shared/lib/logger";
+import { shopeeFetch } from "./client";
 
 export function validateShopeeWebhook(
   rawBody: string,
@@ -19,8 +21,52 @@ export function validateShopeeWebhook(
 }
 
 export async function registerShopeeWebhooks(
-  _shopId: string,
-  _accessToken: string,
+  shopId: string,
+  accessToken: string,
 ): Promise<void> {
-  // Shopee webhooks configured in Partner Center — document APP_URL in dashboard
+  const { appUrl } = getServerConfig();
+  const callbackUrl = `${appUrl}/api/webhooks/shopee`;
+  const end = startTimer();
+
+  try {
+    await shopeeFetch<{ error?: string }>(
+      "/api/v2/push/set_push_config",
+      shopId,
+      accessToken,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          push_config: {
+            callback_url: callbackUrl,
+            push_config_list: [
+              { push_type: 1, callback_url: callbackUrl },
+              { push_type: 2, callback_url: callbackUrl },
+            ],
+          },
+        }),
+      },
+    );
+
+    await logIntegration({
+      provider: "shopee",
+      operation: "register_webhooks",
+      status: "success",
+      duration_ms: end(),
+      metadata: { shopId, callbackUrl },
+    });
+  } catch (err) {
+    await logIntegration({
+      provider: "shopee",
+      operation: "register_webhooks",
+      status: "error",
+      duration_ms: end(),
+      error_message: (err as Error).message,
+      metadata: {
+        shopId,
+        callbackUrl,
+        note:
+          "Configure webhook URL manually in Shopee Partner Center if API registration fails",
+      },
+    });
+  }
 }

@@ -1,9 +1,11 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { decryptToken } from "@/lib/crypto.server";
+import { pullAmazonProducts } from "@/integrations/amazon/catalog";
 import { pullMercadoLivreProducts } from "@/integrations/mercado-livre/catalog";
 import { pullNuvemshopProducts } from "@/integrations/nuvemshop/catalog";
 import { pullShopeeProducts } from "@/integrations/shopee/catalog";
 import { pullShopifyProducts } from "@/integrations/shopify/catalog";
+import { pullTikTokProducts } from "@/integrations/tiktok/catalog";
 import type { CatalogProductRow } from "@/integrations/shopify/catalog";
 
 export type CatalogChannel =
@@ -63,6 +65,22 @@ async function upsertCatalogRows(
     if (!product) continue;
     products += 1;
 
+    const { data: existingListing } = await supabaseAdmin
+      .from("channel_listings")
+      .select("metadata")
+      .eq("client_id", clientId)
+      .eq("channel", channel)
+      .eq("external_product_id", row.externalProductId)
+      .eq("external_variant_id", row.externalVariantId)
+      .maybeSingle();
+
+    const prevMeta = (existingListing?.metadata ?? {}) as Record<string, unknown>;
+    const metadata: Record<string, unknown> = {
+      ...prevMeta,
+      stock_qty: row.stockQty,
+      ...(row.listingMetadata ?? {}),
+    };
+
     await supabaseAdmin.from("channel_listings").upsert(
       {
         client_id: clientId,
@@ -72,7 +90,7 @@ async function upsertCatalogRows(
         external_variant_id: row.externalVariantId,
         listing_status: "active",
         last_synced_at: new Date().toISOString(),
-        metadata: { stock_qty: row.stockQty },
+        metadata,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "client_id,channel,external_product_id,external_variant_id" },
@@ -111,6 +129,12 @@ export async function pullProductsFromChannel(
       break;
     case "shopee":
       rows = await pullShopeeProducts(conn.external_account ?? "", conn.access_token);
+      break;
+    case "amazon":
+      rows = await pullAmazonProducts(conn.external_account ?? "", conn.access_token);
+      break;
+    case "tiktok":
+      rows = await pullTikTokProducts(conn.external_account ?? "", conn.access_token);
       break;
   }
 

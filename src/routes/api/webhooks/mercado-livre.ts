@@ -7,10 +7,8 @@ import {
   saveWebhookEvent,
   processWebhookEventInternal,
 } from "@/modules/billing/webhook-processor.server";
-import {
-  enrichMercadoLivrePayload,
-  resolveClientId,
-} from "@/modules/logistics/order-ingestion.server";
+import { enrichOrderPayload } from "@/modules/logistics/order-enrichment.server";
+import { resolveClientId } from "@/modules/logistics/order-ingestion.server";
 
 export const Route = createFileRoute("/api/webhooks/mercado-livre")({
   server: {
@@ -49,7 +47,7 @@ export const Route = createFileRoute("/api/webhooks/mercado-livre")({
 
         let enriched = payload;
         try {
-          enriched = await enrichMercadoLivrePayload(payload);
+          enriched = await enrichOrderPayload("mercado_livre", payload, clientId);
         } catch (err) {
           console.error("[webhook/mercado-livre] enrich error:", err);
         }

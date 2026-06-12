@@ -11,6 +11,7 @@ const VALID_JOBS = new Set<CronJobName>([
   "capture-benchmarks",
   "check-alerts",
   "compute-rfm",
+  "reconcile-customer-identities",
   "refresh-tokens",
   "process-automation-enrollments",
   "retention-crons",
@@ -27,6 +28,8 @@ const VALID_JOBS = new Set<CronJobName>([
   "monthly-analytics-report",
   "charge-fulfillment-overage",
   "attribute-traffic-conversions",
+  "integration-health",
+  "marketplace-advanced-sync",
   "all",
 ]);
 

@@ -10,6 +10,7 @@ import { processOutboxBatch } from "@/shared/lib/domain-events.server";
 import { captureBenchmarkSnapshots } from "@/modules/benchmarks/benchmarks.server";
 import { refreshOperationAlerts } from "@/modules/analytics/alert-engine.server";
 import { computeRfmSegments } from "@/modules/retention/rfm-calculator.server";
+import { reconcileAllCustomerIdentities } from "@/modules/retention/customer-identity.server";
 import { refreshExpiredTokens } from "@/modules/integrations/refresh-tokens.server";
 import {
   processAutomationEnrollments,
@@ -31,6 +32,7 @@ export type CronJobName =
   | "capture-benchmarks"
   | "check-alerts"
   | "compute-rfm"
+  | "reconcile-customer-identities"
   | "refresh-tokens"
   | "process-automation-enrollments"
   | "retention-crons"
@@ -43,10 +45,13 @@ export type CronJobName =
   | "schedule-pickup"
   | "sync-return-tracking"
   | "check-marketplace-penalties"
+  | "marketplace-advanced-sync"
   | "sla-monthly-report"
   | "monthly-analytics-report"
   | "charge-fulfillment-overage"
   | "attribute-traffic-conversions"
+  | "integration-health"
+  | "marketplace-advanced-sync"
   | "all";
 
 export interface JobResult {
@@ -113,6 +118,10 @@ async function runJob(name: Exclude<CronJobName, "all">): Promise<JobResult> {
       case "compute-rfm": {
         const result = await computeRfmSegments();
         metadata = result;
+        break;
+      }
+      case "reconcile-customer-identities": {
+        metadata = await reconcileAllCustomerIdentities();
         break;
       }
       case "refresh-tokens": {
@@ -192,6 +201,11 @@ async function runJob(name: Exclude<CronJobName, "all">): Promise<JobResult> {
         metadata = await checkMarketplacePenalties();
         break;
       }
+      case "marketplace-advanced-sync": {
+        const { runMarketplaceAdvancedSync } = await import("@/modules/marketplaces");
+        metadata = await runMarketplaceAdvancedSync();
+        break;
+      }
       case "sla-monthly-report": {
         const { runMonthlySlaReportJob } = await import(
           "@/modules/logistics/sla/sla-report.server"
@@ -218,6 +232,18 @@ async function runJob(name: Exclude<CronJobName, "all">): Promise<JobResult> {
           "@/modules/traffic/order-attribution.server"
         );
         metadata = await attributeTrafficConversionsBatch();
+        break;
+      }
+      case "integration-health": {
+        const { runIntegrationHealthJob } = await import(
+          "@/modules/integrations/integration-health.server"
+        );
+        metadata = await runIntegrationHealthJob();
+        break;
+      }
+      case "marketplace-advanced-sync": {
+        const { runMarketplaceAdvancedSync } = await import("@/modules/marketplaces");
+        metadata = await runMarketplaceAdvancedSync();
         break;
       }
     }
@@ -251,15 +277,18 @@ const JOB_SEQUENCE: Array<Exclude<CronJobName, "all">> = [
   "stock-sync-outbox",
   "process-automation-enrollments",
   "refresh-tokens",
+  "integration-health",
   "health-recalc",
   "check-alerts",
   "check-sla",
   "check-marketplace-penalties",
+  "marketplace-advanced-sync",
   "sync-tracking",
   "sync-return-tracking",
   "sync-campaigns",
   "sync-catalog",
   "compute-rfm",
+  "reconcile-customer-identities",
   "retention-crons",
   "attribute-conversions",
   "forecast-volume",

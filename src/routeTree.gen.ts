@@ -36,6 +36,7 @@ import { Route as DashboardOverviewRouteImport } from './routes/_dashboard.overv
 import { Route as DashboardLogisticsRouteImport } from './routes/_dashboard.logistics'
 import { Route as DashboardFiscalRouteImport } from './routes/_dashboard.fiscal'
 import { Route as DashboardClientsRouteImport } from './routes/_dashboard.clients'
+import { Route as DashboardChannelsRouteImport } from './routes/_dashboard.channels'
 import { Route as DashboardCatalogRouteImport } from './routes/_dashboard.catalog'
 import { Route as DashboardBillingRouteImport } from './routes/_dashboard.billing'
 import { Route as DashboardAnalyticsRouteImport } from './routes/_dashboard.analytics'
@@ -215,6 +216,11 @@ const DashboardFiscalRoute = DashboardFiscalRouteImport.update({
 const DashboardClientsRoute = DashboardClientsRouteImport.update({
   id: '/clients',
   path: '/clients',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardChannelsRoute = DashboardChannelsRouteImport.update({
+  id: '/channels',
+  path: '/channels',
   getParentRoute: () => DashboardRoute,
 } as any)
 const DashboardCatalogRoute = DashboardCatalogRouteImport.update({
@@ -476,6 +482,7 @@ export interface FileRoutesByFullPath {
   '/analytics': typeof DashboardAnalyticsRoute
   '/billing': typeof DashboardBillingRoute
   '/catalog': typeof DashboardCatalogRoute
+  '/channels': typeof DashboardChannelsRoute
   '/clients': typeof DashboardClientsRouteWithChildren
   '/fiscal': typeof DashboardFiscalRouteWithChildren
   '/logistics': typeof DashboardLogisticsRouteWithChildren
@@ -549,6 +556,7 @@ export interface FileRoutesByTo {
   '/analytics': typeof DashboardAnalyticsRoute
   '/billing': typeof DashboardBillingRoute
   '/catalog': typeof DashboardCatalogRoute
+  '/channels': typeof DashboardChannelsRoute
   '/clients': typeof DashboardClientsRouteWithChildren
   '/fiscal': typeof DashboardFiscalRouteWithChildren
   '/logistics': typeof DashboardLogisticsRouteWithChildren
@@ -625,6 +633,7 @@ export interface FileRoutesById {
   '/_dashboard/analytics': typeof DashboardAnalyticsRoute
   '/_dashboard/billing': typeof DashboardBillingRoute
   '/_dashboard/catalog': typeof DashboardCatalogRoute
+  '/_dashboard/channels': typeof DashboardChannelsRoute
   '/_dashboard/clients': typeof DashboardClientsRouteWithChildren
   '/_dashboard/fiscal': typeof DashboardFiscalRouteWithChildren
   '/_dashboard/logistics': typeof DashboardLogisticsRouteWithChildren
@@ -701,6 +710,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/billing'
     | '/catalog'
+    | '/channels'
     | '/clients'
     | '/fiscal'
     | '/logistics'
@@ -774,6 +784,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/billing'
     | '/catalog'
+    | '/channels'
     | '/clients'
     | '/fiscal'
     | '/logistics'
@@ -849,6 +860,7 @@ export interface FileRouteTypes {
     | '/_dashboard/analytics'
     | '/_dashboard/billing'
     | '/_dashboard/catalog'
+    | '/_dashboard/channels'
     | '/_dashboard/clients'
     | '/_dashboard/fiscal'
     | '/_dashboard/logistics'
@@ -1139,6 +1151,13 @@ declare module '@tanstack/react-router' {
       path: '/clients'
       fullPath: '/clients'
       preLoaderRoute: typeof DashboardClientsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/channels': {
+      id: '/_dashboard/channels'
+      path: '/channels'
+      fullPath: '/channels'
+      preLoaderRoute: typeof DashboardChannelsRouteImport
       parentRoute: typeof DashboardRoute
     }
     '/_dashboard/catalog': {
@@ -1534,6 +1553,7 @@ interface DashboardRouteChildren {
   DashboardAnalyticsRoute: typeof DashboardAnalyticsRoute
   DashboardBillingRoute: typeof DashboardBillingRoute
   DashboardCatalogRoute: typeof DashboardCatalogRoute
+  DashboardChannelsRoute: typeof DashboardChannelsRoute
   DashboardClientsRoute: typeof DashboardClientsRouteWithChildren
   DashboardFiscalRoute: typeof DashboardFiscalRouteWithChildren
   DashboardLogisticsRoute: typeof DashboardLogisticsRouteWithChildren
@@ -1548,6 +1568,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardAnalyticsRoute: DashboardAnalyticsRoute,
   DashboardBillingRoute: DashboardBillingRoute,
   DashboardCatalogRoute: DashboardCatalogRoute,
+  DashboardChannelsRoute: DashboardChannelsRoute,
   DashboardClientsRoute: DashboardClientsRouteWithChildren,
   DashboardFiscalRoute: DashboardFiscalRouteWithChildren,
   DashboardLogisticsRoute: DashboardLogisticsRouteWithChildren,

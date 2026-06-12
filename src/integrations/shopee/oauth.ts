@@ -63,3 +63,33 @@ export async function exchangeShopeeCode(
   }
   return body.response;
 }
+
+export async function refreshShopeeToken(
+  shopId: string,
+  refreshToken: string,
+): Promise<ShopeeTokenResponse> {
+  const { shopee } = getServerConfig();
+  const path = "/api/v2/auth/access_token/get";
+  const timestamp = Math.floor(Date.now() / 1000);
+
+  const url = new URL(`${API_HOST}${path}`);
+  url.searchParams.set("partner_id", shopee.partnerId ?? "");
+  url.searchParams.set("timestamp", String(timestamp));
+  url.searchParams.set("sign", signAuth(path, timestamp));
+
+  const res = await fetch(url.toString(), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      refresh_token: refreshToken,
+      shop_id: Number(shopId),
+      partner_id: Number(shopee.partnerId),
+    }),
+  });
+
+  const body = (await res.json()) as { response?: ShopeeTokenResponse; error?: string };
+  if (!res.ok || !body.response) {
+    throw new Error(body.error ?? `Shopee token refresh failed: ${res.status}`);
+  }
+  return body.response;
+}

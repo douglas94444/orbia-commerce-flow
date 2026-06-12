@@ -45,6 +45,30 @@ export async function exchangeTikTokCode(code: string): Promise<TikTokTokenRespo
   return data;
 }
 
+export async function refreshTikTokToken(refreshToken: string): Promise<TikTokTokenResponse> {
+  const { tiktok } = getServerConfig();
+  const res = await fetch("https://auth.tiktok-shops.com/api/v2/token/refresh", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      app_key: tiktok.appKey,
+      app_secret: tiktok.appSecret,
+      refresh_token: refreshToken,
+      grant_type: "refresh_token",
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`TikTok token refresh failed: ${body}`);
+  }
+
+  const json = (await res.json()) as { data?: TikTokTokenResponse };
+  const data = json.data;
+  if (!data?.access_token) throw new Error("TikTok refresh response missing access_token");
+  return data;
+}
+
 /** @deprecated Use buildTikTokAuthUrl */
 export function getTikTokAuthUrl(state: string, _clientId: string): string {
   return buildTikTokAuthUrl(state);

@@ -83,7 +83,7 @@ export default {
         "schedule-pickup",
       ],
       "0 6 1 * *": ["sla-monthly-report", "monthly-analytics-report", "charge-fulfillment-overage"],
-      "0 */6 * * *": ["sync-catalog", "compute-rfm"],
+      "0 */6 * * *": ["sync-catalog", "compute-rfm", "reconcile-customer-identities", "integration-health"],
       "0 3 * * *": ["cleanup-oauth"],
     };
 

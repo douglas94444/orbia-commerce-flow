@@ -1,7 +1,49 @@
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { decryptToken } from "@/lib/crypto.server";
 import type {
   NormalizedOrder,
   NormalizedOrderItem,
 } from "@/modules/logistics/order-ingestion.server";
+
+export async function fetchTiktokOrder(
+  clientId: string,
+  orderId: string,
+): Promise<Record<string, unknown> | null> {
+  const { data: conn } = await supabaseAdmin
+    .from("oauth_connections")
+    .select("access_token, external_account")
+    .eq("client_id", clientId)
+    .eq("provider", "tiktok")
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (!conn?.access_token) return null;
+  const token = decryptToken(conn.access_token);
+  const shopId = conn.external_account ?? "";
+
+  const res = await fetch(
+    "https://open-api.tiktokglobalshop.com/order/202309/orders",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "x-tts-access-token": token,
+      },
+      body: JSON.stringify({
+        shop_id: shopId,
+        ids: [orderId],
+      }),
+    },
+  );
+
+  if (!res.ok) return null;
+
+  const body = (await res.json()) as {
+    data?: { orders?: Array<Record<string, unknown>> };
+  };
+  return body.data?.orders?.[0] ?? null;
+}
 
 export function normalizeTiktokOrder(payload: unknown): NormalizedOrder | null {
   const body = payload as Record<string, unknown>;

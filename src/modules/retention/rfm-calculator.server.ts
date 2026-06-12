@@ -55,49 +55,54 @@ export async function computeRfmSegments(): Promise<{
   const ninetyDaysAgo = new Date();
   ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
-  // Load orders from the last 90 days with customer email from metadata
+  // Load orders from the last 90 days — prefer customer_id, fallback to email hash
   const { data: orders, error } = await supabaseAdmin
     .from("orders")
-    .select("client_id, value_cents, created_at, status, metadata")
+    .select("client_id, customer_id, value_cents, created_at, status, metadata")
     .neq("status", "cancelado")
     .gte("created_at", ninetyDaysAgo.toISOString());
 
   if (error) throw new Error(`RFM: failed to load orders: ${error.message}`);
 
-  // Aggregate by (client_id, email_hash)
+  const { data: customers } = await supabaseAdmin
+    .from("customers")
+    .select("id, client_id, email_hash")
+    .is("merged_into_customer_id", null);
+
+  const customerMap = new Map<string, string>();
+  for (const c of customers ?? []) {
+    customerMap.set(`${c.client_id}:${c.email_hash}`, c.id as string);
+  }
+
   type AggKey = string;
   const agg = new Map<
     AggKey,
-    { clientId: string; emailHash: string; lastOrder: Date; count: number; total: number }
+    { clientId: string; customerId: string; lastOrder: Date; count: number; total: number }
   >();
 
   for (const o of orders ?? []) {
     if (!o.client_id) continue;
-    const meta = (o.metadata ?? {}) as Record<string, unknown>;
-    const rawEmail = String(meta.customer_email ?? "").trim().toLowerCase();
-    if (!rawEmail) continue;
 
-    const emailHash = hashEmail(rawEmail);
-    const key: AggKey = `${o.client_id}:${emailHash}`;
+    let customerId = o.customer_id as string | null;
+    if (!customerId) {
+      const meta = (o.metadata ?? {}) as Record<string, unknown>;
+      const rawEmail = String(meta.customer_email ?? "").trim().toLowerCase();
+      if (!rawEmail) continue;
+      const emailHash = hashEmail(rawEmail);
+      customerId = customerMap.get(`${o.client_id}:${emailHash}`) ?? null;
+      if (!customerId) continue;
+    }
+
+    const key: AggKey = `${o.client_id}:${customerId}`;
     const dt = new Date(o.created_at);
     const cur = agg.get(key);
     if (!cur) {
-      agg.set(key, { clientId: o.client_id, emailHash, lastOrder: dt, count: 1, total: o.value_cents ?? 0 });
+      agg.set(key, { clientId: o.client_id, customerId, lastOrder: dt, count: 1, total: o.value_cents ?? 0 });
     } else {
       if (dt > cur.lastOrder) cur.lastOrder = dt;
       cur.count += 1;
       cur.total += o.value_cents ?? 0;
     }
-  }
-
-  // Load existing customers indexed by (client_id, email_hash)
-  const { data: customers } = await supabaseAdmin
-    .from("customers")
-    .select("id, client_id, email_hash");
-
-  const customerMap = new Map<string, string>();
-  for (const c of customers ?? []) {
-    customerMap.set(`${c.client_id}:${c.email_hash}`, c.id);
   }
 
   const now = Date.now();
@@ -117,9 +122,8 @@ export async function computeRfmSegments(): Promise<{
   };
   const upsertRows: UpsertRow[] = [];
 
-  for (const [key, data] of agg) {
-    const customerId = customerMap.get(key);
-    if (!customerId) continue;
+  for (const [, data] of agg) {
+    const customerId = data.customerId;
 
     const recencyDays = Math.floor((now - data.lastOrder.getTime()) / 86_400_000);
     const r = scoreRecency(recencyDays);

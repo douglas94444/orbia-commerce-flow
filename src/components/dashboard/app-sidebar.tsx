@@ -14,6 +14,7 @@ import {
   TrendingUp,
   Truck,
   Users,
+  Store,
   type LucideIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -31,6 +32,7 @@ const nav: NavItem[] = [
   { label: 'Clientes',        to: '/clients',   icon: Users           },
   { label: 'Tráfego',         to: '/traffic',   icon: TrendingUp      },
   { label: 'Logística',       to: '/logistics', icon: Truck           },
+  { label: 'Canais',          to: '/channels',  icon: Store           },
   { label: 'Catálogo',        to: '/catalog',   icon: Package         },
   { label: 'Retenção',        to: '/retention', icon: Repeat          },
   { label: 'Billing',         to: '/billing',   icon: Banknote        },
