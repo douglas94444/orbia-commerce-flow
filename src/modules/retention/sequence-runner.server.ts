@@ -41,32 +41,13 @@ async function getStoreName(clientId: string): Promise<string> {
   return data?.name ?? "nossa loja";
 }
 
-async function getCustomerContact(customerId: string | null, context: Record<string, unknown>) {
-  if (!customerId) {
-    return {
-      email: context.email ? String(context.email) : null,
-      phone: context.phone ? String(context.phone) : null,
-      optedOut: [] as string[],
-    };
-  }
-
-  const { data: customer } = await supabaseAdmin
-    .from("customers")
-    .select("id, email_hash, phone_hash")
-    .eq("id", customerId)
-    .single();
-
-  const { data: prefs } = await supabaseAdmin
-    .from("customer_contact_prefs")
-    .select("opted_out_channels")
-    .eq("customer_id", customerId)
-    .maybeSingle();
-
-  return {
-    email: context.email ? String(context.email) : null,
-    phone: context.phone ? String(context.phone) : null,
-    optedOut: (prefs?.opted_out_channels ?? []) as string[],
-  };
+async function getCustomerContact(
+  clientId: string,
+  customerId: string | null,
+  context: Record<string, unknown>,
+) {
+  const { resolveCustomerContact } = await import("./contact-resolver.server");
+  return resolveCustomerContact(clientId, customerId, context);
 }
 
 async function evaluateCondition(
@@ -115,7 +96,12 @@ async function evaluateCondition(
 
 async function processEnrollment(
   enrollment: EnrollmentRow,
-  sequence: { quiet_hours_start: number; quiet_hours_end: number; sent_30d: number },
+  sequence: {
+    quiet_hours_start: number;
+    quiet_hours_end: number;
+    sent_30d: number;
+    trigger?: string;
+  },
   steps: StepRow[],
 ): Promise<void> {
   if (isQuietHours(sequence.quiet_hours_start, sequence.quiet_hours_end)) {
@@ -145,10 +131,54 @@ async function processEnrollment(
     return;
   }
 
-  const contact = await getCustomerContact(enrollment.customer_id, enrollment.context);
+  const contact = await getCustomerContact(
+    enrollment.client_id,
+    enrollment.customer_id,
+    enrollment.context,
+  );
+
+  const { isMarketingTrigger } = await import("./contact-resolver.server");
+  if (
+    sequence.trigger &&
+    isMarketingTrigger(sequence.trigger) &&
+    !contact.marketingOptIn
+  ) {
+    await supabaseAdmin
+      .from("automation_enrollments")
+      .update({ status: "cancelled", updated_at: new Date().toISOString() })
+      .eq("id", enrollment.id);
+    return;
+  }
+
   if (contact.optedOut.includes(step.channel)) {
     await advanceEnrollment(enrollment, steps, stepIndex, step.delay_minutes);
     return;
+  }
+
+  let enrichedContext = enrollment.context;
+  if (sequence.trigger) {
+    const { ensureEnrollmentCoupon } = await import("./coupon-engine.server");
+    const { enrichUpsellContext } = await import("./upsell-recommendation.server");
+    enrichedContext = await ensureEnrollmentCoupon(
+      enrollment.client_id,
+      enrollment.customer_id,
+      sequence.trigger,
+      stepIndex,
+      enrichedContext,
+    );
+    enrichedContext = await enrichUpsellContext(
+      enrollment.client_id,
+      enrollment.customer_id,
+      sequence.trigger,
+      enrichedContext,
+    );
+    if (enrichedContext !== enrollment.context) {
+      await supabaseAdmin
+        .from("automation_enrollments")
+        .update({ context: enrichedContext, updated_at: new Date().toISOString() })
+        .eq("id", enrollment.id);
+      enrollment.context = enrichedContext;
+    }
   }
 
   const storeName = await getStoreName(enrollment.client_id);
@@ -263,7 +293,7 @@ export async function processAutomationEnrollments(): Promise<{ processed: numbe
     try {
       const { data: sequence } = await supabaseAdmin
         .from("automation_sequences")
-        .select("id, quiet_hours_start, quiet_hours_end, sent_30d, status, is_active")
+        .select("id, quiet_hours_start, quiet_hours_end, sent_30d, status, is_active, trigger")
         .eq("id", enrollment.sequence_id)
         .single();
 
@@ -334,6 +364,17 @@ export async function attributeConversions(): Promise<{ attributed: number }> {
       .from("automation_executions")
       .update({ status: "converted" })
       .eq("id", exec.id);
+
+    const { data: execMeta } = await supabaseAdmin
+      .from("automation_executions")
+      .select("step_id, metadata")
+      .eq("id", exec.id)
+      .single();
+    const variantKey = (execMeta?.metadata as Record<string, unknown>)?.template_key as string | undefined;
+    if (execMeta?.step_id && variantKey) {
+      const { recordAbConversion } = await import("./ab-testing.server");
+      await recordAbConversion(execMeta.step_id as string, variantKey).catch(() => null);
+    }
 
     attributed += 1;
   }

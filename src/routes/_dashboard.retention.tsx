@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Mail, Repeat, TrendingUp, Users, ExternalLink } from 'lucide-react'
 import { PageIntro, Panel } from '@/components/dashboard/panel'
@@ -19,8 +20,19 @@ import {
   useTemplateLibrary,
   useSimulateAutomation,
   useApplyTemplate,
+  useCohortRetention,
+  useMessageDeliveryLog,
+  useLoyaltySummary,
+  useRedeemLoyalty,
+  useAbExperiments,
+  useCreateAbExperiment,
+  useUpdateQuietHours,
+  useSyncWhatsAppTemplates,
+  useUpdateWhatsAppProvider,
 } from '@/modules/retention/hooks/use-retention'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { FlowEditor } from '@/modules/retention/flow-editor/flow-editor'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
@@ -34,9 +46,33 @@ function RetentionPage() {
   const { data: stats, isLoading: loadingStats } = useRetentionStats()
   const { data: ltvAnalytics } = useLtvAnalytics()
   const { data: templates = [] } = useTemplateLibrary()
+  const { data: cohorts = [] } = useCohortRetention()
+  const { data: loyalty } = useLoyaltySummary()
+  const { data: abExperiments = [] } = useAbExperiments()
   const { mutate: toggle, isPending: toggling } = useToggleAutomation()
-  const { mutate: simulate, isPending: simulating } = useSimulateAutomation()
+  const { mutate: simulate, isPending: simulating, data: simulation } = useSimulateAutomation()
   const { mutate: applyTemplate, isPending: applyingTpl } = useApplyTemplate()
+  const { mutate: redeem, isPending: redeeming } = useRedeemLoyalty()
+  const { mutate: saveQuietHours, isPending: savingHours } = useUpdateQuietHours()
+  const { mutate: syncWaTemplates, isPending: syncingWa } = useSyncWhatsAppTemplates()
+  const { mutate: setWaProvider } = useUpdateWhatsAppProvider()
+  const { mutate: createAb, isPending: creatingAb } = useCreateAbExperiment()
+
+  const [logChannel, setLogChannel] = useState<string>('')
+  const [logStatus, setLogStatus] = useState<string>('')
+  const { data: messageLog = [] } = useMessageDeliveryLog({
+    channel: logChannel || undefined,
+    status: logStatus || undefined,
+  })
+
+  const [editSequenceId, setEditSequenceId] = useState<string | undefined>()
+  const [quietStart, setQuietStart] = useState(22)
+  const [quietEnd, setQuietEnd] = useState(8)
+  const [redeemCustomerId, setRedeemCustomerId] = useState('')
+  const [redeemPoints, setRedeemPoints] = useState(500)
+  const [abStepId, setAbStepId] = useState('')
+  const [abVariantA, setAbVariantA] = useState('')
+  const [abVariantB, setAbVariantB] = useState('')
 
   const loading = loadingAuto || loadingStats
   const atRiskCount = stats?.rfm.find((s) => s.segment === 'em_risco')?.count ?? 0
@@ -49,14 +85,25 @@ function RetentionPage() {
         <PageIntro
           eyebrow="Módulo Retenção"
           title="LTV Boost — Automações & WhatsApp"
-          description="Fluxos multi-canal com Meta WhatsApp, segmentação RFM, fidelidade e métricas por automação."
+          description="Fluxos multi-canal com Meta/Evolution WhatsApp, segmentação RFM, fidelidade e métricas por automação."
         />
-        <Link
-          to="/portal/settings"
-          className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline shrink-0"
-        >
-          Configurar WhatsApp <ExternalLink className="size-3" />
-        </Link>
+        <div className="flex flex-wrap gap-2 shrink-0">
+          <Button size="sm" variant="outline" disabled={syncingWa} onClick={() => syncWaTemplates()}>
+            Sync templates Meta
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setWaProvider('evolution')}>
+            Usar Evolution
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setWaProvider('meta')}>
+            Usar Meta API
+          </Button>
+          <Link
+            to="/portal/settings"
+            className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+          >
+            Configurar WhatsApp <ExternalLink className="size-3" />
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -92,6 +139,7 @@ function RetentionPage() {
           <TabsTrigger value="fluxos">Fluxos</TabsTrigger>
           <TabsTrigger value="rfm">RFM & Ciclo</TabsTrigger>
           <TabsTrigger value="metricas">Métricas</TabsTrigger>
+          <TabsTrigger value="fidelidade">Fidelidade</TabsTrigger>
           <TabsTrigger value="editor">Editor</TabsTrigger>
         </TabsList>
 
@@ -127,6 +175,9 @@ function RetentionPage() {
                             <p className="text-[10px] uppercase tracking-wider text-muted-foreground">recuperado</p>
                           </div>
                         )}
+                        <Button size="sm" variant="ghost" onClick={() => setEditSequenceId(a.id)}>
+                          Editar
+                        </Button>
                         <button
                           onClick={() => toggle({ id: a.id, active: !a.active })}
                           disabled={toggling}
@@ -140,29 +191,69 @@ function RetentionPage() {
               )}
             </Panel>
 
-            <Panel title="Últimos disparos" subtitle="Status de entrega" className="lg:col-span-2">
-              {!stats?.recentDeliveries?.length ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">Nenhum disparo registrado ainda.</p>
-              ) : (
-                <div className="space-y-2 max-h-80 overflow-y-auto">
-                  {stats.recentDeliveries.map((d) => (
-                    <div key={d.id} className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2 text-xs">
-                      <span className="flex items-center gap-1.5 capitalize text-muted-foreground">
-                        <ChannelIcon channel={d.channel} className="size-3.5" />
-                        {d.channel}
-                      </span>
-                      <StatusPill
-                        label={d.status}
-                        tone={d.status === 'failed' ? 'danger' : d.status === 'opened' ? 'success' : 'primary'}
-                      />
-                      <span className="font-mono text-[10px] text-muted-foreground">
-                        {new Date(d.sentAt).toLocaleDateString('pt-BR')}
-                      </span>
-                    </div>
-                  ))}
+            <div className="lg:col-span-2 space-y-6">
+              <Panel title="Quiet hours" subtitle="Horário silencioso para todos os fluxos">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Início (h)</Label>
+                    <Input type="number" min={0} max={23} value={quietStart} onChange={(e) => setQuietStart(Number(e.target.value))} className="mt-1" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Fim (h)</Label>
+                    <Input type="number" min={0} max={23} value={quietEnd} onChange={(e) => setQuietEnd(Number(e.target.value))} className="mt-1" />
+                  </div>
                 </div>
-              )}
-            </Panel>
+                <Button
+                  size="sm"
+                  className="mt-3"
+                  disabled={savingHours}
+                  onClick={() => saveQuietHours({ quietHoursStart: quietStart, quietHoursEnd: quietEnd })}
+                >
+                  Salvar horários
+                </Button>
+              </Panel>
+
+              <Panel title="Log de mensagens" subtitle="Filtros por canal e status">
+                <div className="flex gap-2 mb-3">
+                  <select value={logChannel} onChange={(e) => setLogChannel(e.target.value)} className="rounded-md border border-border bg-background px-2 py-1 text-xs">
+                    <option value="">Todos canais</option>
+                    <option value="email">Email</option>
+                    <option value="whatsapp">WhatsApp</option>
+                    <option value="sms">SMS</option>
+                    <option value="push">Push</option>
+                  </select>
+                  <select value={logStatus} onChange={(e) => setLogStatus(e.target.value)} className="rounded-md border border-border bg-background px-2 py-1 text-xs">
+                    <option value="">Todos status</option>
+                    <option value="sent">Enviado</option>
+                    <option value="delivered">Entregue</option>
+                    <option value="opened">Aberto</option>
+                    <option value="clicked">Clique</option>
+                    <option value="failed">Falhou</option>
+                  </select>
+                </div>
+                {!messageLog.length ? (
+                  <p className="py-4 text-center text-sm text-muted-foreground">Nenhum registro.</p>
+                ) : (
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {messageLog.map((d) => (
+                      <div key={d.id} className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2 text-xs">
+                        <span className="flex items-center gap-1.5 capitalize text-muted-foreground">
+                          <ChannelIcon channel={d.channel} className="size-3.5" />
+                          {d.channel}
+                        </span>
+                        <StatusPill
+                          label={d.status}
+                          tone={d.status === 'failed' ? 'danger' : d.status === 'opened' || d.status === 'clicked' ? 'success' : 'primary'}
+                        />
+                        <span className="font-mono text-[10px] text-muted-foreground">
+                          {new Date(d.sent_at).toLocaleString('pt-BR')}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Panel>
+            </div>
           </div>
         </TabsContent>
 
@@ -238,6 +329,36 @@ function RetentionPage() {
                 ))}
               </div>
             </Panel>
+            <Panel title="Retenção por cohort" subtitle="Compradores ativos por mês desde 1ª compra" className="lg:col-span-2">
+              {!cohorts.length ? (
+                <p className="text-sm text-muted-foreground py-4">Dados insuficientes para cohort.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-muted-foreground text-xs">
+                        <th className="pb-2">Cohort</th>
+                        <th className="pb-2">M0</th>
+                        <th className="pb-2">M1</th>
+                        <th className="pb-2">M2</th>
+                        <th className="pb-2">M3</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {cohorts.map((row) => (
+                        <tr key={row.cohort} className="border-t border-border/50">
+                          <td className="py-2">{row.cohort}</td>
+                          <td className="font-mono py-2">{row.month0}%</td>
+                          <td className="font-mono py-2">{row.month1}%</td>
+                          <td className="font-mono py-2">{row.month2}%</td>
+                          <td className="font-mono py-2">{row.month3}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Panel>
             <Panel title="Taxas por canal (30d)" className="lg:col-span-2">
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                 {stats?.channelRates.map((c) => (
@@ -252,6 +373,40 @@ function RetentionPage() {
                     <p className="text-[10px] text-muted-foreground">{c.delivered}/{c.sent} entregues</p>
                   </div>
                 ))}
+              </div>
+            </Panel>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="fidelidade" className="mt-4">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Panel title="Programa de fidelidade" subtitle={`${loyalty?.accountCount ?? 0} contas · ${formatNumber(loyalty?.totalPoints ?? 0)} pts totais`}>
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {(loyalty?.accounts ?? []).map((a) => (
+                  <div key={a.id} className="flex justify-between items-center border-b border-border/50 pb-2 text-sm">
+                    <span className="font-mono text-xs text-muted-foreground">{a.customer_id.slice(0, 8)}…</span>
+                    <StatusPill label={a.tier} tone="primary" />
+                    <span className="font-mono">{formatNumber(a.points_balance)} pts</span>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+            <Panel title="Resgate de pontos" subtitle="Gera cupom e dispara via WhatsApp">
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-xs">Customer ID</Label>
+                  <Input value={redeemCustomerId} onChange={(e) => setRedeemCustomerId(e.target.value)} className="mt-1 font-mono text-xs" placeholder="uuid do cliente" />
+                </div>
+                <div>
+                  <Label className="text-xs">Pontos</Label>
+                  <Input type="number" min={100} value={redeemPoints} onChange={(e) => setRedeemPoints(Number(e.target.value))} className="mt-1" />
+                </div>
+                <Button
+                  disabled={redeeming || !redeemCustomerId}
+                  onClick={() => redeem({ customerId: redeemCustomerId, points: redeemPoints })}
+                >
+                  Resgatar pontos
+                </Button>
               </div>
             </Panel>
           </div>
@@ -272,10 +427,61 @@ function RetentionPage() {
                 </Button>
               ))}
             </div>
+            {simulation && (
+              <div className="mt-4 grid grid-cols-3 gap-4 rounded-xl border border-border bg-muted/20 p-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">Clientes impactados</p>
+                  <p className="font-mono text-xl">{formatNumber(simulation.impactedCustomers)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Taxa conversão esperada</p>
+                  <p className="font-mono text-xl">{(simulation.expectedConversionRate * 100).toFixed(1)}%</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Receita esperada</p>
+                  <p className="font-mono text-xl">{formatBRL(simulation.expectedRevenueCents / 100)}</p>
+                </div>
+                <p className="col-span-3 text-[10px] text-muted-foreground">Fonte: {simulation.benchmarkSource}</p>
+              </div>
+            )}
           </Panel>
-          <Panel title="Editor visual de fluxos" subtitle="Delay, condição e canais — salva em automation_sequences">
-            <FlowEditor trigger="carrinho_abandonado" name="Carrinho abandonado" />
+
+          <Panel title="Editor visual de fluxos" subtitle="Carregar, editar e salvar sequências">
+            <FlowEditor
+              sequenceId={editSequenceId}
+              trigger="carrinho_abandonado"
+              name="Carrinho abandonado"
+              onSaved={(id) => setEditSequenceId(id)}
+            />
           </Panel>
+
+          <Panel title="Testes A/B" subtitle="Variantes por step de automação">
+            <div className="grid gap-3 sm:grid-cols-3 mb-4">
+              <Input placeholder="Step ID (uuid)" value={abStepId} onChange={(e) => setAbStepId(e.target.value)} className="font-mono text-xs" />
+              <Input placeholder="Variante A (template_key)" value={abVariantA} onChange={(e) => setAbVariantA(e.target.value)} />
+              <Input placeholder="Variante B (template_key)" value={abVariantB} onChange={(e) => setAbVariantB(e.target.value)} />
+            </div>
+            <Button
+              size="sm"
+              disabled={creatingAb || !abStepId || !abVariantA || !abVariantB}
+              onClick={() => createAb({ stepId: abStepId, variantAKey: abVariantA, variantBKey: abVariantB })}
+            >
+              Criar experimento
+            </Button>
+            {abExperiments.length > 0 && (
+              <div className="mt-4 space-y-2">
+                {abExperiments.map((e) => (
+                  <div key={e.id} className="flex flex-wrap gap-3 text-xs border border-border rounded-lg p-3">
+                    <span>{e.variant_a_key} vs {e.variant_b_key}</span>
+                    <span className="font-mono">A: {e.sends_a} env / {e.conversions_a} conv</span>
+                    <span className="font-mono">B: {e.sends_b} env / {e.conversions_b} conv</span>
+                    {e.winner && <StatusPill label={`Vencedor: ${e.winner}`} tone="success" />}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Panel>
+
           {templates.length > 0 && (
             <Panel title="Biblioteca de templates" subtitle="Por vertical">
               <div className="grid gap-3 sm:grid-cols-2">

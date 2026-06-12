@@ -1,10 +1,13 @@
-import { decryptToken } from "@/lib/crypto.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { sendEvolutionDocument, sendEvolutionText } from "@/integrations/evolution/client";
 import {
+  sendDocumentMessage,
   sendTemplateMessage,
   sendTemplateWithButtons,
   sendTemplateWithImage,
+  sendWhatsAppMessage,
 } from "@/integrations/whatsapp";
+import { getWhatsAppCredentials } from "@/integrations/whatsapp/provider";
 import { hashContact } from "../customer-sync.server";
 import { buildTemplateContext } from "../template-engine.server";
 import type { SendContext, SendResult } from "./types";
@@ -15,22 +18,6 @@ function normalizePhone(phone: string): string {
   return `55${digits}`;
 }
 
-async function getWhatsAppConnection(clientId: string) {
-  const { data } = await supabaseAdmin
-    .from("oauth_connections")
-    .select("access_token, metadata")
-    .eq("client_id", clientId)
-    .eq("provider", "whatsapp")
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (!data?.access_token) return null;
-  const meta = (data.metadata ?? {}) as Record<string, unknown>;
-  const phoneNumberId = String(meta.phone_number_id ?? "");
-  if (!phoneNumberId) return null;
-  return { accessToken: decryptToken(data.access_token), phoneNumberId };
-}
-
 async function isOptedOut(clientId: string, phone: string): Promise<boolean> {
   const { data } = await supabaseAdmin
     .from("whatsapp_opt_outs")
@@ -39,6 +26,17 @@ async function isOptedOut(clientId: string, phone: string): Promise<boolean> {
     .eq("phone_hash", hashContact(phone))
     .maybeSingle();
   return !!data;
+}
+
+async function hasOpenSession(customerId: string | null): Promise<boolean> {
+  if (!customerId) return false;
+  const { data } = await supabaseAdmin
+    .from("customer_contact_prefs")
+    .select("whatsapp_window_expires_at")
+    .eq("customer_id", customerId)
+    .maybeSingle();
+  if (!data?.whatsapp_window_expires_at) return false;
+  return new Date(data.whatsapp_window_expires_at) > new Date();
 }
 
 const TEMPLATE_MAP: Record<string, string> = {
@@ -60,8 +58,8 @@ export async function sendWhatsAppStep(ctx: SendContext): Promise<SendResult> {
   if (!ctx.phone) return { success: false, error: "no_phone" };
   if (await isOptedOut(ctx.clientId, ctx.phone)) return { success: false, error: "opted_out" };
 
-  const wa = await getWhatsAppConnection(ctx.clientId);
-  if (!wa) return { success: false, error: "no_whatsapp_connection" };
+  const creds = await getWhatsAppCredentials(ctx.clientId);
+  if (!creds) return { success: false, error: "no_whatsapp_connection" };
 
   const tplCtx = buildTemplateContext({
     customerName: ctx.enrollmentContext.customer_name as string | undefined,
@@ -75,23 +73,96 @@ export async function sendWhatsAppStep(ctx: SendContext): Promise<SendResult> {
     couponCode: ctx.enrollmentContext.coupon_code as string | undefined,
   });
 
-  const meta = ctx.metadata;
-  const templateName = String(meta.template_name ?? TEMPLATE_MAP[ctx.templateKey] ?? TEMPLATE_MAP.default);
-  const language = String(meta.language ?? "pt_BR");
-  const bodyParams = [tplCtx.nome ?? "cliente", tplCtx.loja ?? ctx.storeName];
-  if (tplCtx.rastreio) bodyParams.push(tplCtx.rastreio);
-  if (tplCtx.produto) bodyParams.push(tplCtx.produto);
-
   const to = normalizePhone(ctx.phone);
-  const imageUrl = ctx.enrollmentContext.product_image as string | undefined;
-  const useButtons = Boolean(meta.use_buttons ?? ctx.templateKey === "pedido_despachado");
+  const danfeUrl = ctx.enrollmentContext.danfe_url as string | undefined;
+  const sessionOpen = await hasOpenSession(ctx.customerId);
 
   try {
+    if (creds.provider === "evolution") {
+      if (danfeUrl && ctx.templateKey === "nfe_confirmacao") {
+        const result = await sendEvolutionDocument({
+          baseUrl: creds.baseUrl,
+          apiKey: creds.apiKey,
+          instance: creds.instance,
+          to,
+          documentUrl: danfeUrl,
+          fileName: `DANFE-${ctx.enrollmentContext.order_id ?? "pedido"}.pdf`,
+          caption: `Sua NF-e foi emitida — ${ctx.storeName}`,
+          clientId: ctx.clientId,
+        });
+        return { success: true, providerMessageId: result.messageId };
+      }
+
+      const body = [
+        `Olá ${tplCtx.nome ?? "cliente"}!`,
+        tplCtx.produto ? `Produto: ${tplCtx.produto}` : null,
+        tplCtx.rastreio ? `Rastreio: ${tplCtx.rastreio}` : null,
+        tplCtx.cupom ? `Cupom: ${tplCtx.cupom}` : null,
+        tplCtx.danfe_url ? `DANFE: ${tplCtx.danfe_url}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      const result = await sendEvolutionText({
+        baseUrl: creds.baseUrl,
+        apiKey: creds.apiKey,
+        instance: creds.instance,
+        to,
+        text: body || `Mensagem de ${ctx.storeName}`,
+        clientId: ctx.clientId,
+      });
+      return { success: true, providerMessageId: result.messageId };
+    }
+
+    if (danfeUrl && ctx.templateKey === "nfe_confirmacao") {
+      const result = await sendDocumentMessage({
+        phoneNumberId: creds.phoneNumberId,
+        accessToken: creds.accessToken,
+        to,
+        documentUrl: danfeUrl,
+        filename: `DANFE-${ctx.enrollmentContext.order_id ?? "pedido"}.pdf`,
+        caption: `NF-e autorizada — ${ctx.storeName}`,
+        clientId: ctx.clientId,
+      });
+      return { success: true, providerMessageId: result.messageId };
+    }
+
+    if (sessionOpen && !ctx.metadata.force_template) {
+      const body = [
+        `Olá ${tplCtx.nome ?? "cliente"}!`,
+        tplCtx.produto ? `${tplCtx.produto}` : null,
+        tplCtx.rastreio ? `Rastreio: ${tplCtx.rastreio}` : null,
+        tplCtx.cupom ? `Use o cupom ${tplCtx.cupom}` : null,
+      ]
+        .filter(Boolean)
+        .join(" — ");
+
+      const result = await sendWhatsAppMessage({
+        phoneNumberId: creds.phoneNumberId,
+        accessToken: creds.accessToken,
+        to,
+        body: body || `Atualização do seu pedido — ${ctx.storeName}`,
+        clientId: ctx.clientId,
+      });
+      return { success: true, providerMessageId: result.messageId };
+    }
+
+    const meta = ctx.metadata;
+    const templateName = String(meta.template_name ?? TEMPLATE_MAP[ctx.templateKey] ?? TEMPLATE_MAP.default);
+    const language = String(meta.language ?? "pt_BR");
+    const bodyParams = [tplCtx.nome ?? "cliente", tplCtx.loja ?? ctx.storeName];
+    if (tplCtx.rastreio) bodyParams.push(tplCtx.rastreio);
+    if (tplCtx.produto) bodyParams.push(tplCtx.produto);
+    if (tplCtx.cupom) bodyParams.push(tplCtx.cupom);
+
+    const imageUrl = ctx.enrollmentContext.product_image as string | undefined;
+    const useButtons = Boolean(meta.use_buttons ?? ctx.templateKey === "pedido_despachado");
+
     let result: { messageId: string };
     if (imageUrl) {
       result = await sendTemplateWithImage({
-        phoneNumberId: wa.phoneNumberId,
-        accessToken: wa.accessToken,
+        phoneNumberId: creds.phoneNumberId,
+        accessToken: creds.accessToken,
         to,
         templateName,
         language,
@@ -101,8 +172,8 @@ export async function sendWhatsAppStep(ctx: SendContext): Promise<SendResult> {
       });
     } else if (useButtons) {
       result = await sendTemplateWithButtons({
-        phoneNumberId: wa.phoneNumberId,
-        accessToken: wa.accessToken,
+        phoneNumberId: creds.phoneNumberId,
+        accessToken: creds.accessToken,
         to,
         templateName,
         language,
@@ -112,8 +183,8 @@ export async function sendWhatsAppStep(ctx: SendContext): Promise<SendResult> {
       });
     } else {
       result = await sendTemplateMessage({
-        phoneNumberId: wa.phoneNumberId,
-        accessToken: wa.accessToken,
+        phoneNumberId: creds.phoneNumberId,
+        accessToken: creds.accessToken,
         to,
         templateName,
         language,

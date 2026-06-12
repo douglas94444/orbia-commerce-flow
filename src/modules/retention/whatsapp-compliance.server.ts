@@ -3,6 +3,7 @@ import { hashContact } from "./customer-sync.server";
 import { cancelEnrollmentsForCustomer } from "./enrollment.server";
 
 const OPT_OUT_KEYWORDS = ["parar", "stop", "cancelar", "sair"];
+const OPT_IN_KEYWORDS = ["sim", "aceito", "quero", "ok", "confirmo"];
 
 export async function handleInboundWhatsApp(input: {
   clientId: string;
@@ -30,6 +31,20 @@ export async function handleInboundWhatsApp(input: {
       },
       { onConflict: "customer_id" },
     );
+  }
+
+  if (OPT_IN_KEYWORDS.includes(normalized) && customer) {
+    await supabaseAdmin.from("customer_contact_prefs").upsert(
+      {
+        customer_id: customer.id,
+        marketing_opt_in: true,
+        marketing_opt_in_at: new Date().toISOString(),
+        contact_phone: input.from,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "customer_id" },
+    );
+    return;
   }
 
   if (!OPT_OUT_KEYWORDS.includes(normalized)) return;

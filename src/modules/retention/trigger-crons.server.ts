@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { enrollInSequence } from "./enrollment.server";
 import { hashContact } from "./customer-sync.server";
+import { buildEnrollmentContextForCustomer, persistCustomerContact } from "./contact-resolver.server";
 import { processExpiringPoints, processTierReminders } from "./loyalty.server";
 
 export async function processReactivationCrons(): Promise<{ enrolled: number }> {
@@ -26,11 +27,14 @@ export async function processReactivationCrons(): Promise<{ enrolled: number }> 
       .is("cold_list_at", null);
 
     for (const c of customers ?? []) {
+      const context = await buildEnrollmentContextForCustomer(c.client_id, c.id, {
+        last_order_at: c.last_order_at,
+      });
       const id = await enrollInSequence({
         clientId: c.client_id,
         trigger,
         customerId: c.id,
-        context: { last_order_at: c.last_order_at },
+        context,
       });
       if (id) enrolled += 1;
 
@@ -65,11 +69,14 @@ export async function processBirthdayCrons(): Promise<{ enrolled: number }> {
     const customer = p.customers as { client_id: string } | null;
     if (!customer) continue;
 
+    const context = await buildEnrollmentContextForCustomer(customer.client_id, p.customer_id, {
+      coupon_valid_hours: 48,
+    });
     const id = await enrollInSequence({
       clientId: customer.client_id,
       trigger: "aniversario",
       customerId: p.customer_id,
-      context: { coupon_valid_hours: 48 },
+      context,
     });
     if (id) enrolled += 1;
   }
@@ -94,11 +101,14 @@ export async function processFirstPurchaseAnniversary(): Promise<{ enrolled: num
   for (const p of prefs ?? []) {
     const customer = p.customers as { client_id: string } | null;
     if (!customer) continue;
+    const context = await buildEnrollmentContextForCustomer(customer.client_id, p.customer_id, {
+      years: 1,
+    });
     const id = await enrollInSequence({
       clientId: customer.client_id,
       trigger: "aniversario_cliente",
       customerId: p.customer_id,
-      context: { years: 1 },
+      context,
     });
     if (id) enrolled += 1;
   }
@@ -110,22 +120,30 @@ export async function processAbandonedCarts(): Promise<{ enrolled: number }> {
 
   const { data: carts } = await supabaseAdmin
     .from("abandoned_carts")
-    .select("id, client_id, customer_id, value_cents, checkout_url, items, email_hash, phone_hash")
+    .select("id, client_id, customer_id, value_cents, checkout_url, items, contact_email, contact_phone")
     .eq("status", "open")
     .lte("abandoned_at", oneHourAgo.toISOString());
 
   let enrolled = 0;
   for (const cart of carts ?? []) {
+    const baseContext = {
+      value_cents: cart.value_cents,
+      checkout_url: cart.checkout_url,
+      items: cart.items,
+      cart_id: cart.id,
+      email: cart.contact_email,
+      phone: cart.contact_phone,
+    };
+    const context =
+      cart.customer_id
+        ? await buildEnrollmentContextForCustomer(cart.client_id, cart.customer_id, baseContext)
+        : baseContext;
+
     const id = await enrollInSequence({
       clientId: cart.client_id,
       trigger: "carrinho_abandonado",
       customerId: cart.customer_id,
-      context: {
-        value_cents: cart.value_cents,
-        checkout_url: cart.checkout_url,
-        items: cart.items,
-        cart_id: cart.id,
-      },
+      context,
     });
     if (id) enrolled += 1;
   }
@@ -249,7 +267,7 @@ export async function processWishlistAlerts(): Promise<{ notified: number }> {
 }
 
 export async function runRetentionCrons(): Promise<Record<string, unknown>> {
-  const [reactivation, birthdays, anniversary, carts, boletos, wishlist, expiring, tiers] =
+  const [reactivation, birthdays, anniversary, carts, boletos, wishlist, expiring, tiers, waTemplates] =
     await Promise.all([
       processReactivationCrons(),
       processBirthdayCrons(),
@@ -259,9 +277,10 @@ export async function runRetentionCrons(): Promise<Record<string, unknown>> {
       processWishlistAlerts(),
       processExpiringPoints(),
       processTierReminders(),
+      import("./whatsapp-templates-sync.server").then((m) => m.syncAllWhatsAppTemplates()),
     ]);
 
-  return { reactivation, birthdays, anniversary, carts, boletos, wishlist, expiring, tiers };
+  return { reactivation, birthdays, anniversary, carts, boletos, wishlist, expiring, tiers, waTemplates };
 }
 
 export async function recordAbandonedCart(input: {
@@ -278,11 +297,21 @@ export async function recordAbandonedCart(input: {
     customer_id: input.customerId ?? null,
     email_hash: input.email ? hashContact(input.email) : null,
     phone_hash: input.phone ? hashContact(input.phone) : null,
+    contact_email: input.email?.trim().toLowerCase() ?? null,
+    contact_phone: input.phone?.trim() ?? null,
     value_cents: input.valueCents,
     items: input.items,
     checkout_url: input.checkoutUrl ?? null,
     status: "open",
   });
+
+  if (input.customerId && (input.email || input.phone)) {
+    await persistCustomerContact(input.customerId, {
+      email: input.email,
+      phone: input.phone,
+      marketingOptIn: true,
+    });
+  }
 }
 
 export async function handleNegativeReview(input: {

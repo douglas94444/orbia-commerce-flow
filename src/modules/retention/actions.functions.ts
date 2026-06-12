@@ -563,3 +563,260 @@ export const applyTemplateFromLibrary = createServerFn({ method: "POST" })
 
     return { sequenceId: seq!.id };
   });
+
+export const getAutomationFlow = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ sequenceId: z.string().uuid() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { data: seq, error } = await context.supabase
+      .from("automation_sequences")
+      .select("id, name, trigger, flow_definition, quiet_hours_start, quiet_hours_end")
+      .eq("id", data.sequenceId)
+      .single();
+    if (error || !seq) throw new Error("Fluxo não encontrado");
+
+    const { data: steps } = await context.supabase
+      .from("automation_steps")
+      .select("id, channel, delay_minutes, template_key, condition_type, sort_order")
+      .eq("sequence_id", data.sequenceId)
+      .order("sort_order");
+
+    return { sequence: seq, steps: steps ?? [] };
+  });
+
+export interface CohortRetentionRow {
+  cohort: string;
+  month0: number;
+  month1: number;
+  month2: number;
+  month3: number;
+}
+
+export const getCohortRetention = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<CohortRetentionRow[]> => {
+    const clientId = await resolveClientId(context.supabase);
+    const { data: orders } = await supabaseAdmin
+      .from("orders")
+      .select("created_at, metadata")
+      .eq("client_id", clientId)
+      .order("created_at", { ascending: true });
+
+    const byCustomerMonth = new Map<string, Set<string>>();
+    for (const o of orders ?? []) {
+      const meta = (o.metadata ?? {}) as Record<string, unknown>;
+      const email = meta.customer_email ? String(meta.customer_email).toLowerCase() : "";
+      const phone = meta.customer_phone ? String(meta.customer_phone) : "";
+      const key = email ? `email:${email}` : phone ? `phone:${phone}` : null;
+      if (!key) continue;
+      const month = o.created_at.slice(0, 7);
+      if (!byCustomerMonth.has(key)) byCustomerMonth.set(key, new Set());
+      byCustomerMonth.get(key)!.add(month);
+    }
+
+    const cohorts = new Map<string, string[]>();
+    for (const [customerKey, months] of byCustomerMonth) {
+      const sorted = [...months].sort();
+      const first = sorted[0];
+      if (!first) continue;
+      const list = cohorts.get(first) ?? [];
+      list.push(customerKey);
+      cohorts.set(first, list);
+    }
+
+    const addMonths = (ym: string, n: number) => {
+      const [y, m] = ym.split("-").map(Number);
+      const d = new Date(y, m - 1 + n, 1);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    };
+
+    const rows: CohortRetentionRow[] = [];
+    for (const [cohort, customerKeys] of [...cohorts.entries()].slice(-4)) {
+      const base = customerKeys.length || 1;
+      const countActive = (offset: number) => {
+        const target = addMonths(cohort, offset);
+        return customerKeys.filter((id) => byCustomerMonth.get(id)?.has(target)).length;
+      };
+      rows.push({
+        cohort,
+        month0: 100,
+        month1: Math.round((countActive(1) / base) * 100),
+        month2: Math.round((countActive(2) / base) * 100),
+        month3: Math.round((countActive(3) / base) * 100),
+      });
+    }
+    return rows;
+  });
+
+const messageLogSchema = z.object({
+  channel: z.string().optional(),
+  status: z.string().optional(),
+  limit: z.number().min(1).max(100).optional(),
+});
+
+export const getMessageDeliveryLog = createServerFn({ method: "POST" })
+  .inputValidator(messageLogSchema.optional())
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await resolveClientId(context.supabase);
+    const { data: enrollments } = await supabaseAdmin
+      .from("automation_enrollments")
+      .select("id")
+      .eq("client_id", clientId);
+    const enrollmentIds = (enrollments ?? []).map((e) => e.id);
+    if (!enrollmentIds.length) return [];
+
+    let query = supabaseAdmin
+      .from("message_delivery_log")
+      .select("id, channel, status, sent_at, opened_at, clicked_at, metadata, enrollment_id")
+      .in("enrollment_id", enrollmentIds)
+      .order("sent_at", { ascending: false })
+      .limit(data?.limit ?? 50);
+
+    if (data?.channel) query = query.eq("channel", data.channel);
+    if (data?.status) query = query.eq("status", data.status);
+
+    const { data: logs, error } = await query;
+    if (error) throw new Error(error.message);
+    return logs ?? [];
+  });
+
+export const getLoyaltySummary = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await resolveClientId(context.supabase);
+    const { data: accounts } = await supabaseAdmin
+      .from("loyalty_accounts")
+      .select("id, customer_id, points_balance, tier, tier_progress_pct")
+      .eq("client_id", clientId)
+      .order("points_balance", { ascending: false })
+      .limit(20);
+
+    const { data: totals } = await supabaseAdmin
+      .from("loyalty_accounts")
+      .select("points_balance")
+      .eq("client_id", clientId);
+
+    const totalPoints = (totals ?? []).reduce((s, a) => s + (a.points_balance ?? 0), 0);
+    return { accounts: accounts ?? [], totalPoints, accountCount: totals?.length ?? 0 };
+  });
+
+const redeemSchema = z.object({
+  customerId: z.string().uuid(),
+  points: z.number().min(100),
+});
+
+export const redeemLoyaltyPoints = createServerFn({ method: "POST" })
+  .inputValidator(redeemSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await resolveClientId(context.supabase);
+    const { redeemPoints } = await import("./loyalty.server");
+    const result = await redeemPoints(data.customerId, clientId, data.points);
+    if (!result) throw new Error("Saldo insuficiente para resgate.");
+    await logAudit({
+      user_id: context.userId,
+      action: "create",
+      resource: "loyalty_redeem",
+      resource_id: data.customerId,
+      new_data: result,
+    });
+    return result;
+  });
+
+const deviceTokenSchema = z.object({
+  token: z.string().min(10),
+  platform: z.enum(["web", "ios", "android"]).default("web"),
+  customerId: z.string().uuid().optional(),
+});
+
+export const registerDeviceToken = createServerFn({ method: "POST" })
+  .inputValidator(deviceTokenSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await resolveClientId(context.supabase);
+    await supabaseAdmin.from("device_tokens").upsert(
+      {
+        client_id: clientId,
+        customer_id: data.customerId ?? null,
+        token: data.token,
+        platform: data.platform,
+        is_active: true,
+      },
+      { onConflict: "client_id,token" },
+    );
+    return { success: true };
+  });
+
+export const listAbExperiments = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await resolveClientId(context.supabase);
+    const { data: sequences } = await supabaseAdmin
+      .from("automation_sequences")
+      .select("id")
+      .eq("client_id", clientId);
+    const seqIds = (sequences ?? []).map((s) => s.id);
+    if (!seqIds.length) return [];
+
+    const { data: steps } = await supabaseAdmin
+      .from("automation_steps")
+      .select("id, sequence_id, template_key")
+      .in("sequence_id", seqIds);
+    const stepIds = (steps ?? []).map((s) => s.id);
+    if (!stepIds.length) return [];
+
+    const { data: experiments } = await supabaseAdmin
+      .from("ab_experiments")
+      .select("id, step_id, variant_a_key, variant_b_key, traffic_split, sends_a, sends_b, conversions_a, conversions_b, winner, is_active")
+      .in("step_id", stepIds);
+
+    return (experiments ?? []).map((e) => {
+      const step = (steps ?? []).find((s) => s.id === e.step_id);
+      return { ...e, stepTemplate: step?.template_key };
+    });
+  });
+
+const waProviderSchema = z.object({
+  provider: z.enum(["meta", "evolution"]),
+});
+
+export const updateWhatsAppProvider = createServerFn({ method: "POST" })
+  .inputValidator(waProviderSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await resolveClientId(context.supabase);
+    await supabaseAdmin
+      .from("clients")
+      .update({ whatsapp_provider: data.provider, updated_at: new Date().toISOString() })
+      .eq("id", clientId);
+    return { success: true };
+  });
+
+export const syncWhatsAppTemplatesAction = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await resolveClientId(context.supabase);
+    const { syncWhatsAppTemplatesForClient } = await import("./whatsapp-templates-sync.server");
+    return syncWhatsAppTemplatesForClient(clientId);
+  });
+
+const marketingOptInSchema = z.object({
+  customerId: z.string().uuid(),
+  optIn: z.boolean(),
+  email: z.string().email().optional(),
+  phone: z.string().optional(),
+});
+
+export const setCustomerMarketingOptIn = createServerFn({ method: "POST" })
+  .inputValidator(marketingOptInSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data }) => {
+    const { persistCustomerContact } = await import("./contact-resolver.server");
+    await persistCustomerContact(data.customerId, {
+      email: data.email,
+      phone: data.phone,
+      marketingOptIn: data.optIn,
+    });
+    return { success: true };
+  });

@@ -62,8 +62,12 @@ export async function syncCustomerFromOrder(input: OrderCustomerInput): Promise<
     customer_id: customer.id,
     updated_at: now,
   };
+  if (email) prefsRow.contact_email = email;
+  if (phone) prefsRow.contact_phone = phone;
   if (!existing) {
     prefsRow.first_purchase_at = now;
+    prefsRow.marketing_opt_in = true;
+    prefsRow.marketing_opt_in_at = now;
   }
 
   await supabaseAdmin

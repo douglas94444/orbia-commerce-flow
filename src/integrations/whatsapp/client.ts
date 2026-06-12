@@ -160,6 +160,33 @@ export async function sendTemplateWithImage(input: {
   );
 }
 
+export async function sendDocumentMessage(input: {
+  phoneNumberId: string;
+  accessToken: string;
+  to: string;
+  documentUrl: string;
+  filename: string;
+  caption?: string;
+  clientId?: string;
+}): Promise<{ messageId: string }> {
+  const to = input.to.replace(/\D/g, "");
+  return postWhatsAppMessage(
+    input.phoneNumberId,
+    input.accessToken,
+    {
+      messaging_product: "whatsapp",
+      to,
+      type: "document",
+      document: {
+        link: input.documentUrl,
+        filename: input.filename,
+        caption: input.caption ?? "",
+      },
+    },
+    input.clientId,
+  );
+}
+
 export async function sendTemplateWithButtons(input: {
   phoneNumberId: string;
   accessToken: string;

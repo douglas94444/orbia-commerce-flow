@@ -107,6 +107,7 @@ export async function ensureDefaultSequences(clientId: string): Promise<void> {
       steps: [
         { channel: "email", delay: 60, key: "carrinho_abandonado" },
         { channel: "whatsapp", delay: 180, key: "carrinho_abandonado" },
+        { channel: "push", delay: 360, key: "carrinho_abandonado" },
         { channel: "sms", delay: 1440, key: "carrinho_abandonado" },
       ],
     },
