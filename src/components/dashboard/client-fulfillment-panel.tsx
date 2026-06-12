@@ -9,6 +9,7 @@ import {
   useClientLogisticsReport,
   useExportClientLogisticsQbr,
   useExportClientLogisticsQbrHtml,
+  useExportClientLogisticsQbrPdf,
   useClientSlaRules,
   useUpsertClientSlaRule,
   useClientPackingProfile,
@@ -23,6 +24,7 @@ export function ClientFulfillmentPanel({ clientId }: ClientFulfillmentPanelProps
   const { data: report, isLoading } = useClientLogisticsReport(clientId);
   const exportQbr = useExportClientLogisticsQbr(clientId);
   const exportQbrHtml = useExportClientLogisticsQbrHtml(clientId);
+  const exportQbrPdf = useExportClientLogisticsQbrPdf(clientId);
   const { data: slaRules = [] } = useClientSlaRules(clientId);
   const upsertSla = useUpsertClientSlaRule(clientId);
   const { data: packingProfile } = useClientPackingProfile(clientId);
@@ -185,7 +187,21 @@ export function ClientFulfillmentPanel({ clientId }: ClientFulfillmentPanelProps
                 ) : (
                   <Download className="size-4" />
                 )}
-                QBR deck (PDF)
+                QBR deck (HTML)
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2"
+                disabled={exportQbrPdf.isPending}
+                onClick={() => exportQbrPdf.mutate()}
+              >
+                {exportQbrPdf.isPending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Download className="size-4" />
+                )}
+                QBR PDF
               </Button>
               <Link to="/logistics/analytics">
                 <Button size="sm" variant="ghost">

@@ -33,6 +33,7 @@ import {
   getDeliveryHeatMapFn,
   listWarehousesFn,
   upsertWarehouseFn,
+  updateOperatorScopeFn,
   getOpsTasksFn,
   createReceivingAppointmentFn,
   confirmReceivingLineFn,
@@ -255,6 +256,18 @@ export function useUpsertWarehouse() {
       qc.invalidateQueries({ queryKey: ["warehouses"] });
       toast.success("Galpão salvo");
     },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useUpdateOperatorScope() {
+  return useMutation({
+    mutationFn: (input: {
+      memberUserId: string;
+      allowedSkus?: string[];
+      warehouseId?: string | null;
+    }) => updateOperatorScopeFn({ data: input }),
+    onSuccess: () => toast.success("Escopo do operador salvo"),
     onError: (e: Error) => toast.error(e.message),
   });
 }

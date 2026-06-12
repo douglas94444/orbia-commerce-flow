@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { logAudit } from "@/shared/lib/logger";
+import { decryptToken } from "@/lib/crypto.server";
+import { logAudit, logIntegration } from "@/shared/lib/logger";
 
 export interface CarrierPickupRow {
   id: string;
@@ -59,6 +60,55 @@ export async function scheduleCarrierPickup(
     .single();
 
   if (error) throw new Error(error.message);
+
+  if (input.provider === "melhor_envio" || input.provider === "melhor envio") {
+    const { data: conn } = await supabaseAdmin
+      .from("oauth_connections")
+      .select("access_token")
+      .eq("client_id", clientId)
+      .eq("provider", "melhor_envio")
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (conn?.access_token) {
+      const sinceShip = new Date();
+      sinceShip.setDate(sinceShip.getDate() - 7);
+
+      const { data: shipped } = await supabaseAdmin
+        .from("orders")
+        .select("metadata")
+        .eq("client_id", clientId)
+        .eq("status", "despachado")
+        .gte("updated_at", sinceShip.toISOString())
+        .limit(50);
+
+      const shipmentIds = (shipped ?? [])
+        .map((o) => (o.metadata as Record<string, unknown>)?.me_shipment_id)
+        .filter((id): id is string => typeof id === "string");
+
+      const { requestMelhorEnvioCollect } = await import("@/integrations/melhor-envio/client");
+      const collect = await requestMelhorEnvioCollect(
+        decryptToken(conn.access_token),
+        shipmentIds,
+      );
+
+      await supabaseAdmin
+        .from("carrier_pickups")
+        .update({
+          notes: [input.notes, collect.message].filter(Boolean).join(" — "),
+          status: collect.requested ? "requested" : "scheduled",
+        })
+        .eq("id", data.id);
+
+      await logIntegration({
+        client_id: clientId,
+        provider: "melhor_envio",
+        operation: "request_collect",
+        status: collect.requested ? "success" : "error",
+        metadata: { shipmentCount: collect.shipmentCount },
+      });
+    }
+  }
 
   if (userId) {
     await logAudit({

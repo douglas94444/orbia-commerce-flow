@@ -229,7 +229,7 @@ export const generatePickWaveFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const clientId = await getClientIdForUser(context.userId, context.supabase);
-    const waveId = await generatePickWave(clientId);
+    const waveId = await generatePickWave(clientId, context.userId);
     return { waveId };
   });
 
@@ -1045,6 +1045,38 @@ export const exportClientLogisticsQbrHtmlFn = createServerFn({ method: "POST" })
     await requireStaff(context.userId, context.supabase);
     const { buildClientQbrReportHtml } = await import("./analytics/client-qbr-report.server");
     return { html: await buildClientQbrReportHtml(data.clientId) };
+  });
+
+export const exportClientLogisticsQbrPdfFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ clientId: z.string().uuid() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await requireStaff(context.userId, context.supabase);
+    const { buildQbrReportPdf, pdfToBase64 } = await import("@/modules/analytics/pdf-report.server");
+    const pdf = await buildQbrReportPdf(data.clientId);
+    return {
+      pdfBase64: pdfToBase64(pdf),
+      filename: `qbr-fulfillly-${data.clientId.slice(0, 8)}.pdf`,
+    };
+  });
+
+export const updateOperatorScopeFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      memberUserId: z.string().uuid(),
+      allowedSkus: z.array(z.string()).optional(),
+      warehouseId: z.string().uuid().nullable().optional(),
+    }),
+  )
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    const { updateOperatorScope } = await import("./ops/operator-scope.server");
+    await updateOperatorScope(clientId, data.memberUserId, {
+      allowedSkus: data.allowedSkus,
+      warehouseId: data.warehouseId,
+    });
+    return { ok: true };
   });
 
 export const listMarketplacePenaltiesFn = createServerFn({ method: "GET" })

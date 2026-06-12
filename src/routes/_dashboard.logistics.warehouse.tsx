@@ -12,7 +12,9 @@ import {
   useProductLots,
   useUpsertProductLot,
   useDeleteProductLot,
+  useUpdateOperatorScope,
 } from "@/modules/logistics/hooks/use-fulfillly";
+import { useSession } from "@/modules/auth/hooks/use-session";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
@@ -42,6 +44,10 @@ function WarehousePage() {
   const [lotCode, setLotCode] = useState("");
   const [lotExpires, setLotExpires] = useState("");
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>("");
+  const [operatorSkus, setOperatorSkus] = useState("");
+  const [operatorWarehouseId, setOperatorWarehouseId] = useState("");
+  const { user } = useSession();
+  const updateOperatorScope = useUpdateOperatorScope();
   const [sku, setSku] = useState("");
   const [delta, setDelta] = useState(0);
   const [reason, setReason] = useState("");
@@ -68,6 +74,42 @@ function WarehousePage() {
           <Button variant="outline" size="sm">Quarentena</Button>
         </Link>
       </div>
+
+      <Panel title="Escopo operador" subtitle="Restringe SKUs e galpão para fulfillment_operator">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Input
+            placeholder="SKUs permitidos (vírgula)"
+            value={operatorSkus}
+            onChange={(e) => setOperatorSkus(e.target.value)}
+          />
+          <select
+            className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            value={operatorWarehouseId}
+            onChange={(e) => setOperatorWarehouseId(e.target.value)}
+          >
+            <option value="">Todos os galpões</option>
+            {warehouses.map((w) => (
+              <option key={w.id} value={w.id}>
+                {w.code}
+              </option>
+            ))}
+          </select>
+          <Button
+            disabled={!user?.id || updateOperatorScope.isPending}
+            onClick={() =>
+              updateOperatorScope.mutate({
+                memberUserId: user!.id,
+                allowedSkus: operatorSkus
+                  ? operatorSkus.split(",").map((s) => s.trim()).filter(Boolean)
+                  : [],
+                warehouseId: operatorWarehouseId || null,
+              })
+            }
+          >
+            Salvar escopo
+          </Button>
+        </div>
+      </Panel>
 
       <Panel title="Galpões" subtitle="Multi-galpão por lojista">
         {warehouses.length > 0 && (

@@ -7,6 +7,7 @@ import {
   getClientAiInsights,
   exportPortfolioAnalytics,
   getMonthlyReportHtml,
+  getMonthlyReportPdf,
 } from "../actions.functions";
 
 export const ANALYTICS_KEY = ["portfolio-analytics"] as const;
@@ -61,6 +62,24 @@ export function useDownloadMonthlyReport(clientId?: string) {
       a.click();
       URL.revokeObjectURL(url);
       toast.success("Relatório mensal baixado (imprima como PDF no navegador)");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useDownloadMonthlyReportPdf(clientId?: string) {
+  return useMutation({
+    mutationFn: () => getMonthlyReportPdf({ data: clientId ? { clientId } : {} }),
+    onSuccess: (res) => {
+      const bytes = Uint8Array.from(atob(res.pdfBase64), (c) => c.charCodeAt(0));
+      const blob = new Blob([bytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = res.filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("PDF mensal baixado");
     },
     onError: (e: Error) => toast.error(e.message),
   });

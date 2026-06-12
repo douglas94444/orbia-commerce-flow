@@ -166,6 +166,46 @@ export async function getTracking(
   return { status: res.status ?? "unknown", tracking: res.tracking ?? shipmentId };
 }
 
+export interface MelhorEnvioCollectResult {
+  requested: boolean;
+  shipmentCount: number;
+  message: string;
+}
+
+/** Solicita coleta nos envios ME pagos do dia (collect=true no checkout). */
+export async function requestMelhorEnvioCollect(
+  accessToken: string,
+  shipmentIds: string[],
+): Promise<MelhorEnvioCollectResult> {
+  if (shipmentIds.length === 0) {
+    return { requested: false, shipmentCount: 0, message: "Nenhum envio ME pendente de coleta" };
+  }
+
+  let requested = 0;
+  for (const id of shipmentIds.slice(0, 20)) {
+    try {
+      await meFetch(`/shipment/${id}`, accessToken, {
+        method: "PUT",
+        body: JSON.stringify({
+          options: { collect: true },
+        }),
+      });
+      requested += 1;
+    } catch {
+      // shipment may already have collect scheduled
+    }
+  }
+
+  return {
+    requested: requested > 0,
+    shipmentCount: requested,
+    message:
+      requested > 0
+        ? `Coleta solicitada em ${requested} envio(s) Melhor Envio`
+        : "Não foi possível solicitar coleta — verifique envios no painel ME",
+  };
+}
+
 export function validateMelhorEnvioWebhook(
   rawBody: string,
   signature: string | null,

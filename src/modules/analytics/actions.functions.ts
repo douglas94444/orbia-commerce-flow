@@ -27,6 +27,15 @@ export interface PortfolioLogisticsMetrics {
   fulfillmentOrdersMonth: number;
 }
 
+export interface MarginBreakdown {
+  gmvCents: number;
+  adSpendCents: number;
+  cogsCents: number;
+  fulfillmentCostCents: number;
+  marginCents: number;
+  marginPercent: number;
+}
+
 export interface PortfolioAnalytics {
   gmv30d: number;
   avgRoas: number;
@@ -34,6 +43,7 @@ export interface PortfolioAnalytics {
   slaPercent: number;
   marginPercent: number;
   adSpend30d: number;
+  margin: MarginBreakdown;
   gmvRoasSeries: Array<{ day: string; gmv: number; roas: number }>;
   channelRoas: Array<{ channel: string; roas: number }>;
   cohortRetention: CohortRow[];
@@ -204,6 +214,14 @@ async function computePortfolioAnalytics(context: {
       slaPercent,
       marginPercent,
       adSpend30d,
+      margin: {
+        gmvCents,
+        adSpendCents: totalSpend,
+        cogsCents,
+        fulfillmentCostCents,
+        marginCents,
+        marginPercent,
+      },
       gmvRoasSeries,
       channelRoas,
       cohortRetention,
@@ -211,6 +229,44 @@ async function computePortfolioAnalytics(context: {
       logistics,
     };
 }
+
+export const getMarginBreakdownFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: membership } = await context.supabase
+      .from("client_members")
+      .select("client_id")
+      .eq("user_id", context.userId)
+      .eq("status", "active")
+      .maybeSingle();
+
+    if (!membership?.client_id) {
+      const analytics = await computePortfolioAnalytics(context);
+      return analytics.margin;
+    }
+
+    const { computeRealMargin } = await import("./margin-cogs.server");
+    return computeRealMargin(membership.client_id as string);
+  });
+
+export const getMonthlyReportPdf = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ clientId: z.string().uuid().optional() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { data: membership } = await context.supabase
+      .from("client_members")
+      .select("client_id")
+      .eq("user_id", context.userId)
+      .eq("status", "active")
+      .maybeSingle();
+
+    const clientId = data.clientId ?? (membership?.client_id as string | undefined);
+    if (!clientId) throw new Error("Cliente não identificado");
+
+    const { buildMonthlyReportPdf, pdfToBase64 } = await import("./pdf-report.server");
+    const pdf = await buildMonthlyReportPdf(clientId);
+    return { pdfBase64: pdfToBase64(pdf), filename: `relatorio-mensal-${new Date().toISOString().slice(0, 7)}.pdf` };
+  });
 
 export const getPortfolioAnalytics = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

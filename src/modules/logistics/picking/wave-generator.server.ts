@@ -179,8 +179,18 @@ export async function listPickWaves(clientId: string): Promise<PickWaveRow[]> {
   });
 }
 
-export async function generatePickWave(clientId: string): Promise<string | null> {
+export async function generatePickWave(
+  clientId: string,
+  operatorUserId?: string,
+): Promise<string | null> {
   const busyOrderIds = await getBusyOrderIds();
+
+  const scope = operatorUserId
+    ? await (async () => {
+        const { getOperatorScope } = await import("../ops/operator-scope.server");
+        return getOperatorScope(operatorUserId, clientId);
+      })()
+    : null;
 
   const { data: orders } = await supabaseAdmin
     .from("orders")
@@ -191,7 +201,22 @@ export async function generatePickWave(clientId: string): Promise<string | null>
     .order("sla_deadline_at", { ascending: true, nullsFirst: false })
     .limit(50);
 
-  const eligible = (orders ?? []).filter((o) => !busyOrderIds.has(o.id as string));
+  let eligible = (orders ?? []).filter((o) => !busyOrderIds.has(o.id as string));
+
+  if (scope?.allowedSkus?.length) {
+    const allowed = new Set(scope.allowedSkus);
+    const filtered: typeof eligible = [];
+    for (const order of eligible) {
+      const { data: items } = await supabaseAdmin
+        .from("order_items")
+        .select("sku")
+        .eq("order_id", order.id);
+      const skus = (items ?? []).map((i) => i.sku as string);
+      if (skus.every((sku) => allowed.has(sku))) filtered.push(order);
+    }
+    eligible = filtered;
+  }
+
   if (!eligible.length) return null;
 
   const { data: wave, error: waveErr } = await supabaseAdmin
@@ -202,7 +227,10 @@ export async function generatePickWave(clientId: string): Promise<string | null>
 
   if (waveErr) throw new Error(waveErr.message);
 
-  const locations = await listWarehouseLocations(clientId);
+  let locations = await listWarehouseLocations(clientId);
+  if (scope?.warehouseId) {
+    locations = locations.filter((l) => l.warehouseId === scope.warehouseId);
+  }
 
   for (const order of eligible) {
     const orderId = order.id as string;
@@ -267,6 +295,9 @@ export async function confirmPickLine(
   barcode: string,
   operatorId: string,
 ): Promise<ConfirmPickResult> {
+  const { getOperatorScope, isSkuInOperatorScope } = await import("../ops/operator-scope.server");
+  const scope = await getOperatorScope(operatorId, clientId);
+
   const { data: line } = await supabaseAdmin
     .from("pick_task_lines")
     .select(
@@ -276,6 +307,10 @@ export async function confirmPickLine(
     .single();
 
   if (!line) return { ok: false, error: "Linha não encontrada" };
+
+  if (!isSkuInOperatorScope(scope, line.sku as string)) {
+    return { ok: false, error: "SKU fora do escopo do operador" };
+  }
 
   const { data: product } = await supabaseAdmin
     .from("products")

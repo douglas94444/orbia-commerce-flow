@@ -92,6 +92,22 @@ function ReturnsPage() {
         description="Aprovação, etiqueta, conferência, inspeção, NF-e e resolução (reembolso, troca ou crédito)."
       />
 
+      <Panel title="Fluxo unificado devolução → recebimento">
+        <p className="mb-3 text-sm text-muted-foreground">
+          Ao aprovar uma devolução, um agendamento de recebimento é criado automaticamente no PWA ops.
+          O operador confere os itens em{" "}
+          <Link to="/ops/receiving" className="text-primary underline">
+            /ops/receiving
+          </Link>{" "}
+          com badge &quot;Devolução&quot;.
+        </p>
+        <Link to="/ops/receiving">
+          <Button size="sm" variant="outline">
+            Abrir recebimento ops
+          </Button>
+        </Link>
+      </Panel>
+
       {rateKpi && (
         <div className="grid gap-4 sm:grid-cols-3">
           <KpiCard label="Devoluções" value={String(rateKpi.totalReturns)} />
@@ -185,14 +201,26 @@ function ReturnsPage() {
                         </Button>
                       </>
                     )}
+                    {r.status === "approved" && (
+                      <Link to="/ops/receiving">
+                        <Button size="sm" variant="outline">
+                          Receber no galpão
+                        </Button>
+                      </Link>
+                    )}
                     {r.status === "in_transit" && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => scheduleReceiving.mutate(r.id)}
-                      >
-                        Agendar conferência
-                      </Button>
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => scheduleReceiving.mutate(r.id)}
+                        >
+                          Agendar conferência
+                        </Button>
+                        <Link to="/ops/receiving">
+                          <Button size="sm">Conferir no PWA</Button>
+                        </Link>
+                      </>
                     )}
                     {r.status === "received" && (
                       <Button size="sm" onClick={() => setInspectId(r.id)}>

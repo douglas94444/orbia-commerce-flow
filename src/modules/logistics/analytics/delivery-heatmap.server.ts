@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { resolveCityCoords } from "@/shared/lib/br-city-coords";
 
 export interface DeliveryHeatPoint {
   city: string;
@@ -6,6 +7,8 @@ export interface DeliveryHeatPoint {
   delivered: number;
   inTransit: number;
   incidents: number;
+  lat: number | null;
+  lng: number | null;
 }
 
 export async function buildDeliveryHeatMap(clientId: string, days = 30): Promise<DeliveryHeatPoint[]> {
@@ -26,7 +29,16 @@ export async function buildDeliveryHeatMap(clientId: string, days = 30): Promise
     const city = (o.city as string) || "Desconhecida";
     const state = (o.state as string) || null;
     const key = `${city}|${state ?? ""}`;
-    const entry = map.get(key) ?? { city, state, delivered: 0, inTransit: 0, incidents: 0 };
+    const coords = resolveCityCoords(city, state);
+    const entry = map.get(key) ?? {
+      city,
+      state,
+      delivered: 0,
+      inTransit: 0,
+      incidents: 0,
+      lat: coords?.[0] ?? null,
+      lng: coords?.[1] ?? null,
+    };
     if (o.status === "entregue") entry.delivered += 1;
     else entry.inTransit += 1;
     map.set(key, entry);
@@ -43,7 +55,16 @@ export async function buildDeliveryHeatMap(clientId: string, days = 30): Promise
     const city = (inc.city as string) || "Desconhecida";
     const state = (inc.state as string) || null;
     const key = `${city}|${state ?? ""}`;
-    const entry = map.get(key) ?? { city, state, delivered: 0, inTransit: 0, incidents: 0 };
+    const coords = resolveCityCoords(city, state);
+    const entry = map.get(key) ?? {
+      city,
+      state,
+      delivered: 0,
+      inTransit: 0,
+      incidents: 0,
+      lat: coords?.[0] ?? null,
+      lng: coords?.[1] ?? null,
+    };
     entry.incidents += 1;
     map.set(key, entry);
   }

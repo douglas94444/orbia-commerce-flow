@@ -15,6 +15,7 @@ import {
   getClientLogisticsReportFn,
   exportClientLogisticsQbrFn,
   exportClientLogisticsQbrHtmlFn,
+  exportClientLogisticsQbrPdfFn,
   getClientSlaRulesFn,
   upsertClientSlaRuleFn,
   getPackingProfileFn,
@@ -143,6 +144,24 @@ export function useExportClientLogisticsQbr(clientId: string) {
 export function useExportClientLogisticsQbrHtml(clientId: string) {
   return useMutation({
     mutationFn: () => exportClientLogisticsQbrHtmlFn({ data: { clientId } }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useExportClientLogisticsQbrPdf(clientId: string) {
+  return useMutation({
+    mutationFn: () => exportClientLogisticsQbrPdfFn({ data: { clientId } }),
+    onSuccess: (res) => {
+      const bytes = Uint8Array.from(atob(res.pdfBase64), (c) => c.charCodeAt(0));
+      const blob = new Blob([bytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = res.filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("QBR PDF baixado");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 }

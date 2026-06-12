@@ -14,6 +14,7 @@ import {
 } from "@/modules/logistics/hooks/use-fulfillly";
 import { PackageCheck, Truck, Target, AlertTriangle, Clock, MapPin } from "lucide-react";
 import { ShippingCostTrendChart } from "@/components/dashboard/charts";
+import { DeliveryHeatMapChart } from "@/components/dashboard/delivery-heat-map";
 import { useDeliveryHeatMap } from "@/modules/logistics/hooks/use-fulfillly";
 
 export const Route = createFileRoute("/_dashboard/logistics/analytics")({
@@ -200,13 +201,15 @@ function LogisticsAnalyticsPage() {
         </Panel>
       </div>
 
-      <Panel title="Heat map de entregas (30d)" subtitle="Por cidade — entregues, em trânsito e incidentes">
+      <Panel title="Mapa de entregas (30d)" subtitle="Dispersão geográfica por cidade">
         {loadingHeat ? (
           <div className="h-24 animate-pulse rounded-xl bg-muted/40" />
         ) : deliveryHeat.length === 0 ? (
           <p className="text-sm text-muted-foreground">Sem entregas no período</p>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            <DeliveryHeatMapChart points={deliveryHeat} />
+            <div className="mt-6 overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs uppercase text-muted-foreground">
@@ -232,7 +235,8 @@ function LogisticsAnalyticsPage() {
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+          </>
         )}
       </Panel>
 

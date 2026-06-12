@@ -8,6 +8,7 @@ import {
   usePortfolioAnalytics,
   useExportPortfolioAnalytics,
   useDownloadMonthlyReport,
+  useDownloadMonthlyReportPdf,
 } from "@/modules/analytics/hooks/use-analytics";
 import { AiInsightsPanel } from "@/components/dashboard/ai-insights-panel";
 import { BenchmarksPanel } from "@/components/dashboard/benchmarks-panel";
@@ -22,6 +23,7 @@ function AnalyticsPage() {
   const { data, isLoading } = usePortfolioAnalytics();
   const exportCsv = useExportPortfolioAnalytics();
   const downloadMonthly = useDownloadMonthlyReport();
+  const downloadMonthlyPdf = useDownloadMonthlyReportPdf();
 
   return (
     <div className="space-y-6">
@@ -47,7 +49,16 @@ function AnalyticsPage() {
               disabled={downloadMonthly.isPending}
             >
               <FileText className="mr-2 size-4" />
-              Relatório mensal
+              Relatório HTML
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => downloadMonthlyPdf.mutate()}
+              disabled={downloadMonthlyPdf.isPending}
+            >
+              <FileText className="mr-2 size-4" />
+              PDF mensal
             </Button>
           </div>
         }
@@ -82,14 +93,45 @@ function AnalyticsPage() {
           label="Margem real"
           value={isLoading ? "—" : data ? `${data.marginPercent}%` : "—"}
           hint={
-            data?.adSpend30d
-              ? `Ads: ${formatBRL(data.adSpend30d, true)}`
-              : "GMV − investimento em mídia"
+            data?.margin
+              ? `Líquida ${formatBRL(data.margin.marginCents / 100, true)}`
+              : data?.adSpend30d
+                ? `Ads: ${formatBRL(data.adSpend30d, true)}`
+                : "GMV − ads − COGS − fulfillment"
           }
           icon={Percent}
           accent="warning"
         />
       </div>
+
+      {data?.margin && (
+        <Panel title="Breakdown margem (30d)" subtitle="GMV − mídia − COGS catálogo − custo fulfillment">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <div>
+              <p className="text-xs text-muted-foreground">GMV</p>
+              <p className="font-mono text-lg">{formatBRL(data.margin.gmvCents / 100)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Investimento mídia</p>
+              <p className="font-mono text-lg">{formatBRL(data.margin.adSpendCents / 100)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">COGS</p>
+              <p className="font-mono text-lg">{formatBRL(data.margin.cogsCents / 100)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Fulfillment</p>
+              <p className="font-mono text-lg">{formatBRL(data.margin.fulfillmentCostCents / 100)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Margem líquida</p>
+              <p className="font-mono text-lg text-primary">
+                {formatBRL(data.margin.marginCents / 100)} ({data.margin.marginPercent}%)
+              </p>
+            </div>
+          </div>
+        </Panel>
+      )}
 
       {data?.logistics && (
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
