@@ -9,6 +9,7 @@ export interface TemplateContext {
   danfe_url?: string;
   pontos?: string;
   cupom?: string;
+  rfm_segment?: string;
   [key: string]: string | undefined;
 }
 
@@ -27,6 +28,7 @@ export function buildTemplateContext(input: {
   danfeUrl?: string;
   points?: number;
   couponCode?: string;
+  rfmSegment?: string;
 }): TemplateContext {
   const formatBRL = (cents: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
@@ -42,5 +44,6 @@ export function buildTemplateContext(input: {
     danfe_url: input.danfeUrl ?? "",
     pontos: input.points != null ? String(input.points) : "",
     cupom: input.couponCode ?? "",
+    rfm_segment: input.rfmSegment ?? "",
   };
 }

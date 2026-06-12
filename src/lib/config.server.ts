@@ -102,6 +102,11 @@ export function getServerConfig() {
     },
     fcm: {
       serverKey: process.env.FCM_SERVER_KEY,
+      projectId: process.env.FCM_PROJECT_ID,
+      serviceAccountJson: process.env.FCM_SERVICE_ACCOUNT_JSON,
+      vapidPublicKey: process.env.VITE_VAPID_PUBLIC_KEY ?? process.env.VAPID_PUBLIC_KEY,
+      vapidPrivateKey: process.env.VAPID_PRIVATE_KEY,
+      vapidSubject: process.env.VAPID_SUBJECT ?? "mailto:orbia@performanc.com.br",
     },
     redis: {
       restUrl: process.env.UPSTASH_REDIS_REST_URL,

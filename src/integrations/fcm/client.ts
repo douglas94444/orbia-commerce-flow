@@ -1,5 +1,9 @@
 import { getServerConfig } from "@/lib/config.server";
 import { logIntegration, startTimer } from "@/shared/lib/logger";
+import { sendFcmV1Message } from "./v1.server";
+import { sendWebPushNotification } from "./webpush.server";
+
+const WEBPUSH_PREFIX = "webpush:";
 
 export async function sendPushNotification(input: {
   token: string;
@@ -8,7 +12,48 @@ export async function sendPushNotification(input: {
   clientId?: string;
 }): Promise<{ messageId: string }> {
   const { fcm } = getServerConfig();
-  if (!fcm.serverKey) throw new Error("FCM_SERVER_KEY not configured");
+
+  if (input.token.startsWith(WEBPUSH_PREFIX)) {
+    const subscriptionJson = input.token.slice(WEBPUSH_PREFIX.length);
+    return sendWebPushNotification({
+      subscriptionJson,
+      title: input.title,
+      body: input.body,
+      clientId: input.clientId,
+    });
+  }
+
+  if (fcm.projectId && fcm.serviceAccountJson) {
+    const end = startTimer();
+    try {
+      const result = await sendFcmV1Message({
+        token: input.token,
+        title: input.title,
+        body: input.body,
+        projectId: fcm.projectId,
+      });
+      await logIntegration({
+        provider: "fcm",
+        operation: "send_push_v1",
+        status: "success",
+        duration_ms: end(),
+        client_id: input.clientId,
+      });
+      return result;
+    } catch (err) {
+      await logIntegration({
+        provider: "fcm",
+        operation: "send_push_v1",
+        status: "error",
+        duration_ms: end(),
+        client_id: input.clientId,
+        error_message: (err as Error).message.slice(0, 500),
+      });
+      throw err;
+    }
+  }
+
+  if (!fcm.serverKey) throw new Error("FCM not configured");
 
   const end = startTimer();
   const res = await fetch("https://fcm.googleapis.com/fcm/send", {
@@ -33,7 +78,7 @@ export async function sendPushNotification(input: {
 
   await logIntegration({
     provider: "fcm",
-    operation: "send_push",
+    operation: "send_push_legacy",
     status: res.ok ? "success" : "error",
     response_code: res.status,
     duration_ms: end(),

@@ -1,5 +1,6 @@
 import { sendEmail } from "@/integrations/resend";
 import { buildTemplateContext, renderTemplate } from "../template-engine.server";
+import { pickRfmEmailBody } from "../rfm-template.server";
 import type { SendContext, SendResult } from "./types";
 
 const SUBJECTS: Record<string, string> = {
@@ -30,6 +31,7 @@ const BODIES: Record<string, string> = {
 export async function sendEmailStep(ctx: SendContext): Promise<SendResult> {
   if (!ctx.email) return { success: false, error: "no_email" };
 
+  const rfmSegment = ctx.enrollmentContext.rfm_segment as string | undefined;
   const tplCtx = buildTemplateContext({
     customerName: ctx.enrollmentContext.customer_name as string | undefined,
     storeName: ctx.storeName,
@@ -39,10 +41,14 @@ export async function sendEmailStep(ctx: SendContext): Promise<SendResult> {
     checkoutUrl: ctx.enrollmentContext.checkout_url as string | undefined,
     orderId: ctx.enrollmentContext.order_id as string | undefined,
     danfeUrl: ctx.enrollmentContext.danfe_url as string | undefined,
+    couponCode: ctx.enrollmentContext.coupon_code as string | undefined,
+    rfmSegment,
   });
 
   const subjectTpl = ctx.subject ?? SUBJECTS[ctx.templateKey] ?? SUBJECTS.default;
-  const bodyTpl = ctx.bodyHtml ?? BODIES[ctx.templateKey] ?? BODIES.default;
+  const defaultBody = BODIES[ctx.templateKey] ?? BODIES.default;
+  const bodyTpl =
+    ctx.bodyHtml ?? pickRfmEmailBody(ctx.templateKey, rfmSegment, defaultBody);
 
   try {
     const result = await sendEmail({

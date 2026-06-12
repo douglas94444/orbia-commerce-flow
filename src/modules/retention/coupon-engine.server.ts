@@ -5,7 +5,10 @@ const REACTIVATION_DISCOUNTS: Record<string, number> = {
   reativacao_30d: 5,
   reativacao_60d: 10,
   reativacao_90d: 15,
+  reativacao_jornada: 5,
 };
+
+const REACTIVATION_STEP_DISCOUNTS = [5, 10, 15] as const;
 
 function generateCode(prefix: string): string {
   return `${prefix}${Date.now().toString(36).toUpperCase()}`;
@@ -26,9 +29,15 @@ export async function ensureEnrollmentCoupon(
   if (trigger === "carrinho_abandonado") {
     discountPct = CART_DISCOUNTS[Math.min(stepIndex, CART_DISCOUNTS.length - 1)] ?? 5;
     prefix = "CART";
+  } else if (trigger === "reativacao_jornada") {
+    discountPct = REACTIVATION_STEP_DISCOUNTS[Math.min(stepIndex, 2)] ?? 5;
+    prefix = "REAT";
   } else if (trigger.startsWith("reativacao_")) {
     discountPct = REACTIVATION_DISCOUNTS[trigger] ?? 5;
     prefix = "REAT";
+  } else if (trigger === "estoque_favorito") {
+    discountPct = 10;
+    prefix = "WISH";
   } else if (trigger === "aniversario") {
     discountPct = 15;
     prefix = "BDAY";
@@ -40,14 +49,29 @@ export async function ensureEnrollmentCoupon(
   const expiresAt = new Date();
   expiresAt.setHours(expiresAt.getHours() + (trigger === "aniversario" ? 48 : 72));
 
-  await supabaseAdmin.from("automation_coupons").insert({
-    client_id: clientId,
-    customer_id: customerId,
-    code,
-    discount_pct: discountPct,
-    expires_at: expiresAt.toISOString(),
-    source: trigger,
-  });
+  const { data: inserted } = await supabaseAdmin
+    .from("automation_coupons")
+    .insert({
+      client_id: clientId,
+      customer_id: customerId,
+      code,
+      discount_pct: discountPct,
+      expires_at: expiresAt.toISOString(),
+      source: trigger,
+    })
+    .select("id")
+    .single();
+
+  if (inserted?.id) {
+    const { syncCouponToCheckoutPlatform } = await import("./checkout-coupon.server");
+    await syncCouponToCheckoutPlatform({
+      clientId,
+      couponId: inserted.id,
+      code,
+      discountPct,
+      expiresAt: expiresAt.toISOString(),
+    }).catch((err) => console.error("[coupon] platform sync:", err));
+  }
 
   return {
     ...context,

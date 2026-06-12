@@ -5,6 +5,7 @@ const MARKETING_TRIGGERS = new Set([
   "reativacao_30d",
   "reativacao_60d",
   "reativacao_90d",
+  "reativacao_jornada",
   "aniversario",
   "aniversario_cliente",
   "pos_entrega_7d",
@@ -121,7 +122,7 @@ export async function buildEnrollmentContextForCustomer(
 
   const { data: customer } = await supabaseAdmin
     .from("customers")
-    .select("ltv_cents, acquisition_channel")
+    .select("ltv_cents, acquisition_channel, rfm_segment")
     .eq("id", customerId)
     .single();
 
@@ -147,6 +148,7 @@ export async function buildEnrollmentContextForCustomer(
     order_id: lastOrder?.id,
     tracking_code: lastOrder?.tracking_code,
     acquisition_channel: customer?.acquisition_channel,
+    rfm_segment: customer?.rfm_segment,
     product_name: firstItem?.name ? String(firstItem.name) : firstItem?.sku ? String(firstItem.sku) : undefined,
     product_image: firstItem?.image ? String(firstItem.image) : undefined,
   };

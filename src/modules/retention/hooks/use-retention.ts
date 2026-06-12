@@ -23,8 +23,10 @@ import {
   getQuietHours,
   getAutomationSteps,
   updateMarketingSettings,
+  getMarketingSettings,
   backfillContactsAction,
   validateAutomationCouponAction,
+  submitWhatsAppTemplateAction,
 } from "../actions.functions";
 
 export const AUTOMATIONS_KEY = ["automations"] as const;
@@ -231,10 +233,35 @@ export function useAutomationSteps() {
   });
 }
 
+export function useMarketingSettings() {
+  return useQuery({
+    queryKey: ["marketing-settings"],
+    queryFn: () => getMarketingSettings(),
+    staleTime: 60_000,
+  });
+}
+
 export function useUpdateMarketingSettings() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (implicitOptIn: boolean) => updateMarketingSettings({ data: { implicitOptIn } }),
-    onSuccess: () => toast.success("Preferências de marketing atualizadas."),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["marketing-settings"] });
+      toast.success("Preferências de marketing atualizadas.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useSubmitWhatsAppTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { name: string; language: string; category: "MARKETING" | "UTILITY" | "AUTHENTICATION"; bodyText: string }) =>
+      submitWhatsAppTemplateAction({ data: vars }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["whatsapp-templates"] });
+      toast.success("Template enviado para aprovação na Meta.");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 }

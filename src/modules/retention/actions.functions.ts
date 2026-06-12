@@ -33,6 +33,7 @@ const TRIGGER_LABEL: Record<string, string> = {
   reativacao_30d: "Sem compra 30d",
   reativacao_60d: "Sem compra 60d",
   reativacao_90d: "Sem compra 90d",
+  reativacao_jornada: "Reativação multi-step",
   aniversario: "Aniversário",
   aniversario_cliente: "1º ano de cliente",
   pos_entrega_7d: "Upsell D+7",
@@ -942,6 +943,18 @@ const marketingSettingsSchema = z.object({
   implicitOptIn: z.boolean(),
 });
 
+export const getMarketingSettings = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await resolveClientId(context.supabase);
+    const { data } = await supabaseAdmin
+      .from("clients")
+      .select("marketing_implicit_opt_in")
+      .eq("id", clientId)
+      .single();
+    return { implicitOptIn: Boolean(data?.marketing_implicit_opt_in) };
+  });
+
 export const updateMarketingSettings = createServerFn({ method: "POST" })
   .inputValidator(marketingSettingsSchema)
   .middleware([requireSupabaseAuth])
@@ -954,6 +967,81 @@ export const updateMarketingSettings = createServerFn({ method: "POST" })
         updated_at: new Date().toISOString(),
       })
       .eq("id", clientId);
+    return { success: true };
+  });
+
+const submitTemplateSchema = z.object({
+  name: z.string().min(3),
+  language: z.string().default("pt_BR"),
+  category: z.enum(["MARKETING", "UTILITY", "AUTHENTICATION"]),
+  bodyText: z.string().min(10),
+});
+
+export const submitWhatsAppTemplateAction = createServerFn({ method: "POST" })
+  .inputValidator(submitTemplateSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await resolveClientId(context.supabase);
+    const { submitWhatsAppTemplate } = await import("./whatsapp-template-submit.server");
+    return submitWhatsAppTemplate({ clientId, ...data });
+  });
+
+const consumerTokenSchema = z.object({ token: z.string().min(16) });
+
+export const getConsumerPortalData = createServerFn({ method: "POST" })
+  .inputValidator(consumerTokenSchema)
+  .handler(async ({ data }) => {
+    const { resolveConsumerSession, getConsumerLoyaltyByCustomer } = await import(
+      "./consumer-portal.server"
+    );
+    const session = await resolveConsumerSession(data.token);
+    if (!session) throw new Error("Link expirado ou inválido");
+    return getConsumerLoyaltyByCustomer(session.clientId, session.customerId);
+  });
+
+const consumerCouponSchema = z.object({
+  token: z.string().min(16),
+  code: z.string().min(3),
+});
+
+export const validateConsumerCouponAction = createServerFn({ method: "POST" })
+  .inputValidator(consumerCouponSchema)
+  .handler(async ({ data }) => {
+    const { resolveConsumerSession } = await import("./consumer-portal.server");
+    const { validateAutomationCoupon } = await import("./coupon-engine.server");
+    const session = await resolveConsumerSession(data.token);
+    if (!session) throw new Error("Link expirado ou inválido");
+    const coupon = await validateAutomationCoupon(session.clientId, data.code);
+    if (!coupon) return { valid: false as const };
+    return {
+      valid: true as const,
+      discountPct: coupon.discountPct,
+      expiresAt: coupon.expiresAt,
+    };
+  });
+
+const consumerDeviceSchema = z.object({
+  token: z.string().min(16),
+  pushToken: z.string().min(10),
+  platform: z.enum(["web", "ios", "android"]).default("web"),
+});
+
+export const registerConsumerDeviceToken = createServerFn({ method: "POST" })
+  .inputValidator(consumerDeviceSchema)
+  .handler(async ({ data }) => {
+    const { resolveConsumerSession } = await import("./consumer-portal.server");
+    const session = await resolveConsumerSession(data.token);
+    if (!session) throw new Error("Link expirado ou inválido");
+    await supabaseAdmin.from("device_tokens").upsert(
+      {
+        client_id: session.clientId,
+        customer_id: session.customerId,
+        token: data.pushToken,
+        platform: data.platform,
+        is_active: true,
+      },
+      { onConflict: "client_id,token" },
+    );
     return { success: true };
   });
 

@@ -15,7 +15,26 @@ import {
 } from '@/modules/retention/actions.functions'
 import { useRegisterDeviceToken } from '@/modules/retention/hooks/use-retention'
 
-const PUSH_STORAGE_KEY = 'orbia_push_device_id'
+const VAPID_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined
+
+async function registerWebPush(): Promise<string | null> {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null
+  const perm = await Notification.requestPermission()
+  if (perm !== 'granted') return null
+  const reg = await navigator.serviceWorker.register('/sw-consumer.js')
+  await navigator.serviceWorker.ready
+  let sub = await reg.pushManager.getSubscription()
+  if (!sub && VAPID_KEY) {
+    const pad = '='.repeat((4 - (VAPID_KEY.length % 4)) % 4)
+    const b64 = (VAPID_KEY + pad).replace(/-/g, '+').replace(/_/g, '/')
+    const raw = atob(b64)
+    const key = new Uint8Array(raw.length)
+    for (let i = 0; i < raw.length; i++) key[i] = raw.charCodeAt(i)
+    sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key })
+  }
+  if (!sub) return null
+  return `webpush:${JSON.stringify(sub.toJSON())}`
+}
 
 function PushOptInButton({ customerId }: { customerId?: string }) {
   const { mutate: registerToken, isPending, isSuccess } = useRegisterDeviceToken()
@@ -29,17 +48,10 @@ function PushOptInButton({ customerId }: { customerId?: string }) {
 
   const handleClick = async () => {
     setError(false)
-    if ('Notification' in window) {
-      const perm = await Notification.requestPermission()
-      if (perm !== 'granted') {
-        setError(true)
-        return
-      }
-    }
-    let token = localStorage.getItem(PUSH_STORAGE_KEY)
+    const token = await registerWebPush()
     if (!token) {
-      token = `web:${crypto.randomUUID()}`
-      localStorage.setItem(PUSH_STORAGE_KEY, token)
+      setError(true)
+      return
     }
     registerToken({ token, platform: 'web', customerId })
   }

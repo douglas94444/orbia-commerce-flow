@@ -1,0 +1,189 @@
+import { createFileRoute } from '@tanstack/react-router'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
+import { Gift, Star } from 'lucide-react'
+import { Panel } from '@/components/dashboard/panel'
+import { StatusPill } from '@/components/dashboard/status-pill'
+import { formatNumber } from '@/lib/format'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { toast } from 'sonner'
+import {
+  getConsumerPortalData,
+  validateConsumerCouponAction,
+  registerConsumerDeviceToken,
+} from '@/modules/retention/actions.functions'
+const VAPID_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined
+
+async function registerWebPush(): Promise<string | null> {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null
+  const perm = await Notification.requestPermission()
+  if (perm !== 'granted') return null
+  const reg = await navigator.serviceWorker.register('/sw-consumer.js')
+  await navigator.serviceWorker.ready
+  let sub = await reg.pushManager.getSubscription()
+  if (!sub && VAPID_KEY) {
+    const pad = '='.repeat((4 - (VAPID_KEY.length % 4)) % 4)
+    const b64 = (VAPID_KEY + pad).replace(/-/g, '+').replace(/_/g, '/')
+    const raw = atob(b64)
+    const key = new Uint8Array(raw.length)
+    for (let i = 0; i < raw.length; i++) key[i] = raw.charCodeAt(i)
+    sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key })
+  }
+  if (!sub) return null
+  return `webpush:${JSON.stringify(sub.toJSON())}`
+}
+
+export const Route = createFileRoute('/minha-conta/$token')({
+  head: () => ({ meta: [{ title: 'Minha conta — Orbia' }] }),
+  component: ConsumerAccountPage,
+})
+
+function PushOptInButton({ token }: { token: string }) {
+  const [done, setDone] = useState(false)
+  const [error, setError] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  const handleClick = async () => {
+    setLoading(true)
+    setError(false)
+    try {
+      const pushToken = await registerWebPush()
+      if (!pushToken) {
+        setError(true)
+        return
+      }
+      await registerConsumerDeviceToken({ data: { token, pushToken, platform: 'web' } })
+      setDone(true)
+      toast.success('Notificações ativadas.')
+    } catch {
+      setError(true)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (done) return <p className="text-xs text-success">Notificações ativadas.</p>
+  if (error) return <p className="text-xs text-destructive">Não foi possível ativar notificações.</p>
+
+  return (
+    <Button size="sm" variant="outline" disabled={loading} onClick={handleClick}>
+      {loading ? 'Ativando…' : 'Ativar notificações'}
+    </Button>
+  )
+}
+
+function ConsumerAccountPage() {
+  const { token } = Route.useParams()
+  const qc = useQueryClient()
+  const [couponCode, setCouponCode] = useState('')
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['consumer-portal', token],
+    queryFn: () => getConsumerPortalData({ data: { token } }),
+    retry: false,
+  })
+
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw-consumer.js').catch(() => null)
+    }
+  }, [])
+
+  const validateCoupon = useMutation({
+    mutationFn: (code: string) => validateConsumerCouponAction({ data: { token, code } }),
+    onSuccess: (res) => {
+      if (res.valid) toast.success(`Cupom válido: ${res.discountPct}% de desconto`)
+      else toast.error('Cupom inválido ou expirado')
+    },
+  })
+
+  if (isLoading) {
+    return <p className="p-8 text-sm text-muted-foreground">Carregando sua conta…</p>
+  }
+
+  if (error || !data) {
+    return (
+      <div className="mx-auto max-w-lg p-8 text-center">
+        <h1 className="font-display text-xl font-semibold">Link inválido ou expirado</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Solicite um novo link à loja onde você comprou.
+        </p>
+      </div>
+    )
+  }
+
+  const account = data.account
+
+  return (
+    <div className="min-h-screen bg-background grid-texture">
+      <div className="mx-auto max-w-2xl space-y-6 p-6">
+        <header className="space-y-1">
+          <p className="text-xs uppercase tracking-wider text-primary">Minha conta</p>
+          <h1 className="font-display text-2xl font-semibold">
+            Olá{data.customerName ? `, ${data.customerName}` : ''}!
+          </h1>
+          <p className="text-sm text-muted-foreground">Programa de fidelidade e benefícios.</p>
+        </header>
+
+        <Panel title="Saldo de pontos" action={<Gift className="size-4 text-muted-foreground" />}>
+          {account ? (
+            <div className="flex flex-wrap items-center gap-4">
+              <p className="font-mono text-3xl font-semibold text-glow">
+                {formatNumber(account.points_balance)}
+              </p>
+              <StatusPill tone="success">{account.tier ?? 'Bronze'}</StatusPill>
+              {account.tier_progress_pct != null && (
+                <span className="text-xs text-muted-foreground">
+                  {account.tier_progress_pct}% para o próximo nível
+                </span>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Você ainda não tem pontos. Eles aparecem após a primeira compra.
+            </p>
+          )}
+        </Panel>
+
+        <Panel title="Validar cupom" action={<Star className="size-4 text-muted-foreground" />}>
+          <div className="flex flex-wrap gap-2">
+            <Input
+              placeholder="Código do cupom"
+              value={couponCode}
+              onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+              className="max-w-xs font-mono"
+            />
+            <Button
+              size="sm"
+              disabled={!couponCode || validateCoupon.isPending}
+              onClick={() => validateCoupon.mutate(couponCode)}
+            >
+              Validar
+            </Button>
+          </div>
+        </Panel>
+
+        <Panel title="Notificações">
+          <p className="mb-3 text-sm text-muted-foreground">
+            Receba alertas de pedidos, pontos e promoções exclusivas.
+          </p>
+          <PushOptInButton token={token} />
+        </Panel>
+
+        {data.transactions.length > 0 && (
+          <Panel title="Histórico">
+            <ul className="space-y-2 text-sm">
+              {data.transactions.map((tx, i) => (
+                <li key={i} className="flex justify-between border-b border-border/50 pb-2">
+                  <span className="capitalize">{tx.type}</span>
+                  <span className="font-mono">{tx.points > 0 ? '+' : ''}{tx.points}</span>
+                </li>
+              ))}
+            </ul>
+          </Panel>
+        )}
+      </div>
+    </div>
+  )
+}

@@ -86,7 +86,11 @@ export async function ensureDefaultSequences(clientId: string): Promise<void> {
 
   if (existing?.length) return;
 
-  const defaults: Array<{ name: string; trigger: string; steps: Array<{ channel: string; delay: number; key: string }> }> = [
+  const defaults: Array<{
+    name: string;
+    trigger: string;
+    steps: Array<{ channel: string; delay: number; key: string; condition?: string }>;
+  }> = [
     {
       name: "Pós-entrega + avaliação",
       trigger: "pedido_entregue",
@@ -124,22 +128,12 @@ export async function ensureDefaultSequences(clientId: string): Promise<void> {
       ],
     },
     {
-      name: "Reativação 30d",
-      trigger: "reativacao_30d",
-      steps: [{ channel: "email", delay: 0, key: "reativacao" }],
-    },
-    {
-      name: "Reativação 60d",
-      trigger: "reativacao_60d",
+      name: "Reativação multi-step",
+      trigger: "reativacao_jornada",
       steps: [
-        { channel: "whatsapp", delay: 0, key: "reativacao" },
-      ],
-    },
-    {
-      name: "Reativação 90d",
-      trigger: "reativacao_90d",
-      steps: [
-        { channel: "sms", delay: 0, key: "reativacao" },
+        { channel: "email", delay: 0, key: "reativacao" },
+        { channel: "whatsapp", delay: 4320, key: "reativacao", condition: "previous_not_opened" },
+        { channel: "sms", delay: 5760, key: "reativacao", condition: "previous_not_opened" },
       ],
     },
     {
@@ -224,6 +218,7 @@ export async function ensureDefaultSequences(clientId: string): Promise<void> {
         channel: s.channel,
         delay_minutes: s.delay,
         template_key: s.key,
+        condition_type: s.condition ?? null,
         sort_order: i,
       });
     }

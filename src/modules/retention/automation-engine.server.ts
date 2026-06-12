@@ -69,7 +69,16 @@ export async function onOrderPaid(orderId: string): Promise<void> {
     await enrollTrafficWelcomeOnFirstOrder(orderId).catch((err) =>
       console.error("[retention] traffic welcome:", err),
     );
+    const { createConsumerPortalLink } = await import("./consumer-portal.server");
+    await createConsumerPortalLink(contact.clientId, customerId).catch((err) =>
+      console.error("[retention] consumer portal link:", err),
+    );
   }
+
+  const { processOrderCouponOnPaid } = await import("./checkout-coupon.server");
+  await processOrderCouponOnPaid(orderId).catch((err) =>
+    console.error("[retention] coupon redeem:", err),
+  );
 }
 
 export async function onOrderDispatched(orderId: string): Promise<void> {

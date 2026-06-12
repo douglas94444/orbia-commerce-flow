@@ -1,5 +1,6 @@
 import { sendSms } from "@/integrations/twilio/client";
 import { buildTemplateContext, renderTemplate } from "../template-engine.server";
+import { pickRfmSmsBody } from "../rfm-template.server";
 import type { SendContext, SendResult } from "./types";
 
 const SMS_BODIES: Record<string, string> = {
@@ -12,14 +13,18 @@ const SMS_BODIES: Record<string, string> = {
 export async function sendSmsStep(ctx: SendContext): Promise<SendResult> {
   if (!ctx.phone) return { success: false, error: "no_phone" };
 
+  const rfmSegment = ctx.enrollmentContext.rfm_segment as string | undefined;
   const tplCtx = buildTemplateContext({
     customerName: ctx.enrollmentContext.customer_name as string | undefined,
     storeName: ctx.storeName,
     checkoutUrl: ctx.enrollmentContext.checkout_url as string | undefined,
     trackingCode: ctx.enrollmentContext.tracking_code as string | undefined,
+    couponCode: ctx.enrollmentContext.coupon_code as string | undefined,
+    rfmSegment,
   });
 
-  const bodyTpl = ctx.bodyText ?? SMS_BODIES[ctx.templateKey] ?? SMS_BODIES.default;
+  const defaultBody = SMS_BODIES[ctx.templateKey] ?? SMS_BODIES.default;
+  const bodyTpl = ctx.bodyText ?? pickRfmSmsBody(ctx.templateKey, rfmSegment, defaultBody);
 
   try {
     const result = await sendSms({

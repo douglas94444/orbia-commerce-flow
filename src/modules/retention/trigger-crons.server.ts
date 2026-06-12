@@ -5,46 +5,51 @@ import { buildEnrollmentContextForCustomer, persistCustomerContact } from "./con
 import { processExpiringPoints, processTierReminders } from "./loyalty.server";
 
 export async function processReactivationCrons(): Promise<{ enrolled: number }> {
-  const triggers = [
-    { trigger: "reativacao_30d", days: 30 },
-    { trigger: "reativacao_60d", days: 60 },
-    { trigger: "reativacao_90d", days: 90 },
-  ] as const;
+  const days = 30;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const windowStart = new Date(cutoff);
+  windowStart.setDate(windowStart.getDate() - 1);
+
+  const { data: customers } = await supabaseAdmin
+    .from("customers")
+    .select("id, client_id, last_order_at, cold_list_at")
+    .gte("last_order_at", windowStart.toISOString())
+    .lte("last_order_at", cutoff.toISOString())
+    .is("cold_list_at", null);
 
   let enrolled = 0;
 
-  for (const { trigger, days } of triggers) {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - days);
-    const windowStart = new Date(cutoff);
-    windowStart.setDate(windowStart.getDate() - 1);
+  for (const c of customers ?? []) {
+    const context = await buildEnrollmentContextForCustomer(c.client_id, c.id, {
+      last_order_at: c.last_order_at,
+    });
+    const id = await enrollInSequence({
+      clientId: c.client_id,
+      trigger: "reativacao_jornada",
+      customerId: c.id,
+      context,
+    });
+    if (id) enrolled += 1;
+  }
 
-    const { data: customers } = await supabaseAdmin
+  const coldCutoff = new Date();
+  coldCutoff.setDate(coldCutoff.getDate() - 90);
+  const coldWindowStart = new Date(coldCutoff);
+  coldWindowStart.setDate(coldWindowStart.getDate() - 1);
+
+  const { data: coldCandidates } = await supabaseAdmin
+    .from("customers")
+    .select("id")
+    .gte("last_order_at", coldWindowStart.toISOString())
+    .lte("last_order_at", coldCutoff.toISOString())
+    .is("cold_list_at", null);
+
+  for (const c of coldCandidates ?? []) {
+    await supabaseAdmin
       .from("customers")
-      .select("id, client_id, last_order_at, cold_list_at")
-      .gte("last_order_at", windowStart.toISOString())
-      .lte("last_order_at", cutoff.toISOString())
-      .is("cold_list_at", null);
-
-    for (const c of customers ?? []) {
-      const context = await buildEnrollmentContextForCustomer(c.client_id, c.id, {
-        last_order_at: c.last_order_at,
-      });
-      const id = await enrollInSequence({
-        clientId: c.client_id,
-        trigger,
-        customerId: c.id,
-        context,
-      });
-      if (id) enrolled += 1;
-
-      if (trigger === "reativacao_90d" && !id) {
-        await supabaseAdmin
-          .from("customers")
-          .update({ cold_list_at: new Date().toISOString(), rfm_segment: "perdidos" })
-          .eq("id", c.id);
-      }
-    }
+      .update({ cold_list_at: new Date().toISOString(), rfm_segment: "perdidos" })
+      .eq("id", c.id);
   }
 
   return { enrolled };
@@ -149,7 +154,12 @@ export async function processAbandonedCarts(): Promise<{ enrolled: number }> {
       enrolled += 1;
       await supabaseAdmin
         .from("abandoned_carts")
-        .update({ status: "enrolled", updated_at: new Date().toISOString() })
+        .update({
+          status: "converted",
+          converted_at: new Date().toISOString(),
+          metadata: { enrolled_at: new Date().toISOString() },
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", cart.id);
     }
   }

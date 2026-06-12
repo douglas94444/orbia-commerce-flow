@@ -24,6 +24,7 @@ const TRIGGERS = [
   "pedido_despachado",
   "nfe_autorizada",
   "reativacao_30d",
+  "reativacao_jornada",
   "reativacao_60d",
   "reativacao_90d",
   "aniversario",

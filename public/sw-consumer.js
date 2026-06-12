@@ -7,5 +7,6 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  event.waitUntil(clients.openWindow("/portal/loyalty"));
+  const url = event.notification.data?.url ?? "/minha-conta";
+  event.waitUntil(clients.openWindow(url));
 });

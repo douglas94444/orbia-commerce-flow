@@ -9,6 +9,8 @@ import {
   useWhatsAppTemplates,
   useUpdateQuietHours,
   useUpdateMarketingSettings,
+  useMarketingSettings,
+  useQuietHours,
 } from '@/modules/retention/hooks/use-retention'
 import { PageIntro, Panel } from '@/components/dashboard/panel'
 import { Button } from '@/components/ui/button'
@@ -64,9 +66,22 @@ function PortalSettingsPage() {
   const { data: waTemplates = [] } = useWhatsAppTemplates()
   const { mutate: saveQuietHours, isPending: savingHours } = useUpdateQuietHours()
   const { mutate: saveMarketing, isPending: savingMarketing } = useUpdateMarketingSettings()
+  const { data: marketingSettings } = useMarketingSettings()
+  const { data: quietHours } = useQuietHours()
   const [quietStart, setQuietStart] = useState(22)
   const [quietEnd, setQuietEnd] = useState(8)
   const [implicitOptIn, setImplicitOptIn] = useState(false)
+
+  useEffect(() => {
+    if (marketingSettings) setImplicitOptIn(marketingSettings.implicitOptIn)
+  }, [marketingSettings])
+
+  useEffect(() => {
+    if (quietHours) {
+      setQuietStart(quietHours.quietHoursStart)
+      setQuietEnd(quietHours.quietHoursEnd)
+    }
+  }, [quietHours])
 
   async function handleInvite() {
     if (!inviteEmail) return

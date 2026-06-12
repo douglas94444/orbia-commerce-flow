@@ -269,6 +269,8 @@ export interface InboundWhatsAppMessage {
   messageId: string;
   text: string;
   timestamp: number;
+  replyId?: string;
+  replyType?: "button_reply" | "list_reply" | "text";
 }
 
 export function parseInboundMessages(payload: unknown): InboundWhatsAppMessage[] {
@@ -283,10 +285,39 @@ export function parseInboundMessages(payload: unknown): InboundWhatsAppMessage[]
       const msgs = (value?.messages ?? []) as Array<Record<string, unknown>>;
       for (const m of msgs) {
         const textObj = m.text as Record<string, unknown> | undefined;
+        const interactive = m.interactive as Record<string, unknown> | undefined;
+        const buttonReply = interactive?.button_reply as Record<string, unknown> | undefined;
+        const listReply = interactive?.list_reply as Record<string, unknown> | undefined;
+
+        if (buttonReply) {
+          messages.push({
+            from: String(m.from ?? ""),
+            messageId: String(m.id ?? ""),
+            text: String(buttonReply.title ?? buttonReply.id ?? ""),
+            replyId: String(buttonReply.id ?? ""),
+            replyType: "button_reply",
+            timestamp: Number(m.timestamp ?? 0),
+          });
+          continue;
+        }
+
+        if (listReply) {
+          messages.push({
+            from: String(m.from ?? ""),
+            messageId: String(m.id ?? ""),
+            text: String(listReply.title ?? listReply.id ?? ""),
+            replyId: String(listReply.id ?? ""),
+            replyType: "list_reply",
+            timestamp: Number(m.timestamp ?? 0),
+          });
+          continue;
+        }
+
         messages.push({
           from: String(m.from ?? ""),
           messageId: String(m.id ?? ""),
           text: String(textObj?.body ?? ""),
+          replyType: "text",
           timestamp: Number(m.timestamp ?? 0),
         });
       }

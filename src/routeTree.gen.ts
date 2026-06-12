@@ -27,6 +27,7 @@ import { Route as OpsReceivingRouteImport } from './routes/ops.receiving'
 import { Route as OpsPickingRouteImport } from './routes/ops.picking'
 import { Route as OpsPackingRouteImport } from './routes/ops.packing'
 import { Route as OpsDispatchRouteImport } from './routes/ops.dispatch'
+import { Route as MinhaContaTokenRouteImport } from './routes/minha-conta.$token'
 import { Route as DashboardTrafficRouteImport } from './routes/_dashboard.traffic'
 import { Route as DashboardSuccessRouteImport } from './routes/_dashboard.success'
 import { Route as DashboardSettingsRouteImport } from './routes/_dashboard.settings'
@@ -170,6 +171,11 @@ const OpsDispatchRoute = OpsDispatchRouteImport.update({
   id: '/dispatch',
   path: '/dispatch',
   getParentRoute: () => OpsRoute,
+} as any)
+const MinhaContaTokenRoute = MinhaContaTokenRouteImport.update({
+  id: '/minha-conta/$token',
+  path: '/minha-conta/$token',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardTrafficRoute = DashboardTrafficRouteImport.update({
   id: '/traffic',
@@ -478,6 +484,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof DashboardSettingsRoute
   '/success': typeof DashboardSuccessRoute
   '/traffic': typeof DashboardTrafficRoute
+  '/minha-conta/$token': typeof MinhaContaTokenRoute
   '/ops/dispatch': typeof OpsDispatchRoute
   '/ops/packing': typeof OpsPackingRoute
   '/ops/picking': typeof OpsPickingRoute
@@ -550,6 +557,7 @@ export interface FileRoutesByTo {
   '/settings': typeof DashboardSettingsRoute
   '/success': typeof DashboardSuccessRoute
   '/traffic': typeof DashboardTrafficRoute
+  '/minha-conta/$token': typeof MinhaContaTokenRoute
   '/ops/dispatch': typeof OpsDispatchRoute
   '/ops/packing': typeof OpsPackingRoute
   '/ops/picking': typeof OpsPickingRoute
@@ -625,6 +633,7 @@ export interface FileRoutesById {
   '/_dashboard/settings': typeof DashboardSettingsRoute
   '/_dashboard/success': typeof DashboardSuccessRoute
   '/_dashboard/traffic': typeof DashboardTrafficRoute
+  '/minha-conta/$token': typeof MinhaContaTokenRoute
   '/ops/dispatch': typeof OpsDispatchRoute
   '/ops/packing': typeof OpsPackingRoute
   '/ops/picking': typeof OpsPickingRoute
@@ -700,6 +709,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/success'
     | '/traffic'
+    | '/minha-conta/$token'
     | '/ops/dispatch'
     | '/ops/packing'
     | '/ops/picking'
@@ -772,6 +782,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/success'
     | '/traffic'
+    | '/minha-conta/$token'
     | '/ops/dispatch'
     | '/ops/packing'
     | '/ops/picking'
@@ -846,6 +857,7 @@ export interface FileRouteTypes {
     | '/_dashboard/settings'
     | '/_dashboard/success'
     | '/_dashboard/traffic'
+    | '/minha-conta/$token'
     | '/ops/dispatch'
     | '/ops/packing'
     | '/ops/picking'
@@ -910,6 +922,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   OpsRoute: typeof OpsRouteWithChildren
   PortalRoute: typeof PortalRouteWithChildren
+  MinhaContaTokenRoute: typeof MinhaContaTokenRoute
   ApiCronRunRoute: typeof ApiCronRunRoute
   ApiWebhooksAmazonRoute: typeof ApiWebhooksAmazonRoute
   ApiWebhooksEvolutionRoute: typeof ApiWebhooksEvolutionRoute
@@ -1064,6 +1077,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/ops/dispatch'
       preLoaderRoute: typeof OpsDispatchRouteImport
       parentRoute: typeof OpsRoute
+    }
+    '/minha-conta/$token': {
+      id: '/minha-conta/$token'
+      path: '/minha-conta/$token'
+      fullPath: '/minha-conta/$token'
+      preLoaderRoute: typeof MinhaContaTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_dashboard/traffic': {
       id: '/_dashboard/traffic'
@@ -1591,6 +1611,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   OpsRoute: OpsRouteWithChildren,
   PortalRoute: PortalRouteWithChildren,
+  MinhaContaTokenRoute: MinhaContaTokenRoute,
   ApiCronRunRoute: ApiCronRunRoute,
   ApiWebhooksAmazonRoute: ApiWebhooksAmazonRoute,
   ApiWebhooksEvolutionRoute: ApiWebhooksEvolutionRoute,

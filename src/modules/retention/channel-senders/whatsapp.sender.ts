@@ -11,6 +11,7 @@ import {
 import { getWhatsAppCredentials } from "@/integrations/whatsapp/provider";
 import { hashContact } from "../customer-sync.server";
 import { buildTemplateContext } from "../template-engine.server";
+import { pickRfmWaBody } from "../rfm-template.server";
 import type { SendContext, SendResult } from "./types";
 
 function normalizePhone(phone: string): string {
@@ -62,6 +63,7 @@ export async function sendWhatsAppStep(ctx: SendContext): Promise<SendResult> {
   const creds = await getWhatsAppCredentials(ctx.clientId);
   if (!creds) return { success: false, error: "no_whatsapp_connection" };
 
+  const rfmSegment = ctx.enrollmentContext.rfm_segment as string | undefined;
   const tplCtx = buildTemplateContext({
     customerName: ctx.enrollmentContext.customer_name as string | undefined,
     storeName: ctx.storeName,
@@ -72,6 +74,7 @@ export async function sendWhatsAppStep(ctx: SendContext): Promise<SendResult> {
     danfeUrl: ctx.enrollmentContext.danfe_url as string | undefined,
     points: ctx.enrollmentContext.points as number | undefined,
     couponCode: ctx.enrollmentContext.coupon_code as string | undefined,
+    rfmSegment,
   });
 
   const to = normalizePhone(ctx.phone);
@@ -94,7 +97,7 @@ export async function sendWhatsAppStep(ctx: SendContext): Promise<SendResult> {
         return { success: true, providerMessageId: result.messageId };
       }
 
-      const body = [
+      const defaultBody = [
         `Olá ${tplCtx.nome ?? "cliente"}!`,
         tplCtx.produto ? `Produto: ${tplCtx.produto}` : null,
         tplCtx.rastreio ? `Rastreio: ${tplCtx.rastreio}` : null,
@@ -103,6 +106,7 @@ export async function sendWhatsAppStep(ctx: SendContext): Promise<SendResult> {
       ]
         .filter(Boolean)
         .join("\n");
+      const body = pickRfmWaBody(ctx.templateKey, rfmSegment, defaultBody);
 
       const result = await sendEvolutionText({
         baseUrl: creds.baseUrl,
@@ -129,7 +133,7 @@ export async function sendWhatsAppStep(ctx: SendContext): Promise<SendResult> {
     }
 
     if (sessionOpen && !ctx.metadata.force_template) {
-      const body = [
+      const defaultBody = [
         `Olá ${tplCtx.nome ?? "cliente"}!`,
         tplCtx.produto ? `${tplCtx.produto}` : null,
         tplCtx.rastreio ? `Rastreio: ${tplCtx.rastreio}` : null,
@@ -137,6 +141,7 @@ export async function sendWhatsAppStep(ctx: SendContext): Promise<SendResult> {
       ]
         .filter(Boolean)
         .join(" — ");
+      const body = pickRfmWaBody(ctx.templateKey, rfmSegment, defaultBody);
 
       const result = await sendWhatsAppMessage({
         phoneNumberId: creds.phoneNumberId,

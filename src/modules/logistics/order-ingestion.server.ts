@@ -344,6 +344,14 @@ export async function upsertOrderFromWebhook(
   const attributionSignals = extractAttributionSignals(order.raw, metadata);
   metadata.attribution = buildAttributionMeta(attributionSignals);
 
+  const rawCoupon =
+    order.raw.coupon_code ??
+    order.raw.discount_coupon ??
+    (order.raw.coupons as Array<Record<string, unknown>> | undefined)?.[0]?.code ??
+    (order.raw.discount_codes as Array<Record<string, unknown>> | undefined)?.[0]?.code;
+  if (rawCoupon) metadata.coupon_code = String(rawCoupon).toUpperCase();
+  metadata.raw = order.raw;
+
   const { data: existing } = await supabaseAdmin
     .from("orders")
     .select("id, status, nf_status, metadata, channel")

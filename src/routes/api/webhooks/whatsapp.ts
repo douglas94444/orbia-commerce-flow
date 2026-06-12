@@ -98,8 +98,14 @@ export const Route = createFileRoute("/api/webhooks/whatsapp")({
         }
 
         for (const msg of inbound) {
-          if (clientId && msg.text) {
-            await handleInboundWhatsApp({ clientId, from: msg.from, text: msg.text });
+          if (clientId && (msg.text || msg.replyId)) {
+            await handleInboundWhatsApp({
+              clientId,
+              from: msg.from,
+              text: msg.text,
+              replyId: msg.replyId,
+              replyType: msg.replyType,
+            });
           }
         }
 
