@@ -98,6 +98,8 @@ import {
 } from "./packing/packing-profile.server";
 import { getReturnReasonsReport } from "./returns/returns.server";
 import { getLogisticsAnalytics } from "./analytics/logistics-analytics.server";
+import { getLogisticsAnalyticsDashboard } from "./analytics/logistics-dashboard.server";
+import { exportLogisticsAnalyticsCsv } from "./analytics/export-logistics-analytics.server";
 import { getOpsPickQueue, getOpsPickOrderProgress } from "./ops/ops-tasks.server";
 import {
   startInventoryCount,
@@ -772,6 +774,20 @@ export const getLogisticsAnalyticsFn = createServerFn({ method: "GET" })
     return getLogisticsAnalytics(clientId);
   });
 
+export const getLogisticsAnalyticsDashboardFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return getLogisticsAnalyticsDashboard(clientId);
+  });
+
+export const exportLogisticsAnalyticsCsvFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return { csv: await exportLogisticsAnalyticsCsv(clientId) };
+  });
+
 export const listInventoryCountsFn = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -1012,10 +1028,32 @@ export const exportClientLogisticsQbrFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
     await requireStaff(context.userId, context.supabase);
-    const { exportClientLogisticsQbrCsv } = await import(
-      "./analytics/client-logistics-report.server"
-    );
-    return { csv: await exportClientLogisticsQbrCsv(data.clientId) };
+    const { exportClientQbrCsv } = await import("./analytics/client-qbr-report.server");
+    return { csv: await exportClientQbrCsv(data.clientId) };
+  });
+
+export const listUnifiedOccurrencesFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    const { listUnifiedOccurrences } = await import("./analytics/occurrences-report.server");
+    return listUnifiedOccurrences(clientId);
+  });
+
+export const exportOccurrencesCsvFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    const { exportOccurrencesCsv } = await import("./analytics/occurrences-report.server");
+    return { csv: await exportOccurrencesCsv(clientId) };
+  });
+
+export const getOpsLiveDashboardFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    const { getOpsLiveDashboard } = await import("./ops/ops-live-dashboard.server");
+    return getOpsLiveDashboard(clientId);
   });
 
 export const getClientSlaRulesFn = createServerFn({ method: "POST" })

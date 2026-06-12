@@ -260,6 +260,7 @@ const logActivitySchema = z.object({
   kind: z.enum(["contact", "qbr", "onboarding_note"]),
   channel: z.enum(["call", "email", "whatsapp", "meeting"]).optional(),
   notes: z.string().max(2000).optional(),
+  scheduledAt: z.string().datetime().optional(),
 });
 
 export const logCsActivity = createServerFn({ method: "POST" })
@@ -268,12 +269,15 @@ export const logCsActivity = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await requireStaff(context.userId, context.supabase);
 
+    const occurredAt = data.scheduledAt ?? new Date().toISOString();
     const { error } = await supabaseAdmin.from("cs_activities").insert({
       client_id: data.clientId,
       staff_id: context.userId,
       kind: data.kind,
       channel: data.channel ?? null,
       notes: data.notes ?? null,
+      occurred_at: occurredAt,
+      metadata: data.scheduledAt ? { scheduled_at: data.scheduledAt } : {},
     });
 
     if (error) throw new Error(error.message);

@@ -54,6 +54,7 @@ export function ClientCsPanel({ clientId }: ClientCsPanelProps) {
   const [npsScore, setNpsScore] = useState("8");
   const [npsNotes, setNpsNotes] = useState("");
   const [qbrNotes, setQbrNotes] = useState("");
+  const [qbrScheduledAt, setQbrScheduledAt] = useState("");
 
   function handleLogContact() {
     logActivity.mutate(
@@ -245,6 +246,14 @@ export function ClientCsPanel({ clientId }: ClientCsPanelProps) {
             <DialogTitle>Agendar / registrar QBR</DialogTitle>
           </DialogHeader>
           <div className="space-y-1.5">
+            <Label>Data da reunião</Label>
+            <Input
+              type="datetime-local"
+              value={qbrScheduledAt}
+              onChange={(e) => setQbrScheduledAt(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
             <Label>Notas da reunião</Label>
             <Textarea
               value={qbrNotes}
@@ -258,15 +267,29 @@ export function ClientCsPanel({ clientId }: ClientCsPanelProps) {
               Cancelar
             </Button>
             <Button
-              onClick={() =>
+              onClick={() => {
+                const scheduledAt = qbrScheduledAt
+                  ? new Date(qbrScheduledAt).toISOString()
+                  : undefined;
                 logActivity.mutate(
-                  { kind: "qbr", channel: "meeting", notes: qbrNotes || undefined },
-                  { onSuccess: () => setQbrOpen(false) },
-                )
-              }
+                  {
+                    kind: "qbr",
+                    channel: "meeting",
+                    notes: qbrNotes || undefined,
+                    scheduledAt,
+                  },
+                  {
+                    onSuccess: () => {
+                      setQbrOpen(false);
+                      setQbrScheduledAt("");
+                      setQbrNotes("");
+                    },
+                  },
+                );
+              }}
               disabled={logActivity.isPending}
             >
-              Salvar QBR
+              {qbrScheduledAt ? "Agendar QBR" : "Registrar QBR"}
             </Button>
           </DialogFooter>
         </DialogContent>

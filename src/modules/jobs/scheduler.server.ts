@@ -44,6 +44,7 @@ export type CronJobName =
   | "sync-return-tracking"
   | "check-marketplace-penalties"
   | "sla-monthly-report"
+  | "monthly-analytics-report"
   | "charge-fulfillment-overage"
   | "attribute-traffic-conversions"
   | "all";
@@ -198,6 +199,13 @@ async function runJob(name: Exclude<CronJobName, "all">): Promise<JobResult> {
         metadata = await runMonthlySlaReportJob();
         break;
       }
+      case "monthly-analytics-report": {
+        const { runMonthlyAnalyticsReportJob } = await import(
+          "@/modules/analytics/monthly-report.server"
+        );
+        metadata = await runMonthlyAnalyticsReportJob();
+        break;
+      }
       case "charge-fulfillment-overage": {
         const { runFulfillmentOverageJob } = await import(
           "@/modules/billing/fulfillment-billing.server"
@@ -259,6 +267,9 @@ const JOB_SEQUENCE: Array<Exclude<CronJobName, "all">> = [
   "schedule-pickup",
   "charge-fulfillment-overage",
   "attribute-traffic-conversions",
+  "capture-benchmarks",
+  "sla-monthly-report",
+  "monthly-analytics-report",
   "cleanup-oauth",
 ];
 

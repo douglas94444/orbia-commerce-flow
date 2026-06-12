@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { OperationAlert } from "@/shared/types/orbia";
 import { generateClientInsights, generatePortfolioInsights } from "./ai-insights.server";
@@ -40,15 +41,16 @@ export interface PortfolioAnalytics {
   logistics: PortfolioLogisticsMetrics;
 }
 
-export const getPortfolioAnalytics = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<PortfolioAnalytics> => {
+async function computePortfolioAnalytics(context: {
+  userId: string;
+  supabase: import("@supabase/supabase-js").SupabaseClient;
+}): Promise<PortfolioAnalytics> {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
     const [ordersResult, campaignsResult, nfeResult, customersResult] = await Promise.all([
       context.supabase
         .from("orders")
-        .select("client_id, value_cents, created_at, status, channel, metadata")
+        .select("value_cents, created_at, status, channel, metadata")
         .gte("created_at", thirtyDaysAgo),
       context.supabase.from("campaigns").select("platform, spend_cents, revenue_cents, roas"),
       context.supabase
@@ -58,7 +60,7 @@ export const getPortfolioAnalytics = createServerFn({ method: "GET" })
         .gte("created_at", thirtyDaysAgo),
       context.supabase
         .from("customers")
-        .select("ltv_cents, acquisition_channel, created_at"),
+        .select("ltv_cents, created_at, last_order_at"),
     ]);
 
     const orders = ordersResult.data ?? [];
@@ -130,10 +132,12 @@ export const getPortfolioAnalytics = createServerFn({ method: "GET" })
       }
     }
 
+    const dailySpendBrl = adSpend30d / 30;
     const gmvRoasSeries = Array.from(gmvByDay.entries()).map(([day, gmv], i) => ({
       day: String(i + 1),
       gmv: Math.round(gmv),
-      roas: avgRoas,
+      roas:
+        dailySpendBrl > 0 ? Math.round((gmv / dailySpendBrl) * 10) / 10 : 0,
     }));
 
     const channelMap = new Map<string, { spend: number; revenue: number }>();
@@ -167,7 +171,7 @@ export const getPortfolioAnalytics = createServerFn({ method: "GET" })
     }
 
     const cohortRetention = buildCohortRetention(orders);
-    const ltvByCohort = buildLtvByCohort(customersResult.data ?? []);
+    const ltvByCohort = buildLtvByCohortFromCustomers(customersResult.data ?? [], orders);
 
     return {
       gmv30d,
@@ -182,19 +186,43 @@ export const getPortfolioAnalytics = createServerFn({ method: "GET" })
       ltvByCohort,
       logistics,
     };
-  });
+}
 
-function buildLtvByCohort(
-  customers: Array<{ ltv_cents: number; acquisition_channel: string | null; created_at: string }>,
+export const getPortfolioAnalytics = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => computePortfolioAnalytics(context));
+
+function customerKeyFromOrder(order: { metadata?: unknown }): string | null {
+  const meta = (order.metadata ?? {}) as Record<string, unknown>;
+  const email = meta.customer_email as string | undefined;
+  const phone = meta.customer_phone as string | undefined;
+  if (email) return `email:${email}`;
+  if (phone) return `phone:${phone}`;
+  return null;
+}
+
+function buildLtvByCohortFromCustomers(
+  customers: Array<{ ltv_cents: number; created_at: string; last_order_at: string | null }>,
+  orders: Array<{ created_at: string; metadata?: unknown }>,
 ): LtvCohortRow[] {
+  const firstOrderMonth = new Map<string, string>();
+  for (const o of orders) {
+    const key = customerKeyFromOrder(o);
+    if (!key) continue;
+    const month = o.created_at.slice(0, 7);
+    const existing = firstOrderMonth.get(key);
+    if (!existing || month < existing) firstOrderMonth.set(key, month);
+  }
+
   const map = new Map<string, { total: number; count: number }>();
   for (const c of customers) {
-    const cohort = c.created_at.slice(0, 7);
+    const cohort = (c.last_order_at ?? c.created_at).slice(0, 7);
     const cur = map.get(cohort) ?? { total: 0, count: 0 };
     cur.total += c.ltv_cents ?? 0;
     cur.count += 1;
     map.set(cohort, cur);
   }
+
   return [...map.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .slice(-6)
@@ -206,35 +234,34 @@ function buildLtvByCohort(
 }
 
 function buildCohortRetention(
-  orders: Array<{ client_id?: string; created_at: string; value_cents: number | null }>,
+  orders: Array<{ created_at: string; metadata?: unknown }>,
 ): CohortRow[] {
-  const byClientMonth = new Map<string, Set<string>>();
+  const byCustomerMonth = new Map<string, Set<string>>();
 
   for (const o of orders) {
-    const clientId = (o as { client_id?: string }).client_id;
-    if (!clientId) continue;
+    const key = customerKeyFromOrder(o);
+    if (!key) continue;
     const month = o.created_at.slice(0, 7);
-    const key = clientId;
-    if (!byClientMonth.has(key)) byClientMonth.set(key, new Set());
-    byClientMonth.get(key)!.add(month);
+    if (!byCustomerMonth.has(key)) byCustomerMonth.set(key, new Set());
+    byCustomerMonth.get(key)!.add(month);
   }
 
   const cohorts = new Map<string, string[]>();
-  for (const [clientId, months] of byClientMonth) {
+  for (const [customerKey, months] of byCustomerMonth) {
     const sorted = [...months].sort();
     const first = sorted[0];
     if (!first) continue;
     const list = cohorts.get(first) ?? [];
-    list.push(clientId);
+    list.push(customerKey);
     cohorts.set(first, list);
   }
 
   const rows: CohortRow[] = [];
-  for (const [cohort, clientIds] of [...cohorts.entries()].slice(-4)) {
-    const base = clientIds.length || 1;
+  for (const [cohort, customerKeys] of [...cohorts.entries()].slice(-4)) {
+    const base = customerKeys.length || 1;
     const countActive = (offset: number) => {
       const target = addMonths(cohort, offset);
-      return clientIds.filter((id) => byClientMonth.get(id)?.has(target)).length;
+      return customerKeys.filter((id) => byCustomerMonth.get(id)?.has(target)).length;
     };
     rows.push({
       cohort,
@@ -301,12 +328,38 @@ export const listOperationAlerts = createServerFn({ method: "GET" })
     );
   });
 
+export const getMonthlyReportHtml = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ clientId: z.string().uuid().optional() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { data: membership } = await context.supabase
+      .from("client_members")
+      .select("client_id")
+      .eq("user_id", context.userId)
+      .eq("status", "active")
+      .maybeSingle();
+
+    const clientId = data.clientId ?? (membership?.client_id as string | undefined);
+    if (!clientId) throw new Error("Cliente não identificado");
+
+    const { buildMonthlyReportHtml } = await import("./monthly-report.server");
+    return { html: await buildMonthlyReportHtml(clientId) };
+  });
+
+export const exportPortfolioAnalytics = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const data = await computePortfolioAnalytics(context);
+    const { exportPortfolioAnalyticsCsv } = await import("./export-portfolio-analytics.server");
+    return { csv: exportPortfolioAnalyticsCsv(data) };
+  });
+
 export const getClientAiInsights = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ clientId: z.string().uuid().optional() }))
   .middleware([requireSupabaseAuth])
   .handler(async ({ data }): Promise<AiInsight[]> => {
-    const clientId = (data as { clientId?: string } | undefined)?.clientId;
-    if (!clientId) return generatePortfolioInsights();
-    return generateClientInsights(clientId);
+    if (!data.clientId) return generatePortfolioInsights();
+    return generateClientInsights(data.clientId);
   });
 
 export { type AiInsight };

@@ -74,6 +74,7 @@ export function useLogCsActivity(clientId: string) {
       kind: "contact" | "qbr" | "onboarding_note";
       channel?: "call" | "email" | "whatsapp" | "meeting";
       notes?: string;
+      scheduledAt?: string;
     }) => logCsActivity({ data: { clientId, ...input } }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["client-activities", clientId] });

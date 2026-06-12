@@ -15,7 +15,6 @@ export interface LogisticsAnalyticsSummary {
 export async function getLogisticsAnalytics(clientId: string): Promise<LogisticsAnalyticsSummary> {
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-  const monthStart = new Date().toISOString().slice(0, 7) + "-01";
 
   const { data: waves } = await supabaseAdmin
     .from("pick_waves")
@@ -29,7 +28,6 @@ export async function getLogisticsAnalytics(clientId: string): Promise<Logistics
     { data: shippedOrders },
     { data: pickTasks },
     { data: packingSessions },
-    { data: usage },
     { data: incidents },
     { data: slaOrders },
   ] = await Promise.all([
@@ -49,12 +47,6 @@ export async function getLogisticsAnalytics(clientId: string): Promise<Logistics
       .eq("orders.client_id", clientId)
       .eq("status", "completed")
       .gte("completed_at", since24h),
-    supabaseAdmin
-      .from("fulfillment_usage")
-      .select("picks_completed, packs_completed")
-      .eq("client_id", clientId)
-      .eq("period_month", monthStart)
-      .maybeSingle(),
     supabaseAdmin
       .from("delivery_incidents")
       .select("id, order_id, orders!inner(client_id)")
@@ -103,8 +95,20 @@ export async function getLogisticsAnalytics(clientId: string): Promise<Logistics
     linesTotal > 0 ? Math.round((linesPicked / linesTotal) * 100) : 100;
 
   const packsLast24h = (packingSessions ?? []).length;
-  const picksLast24h = (usage?.picks_completed as number) ?? linesPicked;
-  const packsFromUsage = (usage?.packs_completed as number) ?? packsLast24h;
+
+  let picksLast24h = 0;
+  if (taskIds.length) {
+    const { data: recentPicks } = await supabaseAdmin
+      .from("pick_task_lines")
+      .select("qty_picked, updated_at")
+      .in("task_id", taskIds)
+      .eq("status", "picked")
+      .gte("updated_at", since24h);
+    picksLast24h = (recentPicks ?? []).reduce(
+      (s, l) => s + ((l.qty_picked as number) ?? 0),
+      0,
+    );
+  }
 
   let onTime = 0;
   for (const o of slaOrders ?? []) {
@@ -120,17 +124,15 @@ export async function getLogisticsAnalytics(clientId: string): Promise<Logistics
   const orderVolume = (shippedOrders ?? []).length || 1;
   const incidentRatePercent = Math.round((incidentCount / orderVolume) * 100);
 
-  const effectivePacks = packsFromUsage || packsLast24h;
-
   return {
     avgShippingCostCents,
     deliveredCount,
     onTimeDeliveryPercent,
     pickingAccuracyPercent,
     picksLast24h,
-    packsLast24h: effectivePacks,
+    packsLast24h,
     picksPerHour: Math.round((picksLast24h / 24) * 10) / 10,
-    packsPerHour: Math.round((effectivePacks / 24) * 10) / 10,
+    packsPerHour: Math.round((packsLast24h / 24) * 10) / 10,
     incidentRatePercent,
   };
 }

@@ -1,9 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { BarChart3, Coins, Gauge, Percent, Truck } from "lucide-react";
+import { BarChart3, Coins, Gauge, Percent, Truck, Download, PackageCheck, AlertTriangle, FileText } from "lucide-react";
 import { PageIntro, Panel } from "@/components/dashboard/panel";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { GmvRoasChart, ChannelRoasChart } from "@/components/dashboard/charts";
-import { usePortfolioAnalytics } from "@/modules/analytics/hooks/use-analytics";
+import { Button } from "@/components/ui/button";
+import {
+  usePortfolioAnalytics,
+  useExportPortfolioAnalytics,
+  useDownloadMonthlyReport,
+} from "@/modules/analytics/hooks/use-analytics";
+import { AiInsightsPanel } from "@/components/dashboard/ai-insights-panel";
+import { BenchmarksPanel } from "@/components/dashboard/benchmarks-panel";
 import { formatBRL } from "@/lib/format";
 
 export const Route = createFileRoute("/_dashboard/analytics")({
@@ -13,13 +20,37 @@ export const Route = createFileRoute("/_dashboard/analytics")({
 
 function AnalyticsPage() {
   const { data, isLoading } = usePortfolioAnalytics();
+  const exportCsv = useExportPortfolioAnalytics();
+  const downloadMonthly = useDownloadMonthlyReport();
 
   return (
     <div className="space-y-6">
       <PageIntro
         eyebrow="Analytics 360"
         title="Dados cruzados da operação"
-        description="Visão consolidada de GMV, ROAS, margem, SLA e retenção por cohort."
+        description="Visão consolidada de GMV, ROAS, margem, SLA, logística e retenção por cohort."
+        action={
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => exportCsv.mutate()}
+              disabled={exportCsv.isPending}
+            >
+              <Download className="mr-2 size-4" />
+              CSV
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => downloadMonthly.mutate()}
+              disabled={downloadMonthly.isPending}
+            >
+              <FileText className="mr-2 size-4" />
+              Relatório mensal
+            </Button>
+          </div>
+        }
       />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
@@ -60,6 +91,40 @@ function AnalyticsPage() {
         />
       </div>
 
+      {data?.logistics && (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <KpiCard
+            label="SLA logística"
+            value={isLoading ? "—" : `${data.logistics.slaCompliancePercent}%`}
+            icon={Truck}
+            accent="primary"
+          />
+          <KpiCard
+            label="Picking"
+            value={isLoading ? "—" : `${data.logistics.pickingAccuracyPercent}%`}
+            icon={PackageCheck}
+            accent="accent"
+          />
+          <KpiCard
+            label="Incidentes"
+            value={isLoading ? "—" : `${data.logistics.incidentRatePercent}%`}
+            icon={AlertTriangle}
+            accent="warning"
+          />
+          <KpiCard
+            label="Fulfillment mês"
+            value={isLoading ? "—" : String(data.logistics.fulfillmentOrdersMonth)}
+            hint={
+              data.logistics.avgShippingCostCents > 0
+                ? `Frete médio ${formatBRL(data.logistics.avgShippingCostCents / 100)}`
+                : undefined
+            }
+            icon={BarChart3}
+            accent="success"
+          />
+        </div>
+      )}
+
       <Panel title="GMV vs ROAS" subtitle="Tendência consolidada — 30 dias">
         <GmvRoasChart data={isLoading ? undefined : data?.gmvRoasSeries} />
       </Panel>
@@ -88,12 +153,12 @@ function AnalyticsPage() {
           )}
         </Panel>
 
-        <Panel title="Retenção por cohort" subtitle="Clientes ativos por mês desde primeira compra">
+        <Panel title="Retenção por cohort" subtitle="Compradores ativos por mês desde primeira compra">
           {isLoading ? (
             <div className="h-32 animate-pulse rounded-xl bg-muted/40" />
           ) : !data?.cohortRetention?.length ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              Dados insuficientes para cohort (mínimo 2 meses de pedidos).
+              Dados insuficientes para cohort (pedidos com e-mail/telefone do comprador).
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -123,6 +188,9 @@ function AnalyticsPage() {
           )}
         </Panel>
       </div>
+
+      <BenchmarksPanel />
+      <AiInsightsPanel />
     </div>
   );
 }

@@ -14,6 +14,7 @@ export const Route = createFileRoute('/portal')({
 const titles: Record<string, { title: string; subtitle: string }> = {
   '/portal/overview':   { title: 'Minha Loja',        subtitle: 'Performance e saúde da operação' },
   '/portal/logistics':  { title: 'Logística',         subtitle: 'Pedidos e estoque' },
+  '/portal/analytics':  { title: 'Analytics',         subtitle: 'Performance da sua loja' },
   '/portal/traffic':    { title: 'Tráfego',           subtitle: 'Campanhas e ROAS' },
   '/portal/retention':  { title: 'Retenção',          subtitle: 'Automações pós-venda' },
   '/portal/settings':   { title: 'Configurações',     subtitle: 'Perfil e equipe' },

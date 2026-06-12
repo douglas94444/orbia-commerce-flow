@@ -1,15 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, BarChart3 } from "lucide-react";
+import { ArrowLeft, BarChart3, Download } from "lucide-react";
 import { PageIntro, Panel } from "@/components/dashboard/panel";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { Button } from "@/components/ui/button";
 import { formatBRL } from "@/lib/format";
 import {
-  useLogisticsAnalytics,
+  useLogisticsAnalyticsDashboard,
   useOperatorPerformance,
   useStockTurnover,
+  useExportLogisticsAnalyticsCsv,
+  useUnifiedOccurrences,
+  useExportOccurrencesCsv,
 } from "@/modules/logistics/hooks/use-fulfillly";
-import { PackageCheck, Truck, Target, AlertTriangle } from "lucide-react";
+import { PackageCheck, Truck, Target, AlertTriangle, Clock } from "lucide-react";
 
 export const Route = createFileRoute("/_dashboard/logistics/analytics")({
   head: () => ({ meta: [{ title: "Analytics Logística — Orbia" }] }),
@@ -17,25 +20,50 @@ export const Route = createFileRoute("/_dashboard/logistics/analytics")({
 });
 
 function LogisticsAnalyticsPage() {
-  const { data, isLoading } = useLogisticsAnalytics();
+  const { data: dashboard, isLoading } = useLogisticsAnalyticsDashboard();
   const { data: turnover = [], isLoading: loadingTurnover } = useStockTurnover();
   const { data: operators = [], isLoading: loadingOperators } = useOperatorPerformance();
+  const exportCsv = useExportLogisticsAnalyticsCsv();
+  const exportOccurrences = useExportOccurrencesCsv();
+  const { data: occurrences = [], isLoading: loadingOccurrences } = useUnifiedOccurrences();
+
+  const data = dashboard?.summary;
 
   return (
     <div className="space-y-6">
       <PageIntro
         eyebrow="Fulfillly"
         title="Analytics logística"
-        description="Custo de entrega, acurácia de picking e produtividade ops."
+        description="Custo de entrega, acurácia de picking, tempo por etapa e volume por canal."
         action={<BarChart3 className="size-5 text-primary" />}
       />
 
-      <Link to="/logistics">
-        <Button variant="ghost" size="sm">
-          <ArrowLeft className="mr-2 size-4" />
-          Voltar à logística
+      <div className="flex flex-wrap gap-2">
+        <Link to="/logistics">
+          <Button variant="ghost" size="sm">
+            <ArrowLeft className="mr-2 size-4" />
+            Voltar à logística
+          </Button>
+        </Link>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => exportCsv.mutate()}
+          disabled={exportCsv.isPending}
+        >
+          <Download className="mr-2 size-4" />
+          Exportar analytics
         </Button>
-      </Link>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => exportOccurrences.mutate()}
+          disabled={exportOccurrences.isPending}
+        >
+          <Download className="mr-2 size-4" />
+          Exportar ocorrências
+        </Button>
+      </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <KpiCard
@@ -63,6 +91,128 @@ function LogisticsAnalyticsPage() {
           accent="warning"
         />
       </div>
+
+      <Panel title="Tempo médio por etapa (30d)" subtitle="Mediana e P95 em horas">
+        {isLoading ? (
+          <div className="h-24 animate-pulse rounded-xl bg-muted/40" />
+        ) : !dashboard?.stageDurations?.length ? (
+          <p className="text-sm text-muted-foreground">Sem eventos de pedido no período</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs uppercase text-muted-foreground">
+                  <th className="pb-2">Etapa</th>
+                  <th className="pb-2">Mediana (h)</th>
+                  <th className="pb-2">P95 (h)</th>
+                  <th className="pb-2">Amostras</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dashboard.stageDurations.map((row) => (
+                  <tr key={row.stage} className="border-b border-border/50">
+                    <td className="py-2 flex items-center gap-2">
+                      <Clock className="size-3 text-muted-foreground" />
+                      {row.label}
+                    </td>
+                    <td className="py-2 font-mono">{row.medianHours}</td>
+                    <td className="py-2 font-mono">{row.p95Hours}</td>
+                    <td className="py-2 font-mono">{row.sampleSize}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Panel title="Custo por transportadora (30d)">
+          {isLoading ? (
+            <div className="h-24 animate-pulse rounded-xl bg-muted/40" />
+          ) : !dashboard?.carrierCosts?.length ? (
+            <p className="text-sm text-muted-foreground">Sem despachos no período</p>
+          ) : (
+            <div className="space-y-2">
+              {dashboard.carrierCosts.map((row) => (
+                <div
+                  key={row.provider}
+                  className="flex items-center justify-between border-b border-border/50 pb-2 text-sm"
+                >
+                  <span className="font-medium">{row.provider}</span>
+                  <span className="font-mono text-muted-foreground">
+                    {row.orderCount} ped. · média {formatBRL(row.avgCostCents / 100)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </Panel>
+
+        <Panel title="Volume por canal (30d)">
+          {isLoading ? (
+            <div className="h-24 animate-pulse rounded-xl bg-muted/40" />
+          ) : !dashboard?.channelVolume?.length ? (
+            <p className="text-sm text-muted-foreground">Sem pedidos no período</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left text-xs uppercase text-muted-foreground">
+                    <th className="pb-2">Canal</th>
+                    <th className="pb-2">Pedidos</th>
+                    <th className="pb-2">GMV</th>
+                    <th className="pb-2">SLA</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dashboard.channelVolume.map((row) => (
+                    <tr key={row.channel} className="border-b border-border/50">
+                      <td className="py-2">{row.label}</td>
+                      <td className="py-2 font-mono">{row.orderCount}</td>
+                      <td className="py-2 font-mono">{formatBRL(row.gmvCents / 100, true)}</td>
+                      <td className="py-2 font-mono">{row.slaCompliancePercent}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Panel>
+      </div>
+
+      <Panel title="Ocorrências unificadas (30d)" subtitle="Incidentes, devoluções e quarentena">
+        {loadingOccurrences ? (
+          <div className="h-24 animate-pulse rounded-xl bg-muted/40" />
+        ) : occurrences.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhuma ocorrência no período</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs uppercase text-muted-foreground">
+                  <th className="pb-2">Tipo</th>
+                  <th className="pb-2">Descrição</th>
+                  <th className="pb-2">Status</th>
+                  <th className="pb-2">Data</th>
+                </tr>
+              </thead>
+              <tbody>
+                {occurrences.slice(0, 15).map((row) => (
+                  <tr key={`${row.type}-${row.id}`} className="border-b border-border/50">
+                    <td className="py-2 capitalize">{row.type}</td>
+                    <td className="py-2 max-w-xs truncate">{row.title}</td>
+                    <td className="py-2 font-mono">{row.status}</td>
+                    <td className="py-2 font-mono text-xs">
+                      {new Date(row.createdAt).toLocaleDateString("pt-BR")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
 
       <Panel title="Giro de estoque por SKU (30d)">
         {loadingTurnover ? (

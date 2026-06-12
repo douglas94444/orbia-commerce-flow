@@ -78,6 +78,7 @@ export interface TrafficStats {
   campaignCount: number;
   atRisk: number; // ROAS < 4
   highDivergence: number;
+  channelRoas: Array<{ channel: string; roas: number }>;
 }
 
 export const getTrafficStats = createServerFn({ method: "GET" })
@@ -85,7 +86,7 @@ export const getTrafficStats = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<TrafficStats> => {
     const { data } = await context.supabase
       .from("campaigns")
-      .select("spend_cents, revenue_cents, attributed_revenue_cents, roas, status");
+      .select("platform, spend_cents, revenue_cents, attributed_revenue_cents, roas, status");
 
     const rows = data ?? [];
     const total = rows.length;
@@ -131,6 +132,22 @@ export const getTrafficStats = createServerFn({ method: "GET" })
       return Math.abs(attributed - platform) / platform > 0.2;
     }).length;
 
+    const channelMap = new Map<string, { spend: number; revenue: number }>();
+    for (const row of rows) {
+      const platform = (row as { platform: string }).platform;
+      const ch =
+        platform === "meta" ? "Meta Ads" : platform === "google" ? "Google Ads" : platform;
+      const cur = channelMap.get(ch) ?? { spend: 0, revenue: 0 };
+      cur.spend += Number((row as { spend_cents: number }).spend_cents ?? 0);
+      cur.revenue += Number((row as { revenue_cents: number }).revenue_cents ?? 0);
+      channelMap.set(ch, cur);
+    }
+
+    const channelRoas = [...channelMap.entries()].map(([channel, { spend, revenue }]) => ({
+      channel,
+      roas: spend > 0 ? Math.round((revenue / spend) * 100) / 100 : 0,
+    }));
+
     return {
       avgRoas,
       avgAttributedRoas,
@@ -140,6 +157,7 @@ export const getTrafficStats = createServerFn({ method: "GET" })
       campaignCount: total,
       atRisk,
       highDivergence,
+      channelRoas,
     };
   });
 

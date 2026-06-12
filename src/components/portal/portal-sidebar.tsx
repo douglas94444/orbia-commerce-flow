@@ -2,6 +2,7 @@ import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import type { User } from '@supabase/supabase-js'
 import {
   ChevronLeft,
+  BarChart3,
   LayoutDashboard,
   LogOut,
   Package,
@@ -25,6 +26,7 @@ const nav: NavItem[] = [
   { label: 'Visão Geral', to: '/portal/overview', icon: LayoutDashboard },
   { label: 'Catálogo',    to: '/portal/catalog', icon: Package },
   { label: 'Logística',   to: '/portal/logistics', icon: Truck },
+  { label: 'Analytics',   to: '/portal/analytics', icon: BarChart3 },
   { label: 'Tráfego',     to: '/portal/traffic', icon: TrendingUp },
   { label: 'Retenção',    to: '/portal/retention', icon: Repeat },
   { label: 'Configurações', to: '/portal/settings', icon: Settings },

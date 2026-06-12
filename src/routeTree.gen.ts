@@ -21,6 +21,7 @@ import { Route as PortalRetentionRouteImport } from './routes/portal.retention'
 import { Route as PortalOverviewRouteImport } from './routes/portal.overview'
 import { Route as PortalLogisticsRouteImport } from './routes/portal.logistics'
 import { Route as PortalCatalogRouteImport } from './routes/portal.catalog'
+import { Route as PortalAnalyticsRouteImport } from './routes/portal.analytics'
 import { Route as OpsReceivingRouteImport } from './routes/ops.receiving'
 import { Route as OpsPickingRouteImport } from './routes/ops.picking'
 import { Route as OpsPackingRouteImport } from './routes/ops.packing'
@@ -58,6 +59,7 @@ import { Route as DashboardLogisticsQuarantineRouteImport } from './routes/_dash
 import { Route as DashboardLogisticsProductsRouteImport } from './routes/_dashboard.logistics.products'
 import { Route as DashboardLogisticsPickingRouteImport } from './routes/_dashboard.logistics.picking'
 import { Route as DashboardLogisticsPackingRouteImport } from './routes/_dashboard.logistics.packing'
+import { Route as DashboardLogisticsOpsDashboardRouteImport } from './routes/_dashboard.logistics.ops-dashboard'
 import { Route as DashboardLogisticsInventoryRouteImport } from './routes/_dashboard.logistics.inventory'
 import { Route as DashboardLogisticsIncidentsRouteImport } from './routes/_dashboard.logistics.incidents'
 import { Route as DashboardLogisticsDispatchRouteImport } from './routes/_dashboard.logistics.dispatch'
@@ -134,6 +136,11 @@ const PortalLogisticsRoute = PortalLogisticsRouteImport.update({
 const PortalCatalogRoute = PortalCatalogRouteImport.update({
   id: '/catalog',
   path: '/catalog',
+  getParentRoute: () => PortalRoute,
+} as any)
+const PortalAnalyticsRoute = PortalAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
   getParentRoute: () => PortalRoute,
 } as any)
 const OpsReceivingRoute = OpsReceivingRouteImport.update({
@@ -329,6 +336,12 @@ const DashboardLogisticsPackingRoute =
     path: '/packing',
     getParentRoute: () => DashboardLogisticsRoute,
   } as any)
+const DashboardLogisticsOpsDashboardRoute =
+  DashboardLogisticsOpsDashboardRouteImport.update({
+    id: '/ops-dashboard',
+    path: '/ops-dashboard',
+    getParentRoute: () => DashboardLogisticsRoute,
+  } as any)
 const DashboardLogisticsInventoryRoute =
   DashboardLogisticsInventoryRouteImport.update({
     id: '/inventory',
@@ -450,6 +463,7 @@ export interface FileRoutesByFullPath {
   '/ops/packing': typeof OpsPackingRoute
   '/ops/picking': typeof OpsPickingRoute
   '/ops/receiving': typeof OpsReceivingRoute
+  '/portal/analytics': typeof PortalAnalyticsRoute
   '/portal/catalog': typeof PortalCatalogRoute
   '/portal/logistics': typeof PortalLogisticsRoute
   '/portal/overview': typeof PortalOverviewRoute
@@ -464,6 +478,7 @@ export interface FileRoutesByFullPath {
   '/logistics/dispatch': typeof DashboardLogisticsDispatchRoute
   '/logistics/incidents': typeof DashboardLogisticsIncidentsRoute
   '/logistics/inventory': typeof DashboardLogisticsInventoryRoute
+  '/logistics/ops-dashboard': typeof DashboardLogisticsOpsDashboardRoute
   '/logistics/packing': typeof DashboardLogisticsPackingRoute
   '/logistics/picking': typeof DashboardLogisticsPickingRoute
   '/logistics/products': typeof DashboardLogisticsProductsRoute
@@ -517,6 +532,7 @@ export interface FileRoutesByTo {
   '/ops/packing': typeof OpsPackingRoute
   '/ops/picking': typeof OpsPickingRoute
   '/ops/receiving': typeof OpsReceivingRoute
+  '/portal/analytics': typeof PortalAnalyticsRoute
   '/portal/catalog': typeof PortalCatalogRoute
   '/portal/logistics': typeof PortalLogisticsRoute
   '/portal/overview': typeof PortalOverviewRoute
@@ -531,6 +547,7 @@ export interface FileRoutesByTo {
   '/logistics/dispatch': typeof DashboardLogisticsDispatchRoute
   '/logistics/incidents': typeof DashboardLogisticsIncidentsRoute
   '/logistics/inventory': typeof DashboardLogisticsInventoryRoute
+  '/logistics/ops-dashboard': typeof DashboardLogisticsOpsDashboardRoute
   '/logistics/packing': typeof DashboardLogisticsPackingRoute
   '/logistics/picking': typeof DashboardLogisticsPickingRoute
   '/logistics/products': typeof DashboardLogisticsProductsRoute
@@ -587,6 +604,7 @@ export interface FileRoutesById {
   '/ops/packing': typeof OpsPackingRoute
   '/ops/picking': typeof OpsPickingRoute
   '/ops/receiving': typeof OpsReceivingRoute
+  '/portal/analytics': typeof PortalAnalyticsRoute
   '/portal/catalog': typeof PortalCatalogRoute
   '/portal/logistics': typeof PortalLogisticsRoute
   '/portal/overview': typeof PortalOverviewRoute
@@ -601,6 +619,7 @@ export interface FileRoutesById {
   '/_dashboard/logistics/dispatch': typeof DashboardLogisticsDispatchRoute
   '/_dashboard/logistics/incidents': typeof DashboardLogisticsIncidentsRoute
   '/_dashboard/logistics/inventory': typeof DashboardLogisticsInventoryRoute
+  '/_dashboard/logistics/ops-dashboard': typeof DashboardLogisticsOpsDashboardRoute
   '/_dashboard/logistics/packing': typeof DashboardLogisticsPackingRoute
   '/_dashboard/logistics/picking': typeof DashboardLogisticsPickingRoute
   '/_dashboard/logistics/products': typeof DashboardLogisticsProductsRoute
@@ -657,6 +676,7 @@ export interface FileRouteTypes {
     | '/ops/packing'
     | '/ops/picking'
     | '/ops/receiving'
+    | '/portal/analytics'
     | '/portal/catalog'
     | '/portal/logistics'
     | '/portal/overview'
@@ -671,6 +691,7 @@ export interface FileRouteTypes {
     | '/logistics/dispatch'
     | '/logistics/incidents'
     | '/logistics/inventory'
+    | '/logistics/ops-dashboard'
     | '/logistics/packing'
     | '/logistics/picking'
     | '/logistics/products'
@@ -724,6 +745,7 @@ export interface FileRouteTypes {
     | '/ops/packing'
     | '/ops/picking'
     | '/ops/receiving'
+    | '/portal/analytics'
     | '/portal/catalog'
     | '/portal/logistics'
     | '/portal/overview'
@@ -738,6 +760,7 @@ export interface FileRouteTypes {
     | '/logistics/dispatch'
     | '/logistics/incidents'
     | '/logistics/inventory'
+    | '/logistics/ops-dashboard'
     | '/logistics/packing'
     | '/logistics/picking'
     | '/logistics/products'
@@ -793,6 +816,7 @@ export interface FileRouteTypes {
     | '/ops/packing'
     | '/ops/picking'
     | '/ops/receiving'
+    | '/portal/analytics'
     | '/portal/catalog'
     | '/portal/logistics'
     | '/portal/overview'
@@ -807,6 +831,7 @@ export interface FileRouteTypes {
     | '/_dashboard/logistics/dispatch'
     | '/_dashboard/logistics/incidents'
     | '/_dashboard/logistics/inventory'
+    | '/_dashboard/logistics/ops-dashboard'
     | '/_dashboard/logistics/packing'
     | '/_dashboard/logistics/picking'
     | '/_dashboard/logistics/products'
@@ -958,6 +983,13 @@ declare module '@tanstack/react-router' {
       path: '/catalog'
       fullPath: '/portal/catalog'
       preLoaderRoute: typeof PortalCatalogRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/portal/analytics': {
+      id: '/portal/analytics'
+      path: '/analytics'
+      fullPath: '/portal/analytics'
+      preLoaderRoute: typeof PortalAnalyticsRouteImport
       parentRoute: typeof PortalRoute
     }
     '/ops/receiving': {
@@ -1219,6 +1251,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardLogisticsPackingRouteImport
       parentRoute: typeof DashboardLogisticsRoute
     }
+    '/_dashboard/logistics/ops-dashboard': {
+      id: '/_dashboard/logistics/ops-dashboard'
+      path: '/ops-dashboard'
+      fullPath: '/logistics/ops-dashboard'
+      preLoaderRoute: typeof DashboardLogisticsOpsDashboardRouteImport
+      parentRoute: typeof DashboardLogisticsRoute
+    }
     '/_dashboard/logistics/inventory': {
       id: '/_dashboard/logistics/inventory'
       path: '/inventory'
@@ -1377,6 +1416,7 @@ interface DashboardLogisticsRouteChildren {
   DashboardLogisticsDispatchRoute: typeof DashboardLogisticsDispatchRoute
   DashboardLogisticsIncidentsRoute: typeof DashboardLogisticsIncidentsRoute
   DashboardLogisticsInventoryRoute: typeof DashboardLogisticsInventoryRoute
+  DashboardLogisticsOpsDashboardRoute: typeof DashboardLogisticsOpsDashboardRoute
   DashboardLogisticsPackingRoute: typeof DashboardLogisticsPackingRoute
   DashboardLogisticsPickingRoute: typeof DashboardLogisticsPickingRoute
   DashboardLogisticsProductsRoute: typeof DashboardLogisticsProductsRoute
@@ -1394,6 +1434,7 @@ const DashboardLogisticsRouteChildren: DashboardLogisticsRouteChildren = {
   DashboardLogisticsDispatchRoute: DashboardLogisticsDispatchRoute,
   DashboardLogisticsIncidentsRoute: DashboardLogisticsIncidentsRoute,
   DashboardLogisticsInventoryRoute: DashboardLogisticsInventoryRoute,
+  DashboardLogisticsOpsDashboardRoute: DashboardLogisticsOpsDashboardRoute,
   DashboardLogisticsPackingRoute: DashboardLogisticsPackingRoute,
   DashboardLogisticsPickingRoute: DashboardLogisticsPickingRoute,
   DashboardLogisticsProductsRoute: DashboardLogisticsProductsRoute,
@@ -1459,6 +1500,7 @@ const OpsRouteChildren: OpsRouteChildren = {
 const OpsRouteWithChildren = OpsRoute._addFileChildren(OpsRouteChildren)
 
 interface PortalRouteChildren {
+  PortalAnalyticsRoute: typeof PortalAnalyticsRoute
   PortalCatalogRoute: typeof PortalCatalogRoute
   PortalLogisticsRoute: typeof PortalLogisticsRoute
   PortalOverviewRoute: typeof PortalOverviewRoute
@@ -1468,6 +1510,7 @@ interface PortalRouteChildren {
 }
 
 const PortalRouteChildren: PortalRouteChildren = {
+  PortalAnalyticsRoute: PortalAnalyticsRoute,
   PortalCatalogRoute: PortalCatalogRoute,
   PortalLogisticsRoute: PortalLogisticsRoute,
   PortalOverviewRoute: PortalOverviewRoute,

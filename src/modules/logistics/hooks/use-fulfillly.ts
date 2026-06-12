@@ -46,6 +46,11 @@ import {
   getReturnReasonsReportFn,
   createReturnRequestFn,
   getLogisticsAnalyticsFn,
+  getLogisticsAnalyticsDashboardFn,
+  exportLogisticsAnalyticsCsvFn,
+  listUnifiedOccurrencesFn,
+  exportOccurrencesCsvFn,
+  getOpsLiveDashboardFn,
   listInventoryCountsFn,
   getInventoryCountLinesFn,
   startInventoryCountFn,
@@ -787,6 +792,64 @@ export function useLogisticsAnalytics() {
     queryKey: ["logistics-analytics"],
     queryFn: () => getLogisticsAnalyticsFn(),
     staleTime: 60_000,
+  });
+}
+
+export function useLogisticsAnalyticsDashboard() {
+  return useQuery({
+    queryKey: ["logistics-analytics-dashboard"],
+    queryFn: () => getLogisticsAnalyticsDashboardFn(),
+    staleTime: 60_000,
+  });
+}
+
+export function useUnifiedOccurrences() {
+  return useQuery({
+    queryKey: ["unified-occurrences"],
+    queryFn: () => listUnifiedOccurrencesFn(),
+    staleTime: 30_000,
+  });
+}
+
+export function useExportOccurrencesCsv() {
+  return useMutation({
+    mutationFn: () => exportOccurrencesCsvFn(),
+    onSuccess: (res) => {
+      const blob = new Blob([res.csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `ocorrencias-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Ocorrências exportadas");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useOpsLiveDashboard() {
+  return useQuery({
+    queryKey: ["ops-live-dashboard"],
+    queryFn: () => getOpsLiveDashboardFn(),
+    refetchInterval: 15_000,
+  });
+}
+
+export function useExportLogisticsAnalyticsCsv() {
+  return useMutation({
+    mutationFn: () => exportLogisticsAnalyticsCsvFn(),
+    onSuccess: (res) => {
+      const blob = new Blob([res.csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `logistics-analytics-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Relatório exportado");
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 }
 

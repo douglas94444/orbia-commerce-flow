@@ -68,7 +68,7 @@ function TrafficPage() {
       </div>
 
       <Panel title="ROAS por canal" subtitle="Meta, Google, TikTok e orgânico">
-        <ChannelRoasChart />
+        <ChannelRoasChart data={loading ? undefined : stats?.channelRoas} />
       </Panel>
 
       <Panel

@@ -1,5 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
-import { getPortfolioAnalytics, getNfeCount30d, listOperationAlerts, getClientAiInsights } from "../actions.functions";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
+import {
+  getPortfolioAnalytics,
+  getNfeCount30d,
+  listOperationAlerts,
+  getClientAiInsights,
+  exportPortfolioAnalytics,
+  getMonthlyReportHtml,
+} from "../actions.functions";
 
 export const ANALYTICS_KEY = ["portfolio-analytics"] as const;
 export const NFE_COUNT_KEY = ["nfe-count-30d"] as const;
@@ -35,11 +43,42 @@ export const AI_INSIGHTS_KEY = (clientId?: string) =>
 export function useAiInsights(clientId?: string) {
   return useQuery({
     queryKey: AI_INSIGHTS_KEY(clientId),
-    queryFn: () =>
-      (getClientAiInsights as unknown as (opts: { data: Record<string, unknown> }) => Promise<unknown>)(
-        { data: clientId ? { clientId } : {} },
-      ) as Promise<import("../actions.functions").AiInsight[]>,
+    queryFn: () => getClientAiInsights({ data: clientId ? { clientId } : {} }),
     staleTime: 5 * 60_000,
     retry: false,
+  });
+}
+
+export function useDownloadMonthlyReport(clientId?: string) {
+  return useMutation({
+    mutationFn: () => getMonthlyReportHtml({ data: clientId ? { clientId } : {} }),
+    onSuccess: (res) => {
+      const blob = new Blob([res.html], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `relatorio-mensal-${new Date().toISOString().slice(0, 7)}.html`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Relatório mensal baixado (imprima como PDF no navegador)");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useExportPortfolioAnalytics() {
+  return useMutation({
+    mutationFn: () => exportPortfolioAnalytics(),
+    onSuccess: (res) => {
+      const blob = new Blob([res.csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `analytics-360-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Analytics 360 exportado");
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 }

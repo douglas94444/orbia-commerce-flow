@@ -11,6 +11,7 @@ import { useClientDetail } from '@/modules/clients/hooks/use-clients'
 import { useProfile } from '@/modules/auth/hooks/use-profile'
 import { ClientCsPanel } from '@/components/dashboard/client-cs-panel'
 import { ClientFulfillmentPanel } from '@/components/dashboard/client-fulfillment-panel'
+import { AiInsightsPanel } from '@/components/dashboard/ai-insights-panel'
 import {
   useStartNuvemshopOAuth,
   useStartShopifyOAuth,
@@ -310,6 +311,7 @@ function ClientDetailPage() {
         <>
           <ClientFulfillmentPanel clientId={id} />
           <ClientCsPanel clientId={id} />
+          <AiInsightsPanel clientId={id} />
         </>
       )}
 
