@@ -145,7 +145,13 @@ export async function processAbandonedCarts(): Promise<{ enrolled: number }> {
       customerId: cart.customer_id,
       context,
     });
-    if (id) enrolled += 1;
+    if (id) {
+      enrolled += 1;
+      await supabaseAdmin
+        .from("abandoned_carts")
+        .update({ status: "enrolled", updated_at: new Date().toISOString() })
+        .eq("id", cart.id);
+    }
   }
   return { enrolled };
 }
@@ -162,11 +168,18 @@ export async function processBoletoReminders(): Promise<{ reminded: number }> {
 
   let reminded = 0;
   for (const b of boletos ?? []) {
+    const context = b.customer_id
+      ? await buildEnrollmentContextForCustomer(b.client_id, b.customer_id, {
+          boleto_url: b.boleto_url,
+          due_at: b.due_at,
+          order_id: b.order_id,
+        })
+      : { boleto_url: b.boleto_url, due_at: b.due_at, order_id: b.order_id };
     await enrollInSequence({
       clientId: b.client_id,
       trigger: "boleto_vencimento",
       customerId: b.customer_id,
-      context: { boleto_url: b.boleto_url, due_at: b.due_at, order_id: b.order_id },
+      context,
     });
     reminded += 1;
   }
@@ -215,11 +228,18 @@ export async function processBoletoReminders(): Promise<{ reminded: number }> {
       .update({ status: "expired", updated_at: new Date().toISOString() })
       .eq("id", b.id);
 
+    const expiredContext = b.customer_id
+      ? await buildEnrollmentContextForCustomer(b.client_id, b.customer_id, {
+          order_id: b.order_id,
+          regenerate: true,
+          boleto_url: newBoletoUrl,
+        })
+      : { order_id: b.order_id, regenerate: true, boleto_url: newBoletoUrl };
     await enrollInSequence({
       clientId: b.client_id,
       trigger: "boleto_expirado",
       customerId: b.customer_id,
-      context: { order_id: b.order_id, regenerate: true, boleto_url: newBoletoUrl },
+      context: expiredContext,
     });
   }
 
@@ -245,15 +265,20 @@ export async function processWishlistAlerts(): Promise<{ notified: number }> {
     const available = (product?.units ?? 0) - (product?.reserved ?? 0);
     if (!product || available <= 0) continue;
 
-    await enrollInSequence({
-      clientId: item.client_id,
-      trigger: "estoque_favorito",
-      customerId: item.customer_id,
-      context: {
+    const wishContext = await buildEnrollmentContextForCustomer(
+      item.client_id,
+      item.customer_id,
+      {
         product_name: item.product_name,
         product_image: item.product_image,
         product_sku: item.product_sku,
       },
+    );
+    await enrollInSequence({
+      clientId: item.client_id,
+      trigger: "estoque_favorito",
+      customerId: item.customer_id,
+      context: wishContext,
     });
 
     await supabaseAdmin
@@ -267,7 +292,7 @@ export async function processWishlistAlerts(): Promise<{ notified: number }> {
 }
 
 export async function runRetentionCrons(): Promise<Record<string, unknown>> {
-  const [reactivation, birthdays, anniversary, carts, boletos, wishlist, expiring, tiers, waTemplates] =
+  const [reactivation, birthdays, anniversary, carts, boletos, wishlist, expiring, tiers, waTemplates, backfill] =
     await Promise.all([
       processReactivationCrons(),
       processBirthdayCrons(),
@@ -278,9 +303,10 @@ export async function runRetentionCrons(): Promise<Record<string, unknown>> {
       processExpiringPoints(),
       processTierReminders(),
       import("./whatsapp-templates-sync.server").then((m) => m.syncAllWhatsAppTemplates()),
+      import("./contact-backfill.server").then((m) => m.backfillAllClientContacts()),
     ]);
 
-  return { reactivation, birthdays, anniversary, carts, boletos, wishlist, expiring, tiers, waTemplates };
+  return { reactivation, birthdays, anniversary, carts, boletos, wishlist, expiring, tiers, waTemplates, backfill };
 }
 
 export async function recordAbandonedCart(input: {
@@ -291,6 +317,7 @@ export async function recordAbandonedCart(input: {
   valueCents: number;
   items: unknown[];
   checkoutUrl?: string;
+  marketingOptIn?: boolean;
 }): Promise<void> {
   await supabaseAdmin.from("abandoned_carts").insert({
     client_id: input.clientId,
@@ -302,14 +329,15 @@ export async function recordAbandonedCart(input: {
     value_cents: input.valueCents,
     items: input.items,
     checkout_url: input.checkoutUrl ?? null,
+    marketing_opt_in: input.marketingOptIn ?? false,
     status: "open",
   });
 
-  if (input.customerId && (input.email || input.phone)) {
+  if (input.customerId && (input.email || input.phone || input.marketingOptIn)) {
     await persistCustomerContact(input.customerId, {
       email: input.email,
       phone: input.phone,
-      marketingOptIn: true,
+      marketingOptIn: input.marketingOptIn,
     });
   }
 }
@@ -364,15 +392,16 @@ export async function handleNegativeReview(input: {
     .select("id")
     .single();
 
+  const context = await buildEnrollmentContextForCustomer(input.clientId, input.customerId, {
+    order_id: input.orderId,
+    rating: input.rating,
+    review_id: review?.id,
+  });
   await enrollInSequence({
     clientId: input.clientId,
     trigger: "avaliacao_negativa",
     customerId: input.customerId,
-    context: {
-      order_id: input.orderId,
-      rating: input.rating,
-      review_id: review?.id,
-    },
+    context,
   });
 }
 
@@ -392,15 +421,16 @@ export async function recordBoletoGenerated(input: {
     status: "pending",
   });
 
+  const context = await buildEnrollmentContextForCustomer(input.clientId, input.customerId, {
+    boleto_url: input.boletoUrl,
+    due_at: input.dueAt,
+    order_id: input.orderId,
+  });
   await enrollInSequence({
     clientId: input.clientId,
     trigger: "boleto_gerado",
     customerId: input.customerId,
-    context: {
-      boleto_url: input.boletoUrl,
-      due_at: input.dueAt,
-      order_id: input.orderId,
-    },
+    context,
     delayMinutes: 60,
   });
 }

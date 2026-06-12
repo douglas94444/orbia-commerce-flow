@@ -263,6 +263,12 @@ export const toggleAutomation = createServerFn({ method: "POST" })
         .update({ status: "paused", updated_at: new Date().toISOString() })
         .eq("sequence_id", data.id)
         .eq("status", "active");
+    } else {
+      await supabaseAdmin
+        .from("automation_enrollments")
+        .update({ status: "active", updated_at: new Date().toISOString() })
+        .eq("sequence_id", data.id)
+        .eq("status", "paused");
     }
 
     await logAudit({
@@ -819,4 +825,142 @@ export const setCustomerMarketingOptIn = createServerFn({ method: "POST" })
       marketingOptIn: data.optIn,
     });
     return { success: true };
+  });
+
+export const getQuietHours = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await resolveClientId(context.supabase);
+    const { data } = await supabaseAdmin
+      .from("automation_sequences")
+      .select("quiet_hours_start, quiet_hours_end")
+      .eq("client_id", clientId)
+      .limit(1)
+      .maybeSingle();
+    return {
+      quietHoursStart: data?.quiet_hours_start ?? 22,
+      quietHoursEnd: data?.quiet_hours_end ?? 8,
+    };
+  });
+
+const couponValidateSchema = z.object({
+  code: z.string().min(3),
+  orderId: z.string().uuid().optional(),
+});
+
+export const validateAutomationCouponAction = createServerFn({ method: "POST" })
+  .inputValidator(couponValidateSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await resolveClientId(context.supabase);
+    const { validateAutomationCoupon, redeemAutomationCoupon } = await import("./coupon-engine.server");
+    const coupon = await validateAutomationCoupon(clientId, data.code);
+    if (!coupon) return { valid: false as const };
+    if (data.orderId) {
+      await redeemAutomationCoupon(clientId, data.code, data.orderId);
+    }
+    return {
+      valid: true as const,
+      discountPct: coupon.discountPct,
+      expiresAt: coupon.expiresAt,
+    };
+  });
+
+export const getConsumerLoyalty = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await resolveClientId(context.supabase);
+    const { data: profile } = await context.supabase
+      .from("profiles")
+      .select("email")
+      .eq("id", context.userId)
+      .single();
+
+    const email = profile?.email?.toLowerCase();
+    if (!email) return { account: null, transactions: [] };
+
+    const { data: prefs } = await supabaseAdmin
+      .from("customer_contact_prefs")
+      .select("customer_id")
+      .eq("contact_email", email)
+      .maybeSingle();
+
+    if (!prefs?.customer_id) return { account: null, transactions: [] };
+
+    const { data: account } = await supabaseAdmin
+      .from("loyalty_accounts")
+      .select("id, points_balance, tier, tier_progress_pct")
+      .eq("customer_id", prefs.customer_id)
+      .eq("client_id", clientId)
+      .maybeSingle();
+
+    if (!account) return { account: null, customerId: prefs.customer_id, transactions: [] };
+
+    const { data: transactions } = await supabaseAdmin
+      .from("loyalty_transactions")
+      .select("type, points, created_at, order_id")
+      .eq("account_id", account.id)
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    return {
+      customerId: prefs.customer_id,
+      account,
+      transactions: transactions ?? [],
+    };
+  });
+
+export const getAutomationSteps = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await resolveClientId(context.supabase);
+    const { data: sequences } = await supabaseAdmin
+      .from("automation_sequences")
+      .select("id, name, trigger")
+      .eq("client_id", clientId);
+    const seqIds = (sequences ?? []).map((s) => s.id);
+    if (!seqIds.length) return [];
+
+    const { data: steps } = await supabaseAdmin
+      .from("automation_steps")
+      .select("id, sequence_id, channel, template_key, sort_order")
+      .in("sequence_id", seqIds)
+      .order("sort_order");
+
+    return (steps ?? []).map((st) => {
+      const seq = (sequences ?? []).find((s) => s.id === st.sequence_id);
+      return {
+        ...st,
+        sequenceName: seq?.name,
+        trigger: seq?.trigger,
+        label: `${seq?.name ?? "Fluxo"} · ${st.channel} · ${st.template_key}`,
+      };
+    });
+  });
+
+const marketingSettingsSchema = z.object({
+  implicitOptIn: z.boolean(),
+});
+
+export const updateMarketingSettings = createServerFn({ method: "POST" })
+  .inputValidator(marketingSettingsSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await resolveClientId(context.supabase);
+    await supabaseAdmin
+      .from("clients")
+      .update({
+        marketing_implicit_opt_in: data.implicitOptIn,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", clientId);
+    return { success: true };
+  });
+
+export const backfillContactsAction = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await resolveClientId(context.supabase);
+    const { backfillCustomerContacts } = await import("./contact-backfill.server");
+    return backfillCustomerContacts(clientId);
   });

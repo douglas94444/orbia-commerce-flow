@@ -90,6 +90,7 @@ onDomainEvent("cart.abandoned", async (payload) => {
     valueCents: Number(payload.valueCents ?? 0),
     items: (payload.items as unknown[]) ?? [],
     checkoutUrl: payload.checkoutUrl ? String(payload.checkoutUrl) : undefined,
+    marketingOptIn: payload.marketingOptIn === true || payload.acceptsMarketing === true,
   });
 });
 
@@ -116,16 +117,21 @@ onDomainEvent("product.back_in_stock", async (payload) => {
     .eq("product_sku", sku);
 
   const { enrollInSequence } = await import("@/modules/retention/enrollment.server");
+  const { buildEnrollmentContextForCustomer } = await import(
+    "@/modules/retention/contact-resolver.server"
+  );
   for (const item of items ?? []) {
+    if (!item.customer_id) continue;
+    const context = await buildEnrollmentContextForCustomer(clientId, item.customer_id, {
+      product_name: item.product_name,
+      product_image: item.product_image,
+      product_sku: sku,
+    });
     await enrollInSequence({
       clientId,
       trigger: "estoque_favorito",
       customerId: item.customer_id,
-      context: {
-        product_name: item.product_name,
-        product_image: item.product_image,
-        product_sku: sku,
-      },
+      context,
     });
   }
 });

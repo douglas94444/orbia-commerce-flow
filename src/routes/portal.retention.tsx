@@ -58,7 +58,7 @@ function PortalRetentionPage() {
                       <button
                         type="button"
                         disabled={isPending}
-                        onClick={() => toggle(flow.id)}
+                        onClick={() => toggle({ id: flow.id, active: !flow.active })}
                         className="text-xs text-primary hover:underline disabled:opacity-50"
                       >
                         {flow.active ? 'Pausar' : 'Ativar'}

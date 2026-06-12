@@ -19,6 +19,7 @@ import { Route as PortalTrafficRouteImport } from './routes/portal.traffic'
 import { Route as PortalSettingsRouteImport } from './routes/portal.settings'
 import { Route as PortalRetentionRouteImport } from './routes/portal.retention'
 import { Route as PortalOverviewRouteImport } from './routes/portal.overview'
+import { Route as PortalLoyaltyRouteImport } from './routes/portal.loyalty'
 import { Route as PortalLogisticsRouteImport } from './routes/portal.logistics'
 import { Route as PortalCatalogRouteImport } from './routes/portal.catalog'
 import { Route as PortalAnalyticsRouteImport } from './routes/portal.analytics'
@@ -48,6 +49,7 @@ import { Route as ApiWebhooksMercadoPagoRouteImport } from './routes/api/webhook
 import { Route as ApiWebhooksMercadoLivreRouteImport } from './routes/api/webhooks/mercado-livre'
 import { Route as ApiWebhooksMelhorEnvioRouteImport } from './routes/api/webhooks/melhor-envio'
 import { Route as ApiWebhooksInstagramRouteImport } from './routes/api/webhooks/instagram'
+import { Route as ApiWebhooksEvolutionRouteImport } from './routes/api/webhooks/evolution'
 import { Route as ApiWebhooksAmazonRouteImport } from './routes/api/webhooks/amazon'
 import { Route as ApiCronRunRouteImport } from './routes/api/cron/run'
 import { Route as DashboardLogisticsWarehouseRouteImport } from './routes/_dashboard.logistics.warehouse'
@@ -127,6 +129,11 @@ const PortalRetentionRoute = PortalRetentionRouteImport.update({
 const PortalOverviewRoute = PortalOverviewRouteImport.update({
   id: '/overview',
   path: '/overview',
+  getParentRoute: () => PortalRoute,
+} as any)
+const PortalLoyaltyRoute = PortalLoyaltyRouteImport.update({
+  id: '/loyalty',
+  path: '/loyalty',
   getParentRoute: () => PortalRoute,
 } as any)
 const PortalLogisticsRoute = PortalLogisticsRouteImport.update({
@@ -272,6 +279,11 @@ const ApiWebhooksMelhorEnvioRoute = ApiWebhooksMelhorEnvioRouteImport.update({
 const ApiWebhooksInstagramRoute = ApiWebhooksInstagramRouteImport.update({
   id: '/api/webhooks/instagram',
   path: '/api/webhooks/instagram',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWebhooksEvolutionRoute = ApiWebhooksEvolutionRouteImport.update({
+  id: '/api/webhooks/evolution',
+  path: '/api/webhooks/evolution',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiWebhooksAmazonRoute = ApiWebhooksAmazonRouteImport.update({
@@ -473,6 +485,7 @@ export interface FileRoutesByFullPath {
   '/portal/analytics': typeof PortalAnalyticsRoute
   '/portal/catalog': typeof PortalCatalogRoute
   '/portal/logistics': typeof PortalLogisticsRoute
+  '/portal/loyalty': typeof PortalLoyaltyRoute
   '/portal/overview': typeof PortalOverviewRoute
   '/portal/retention': typeof PortalRetentionRoute
   '/portal/settings': typeof PortalSettingsRoute
@@ -498,6 +511,7 @@ export interface FileRoutesByFullPath {
   '/logistics/warehouse': typeof DashboardLogisticsWarehouseRoute
   '/api/cron/run': typeof ApiCronRunRoute
   '/api/webhooks/amazon': typeof ApiWebhooksAmazonRoute
+  '/api/webhooks/evolution': typeof ApiWebhooksEvolutionRoute
   '/api/webhooks/instagram': typeof ApiWebhooksInstagramRoute
   '/api/webhooks/melhor-envio': typeof ApiWebhooksMelhorEnvioRoute
   '/api/webhooks/mercado-livre': typeof ApiWebhooksMercadoLivreRoute
@@ -543,6 +557,7 @@ export interface FileRoutesByTo {
   '/portal/analytics': typeof PortalAnalyticsRoute
   '/portal/catalog': typeof PortalCatalogRoute
   '/portal/logistics': typeof PortalLogisticsRoute
+  '/portal/loyalty': typeof PortalLoyaltyRoute
   '/portal/overview': typeof PortalOverviewRoute
   '/portal/retention': typeof PortalRetentionRoute
   '/portal/settings': typeof PortalSettingsRoute
@@ -568,6 +583,7 @@ export interface FileRoutesByTo {
   '/logistics/warehouse': typeof DashboardLogisticsWarehouseRoute
   '/api/cron/run': typeof ApiCronRunRoute
   '/api/webhooks/amazon': typeof ApiWebhooksAmazonRoute
+  '/api/webhooks/evolution': typeof ApiWebhooksEvolutionRoute
   '/api/webhooks/instagram': typeof ApiWebhooksInstagramRoute
   '/api/webhooks/melhor-envio': typeof ApiWebhooksMelhorEnvioRoute
   '/api/webhooks/mercado-livre': typeof ApiWebhooksMercadoLivreRoute
@@ -616,6 +632,7 @@ export interface FileRoutesById {
   '/portal/analytics': typeof PortalAnalyticsRoute
   '/portal/catalog': typeof PortalCatalogRoute
   '/portal/logistics': typeof PortalLogisticsRoute
+  '/portal/loyalty': typeof PortalLoyaltyRoute
   '/portal/overview': typeof PortalOverviewRoute
   '/portal/retention': typeof PortalRetentionRoute
   '/portal/settings': typeof PortalSettingsRoute
@@ -641,6 +658,7 @@ export interface FileRoutesById {
   '/_dashboard/logistics/warehouse': typeof DashboardLogisticsWarehouseRoute
   '/api/cron/run': typeof ApiCronRunRoute
   '/api/webhooks/amazon': typeof ApiWebhooksAmazonRoute
+  '/api/webhooks/evolution': typeof ApiWebhooksEvolutionRoute
   '/api/webhooks/instagram': typeof ApiWebhooksInstagramRoute
   '/api/webhooks/melhor-envio': typeof ApiWebhooksMelhorEnvioRoute
   '/api/webhooks/mercado-livre': typeof ApiWebhooksMercadoLivreRoute
@@ -689,6 +707,7 @@ export interface FileRouteTypes {
     | '/portal/analytics'
     | '/portal/catalog'
     | '/portal/logistics'
+    | '/portal/loyalty'
     | '/portal/overview'
     | '/portal/retention'
     | '/portal/settings'
@@ -714,6 +733,7 @@ export interface FileRouteTypes {
     | '/logistics/warehouse'
     | '/api/cron/run'
     | '/api/webhooks/amazon'
+    | '/api/webhooks/evolution'
     | '/api/webhooks/instagram'
     | '/api/webhooks/melhor-envio'
     | '/api/webhooks/mercado-livre'
@@ -759,6 +779,7 @@ export interface FileRouteTypes {
     | '/portal/analytics'
     | '/portal/catalog'
     | '/portal/logistics'
+    | '/portal/loyalty'
     | '/portal/overview'
     | '/portal/retention'
     | '/portal/settings'
@@ -784,6 +805,7 @@ export interface FileRouteTypes {
     | '/logistics/warehouse'
     | '/api/cron/run'
     | '/api/webhooks/amazon'
+    | '/api/webhooks/evolution'
     | '/api/webhooks/instagram'
     | '/api/webhooks/melhor-envio'
     | '/api/webhooks/mercado-livre'
@@ -831,6 +853,7 @@ export interface FileRouteTypes {
     | '/portal/analytics'
     | '/portal/catalog'
     | '/portal/logistics'
+    | '/portal/loyalty'
     | '/portal/overview'
     | '/portal/retention'
     | '/portal/settings'
@@ -856,6 +879,7 @@ export interface FileRouteTypes {
     | '/_dashboard/logistics/warehouse'
     | '/api/cron/run'
     | '/api/webhooks/amazon'
+    | '/api/webhooks/evolution'
     | '/api/webhooks/instagram'
     | '/api/webhooks/melhor-envio'
     | '/api/webhooks/mercado-livre'
@@ -888,6 +912,7 @@ export interface RootRouteChildren {
   PortalRoute: typeof PortalRouteWithChildren
   ApiCronRunRoute: typeof ApiCronRunRoute
   ApiWebhooksAmazonRoute: typeof ApiWebhooksAmazonRoute
+  ApiWebhooksEvolutionRoute: typeof ApiWebhooksEvolutionRoute
   ApiWebhooksInstagramRoute: typeof ApiWebhooksInstagramRoute
   ApiWebhooksMelhorEnvioRoute: typeof ApiWebhooksMelhorEnvioRoute
   ApiWebhooksMercadoLivreRoute: typeof ApiWebhooksMercadoLivreRoute
@@ -982,6 +1007,13 @@ declare module '@tanstack/react-router' {
       path: '/overview'
       fullPath: '/portal/overview'
       preLoaderRoute: typeof PortalOverviewRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/portal/loyalty': {
+      id: '/portal/loyalty'
+      path: '/loyalty'
+      fullPath: '/portal/loyalty'
+      preLoaderRoute: typeof PortalLoyaltyRouteImport
       parentRoute: typeof PortalRoute
     }
     '/portal/logistics': {
@@ -1185,6 +1217,13 @@ declare module '@tanstack/react-router' {
       path: '/api/webhooks/instagram'
       fullPath: '/api/webhooks/instagram'
       preLoaderRoute: typeof ApiWebhooksInstagramRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/webhooks/evolution': {
+      id: '/api/webhooks/evolution'
+      path: '/api/webhooks/evolution'
+      fullPath: '/api/webhooks/evolution'
+      preLoaderRoute: typeof ApiWebhooksEvolutionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/webhooks/amazon': {
@@ -1525,6 +1564,7 @@ interface PortalRouteChildren {
   PortalAnalyticsRoute: typeof PortalAnalyticsRoute
   PortalCatalogRoute: typeof PortalCatalogRoute
   PortalLogisticsRoute: typeof PortalLogisticsRoute
+  PortalLoyaltyRoute: typeof PortalLoyaltyRoute
   PortalOverviewRoute: typeof PortalOverviewRoute
   PortalRetentionRoute: typeof PortalRetentionRoute
   PortalSettingsRoute: typeof PortalSettingsRoute
@@ -1535,6 +1575,7 @@ const PortalRouteChildren: PortalRouteChildren = {
   PortalAnalyticsRoute: PortalAnalyticsRoute,
   PortalCatalogRoute: PortalCatalogRoute,
   PortalLogisticsRoute: PortalLogisticsRoute,
+  PortalLoyaltyRoute: PortalLoyaltyRoute,
   PortalOverviewRoute: PortalOverviewRoute,
   PortalRetentionRoute: PortalRetentionRoute,
   PortalSettingsRoute: PortalSettingsRoute,
@@ -1552,6 +1593,7 @@ const rootRouteChildren: RootRouteChildren = {
   PortalRoute: PortalRouteWithChildren,
   ApiCronRunRoute: ApiCronRunRoute,
   ApiWebhooksAmazonRoute: ApiWebhooksAmazonRoute,
+  ApiWebhooksEvolutionRoute: ApiWebhooksEvolutionRoute,
   ApiWebhooksInstagramRoute: ApiWebhooksInstagramRoute,
   ApiWebhooksMelhorEnvioRoute: ApiWebhooksMelhorEnvioRoute,
   ApiWebhooksMercadoLivreRoute: ApiWebhooksMercadoLivreRoute,

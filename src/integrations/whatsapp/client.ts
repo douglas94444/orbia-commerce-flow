@@ -231,6 +231,39 @@ export async function sendTemplateWithButtons(input: {
   );
 }
 
+export async function sendInteractiveListMessage(input: {
+  phoneNumberId: string;
+  accessToken: string;
+  to: string;
+  bodyText: string;
+  buttonLabel: string;
+  sections: Array<{
+    title: string;
+    rows: Array<{ id: string; title: string; description?: string }>;
+  }>;
+  clientId?: string;
+}): Promise<{ messageId: string }> {
+  const to = input.to.replace(/\D/g, "");
+  return postWhatsAppMessage(
+    input.phoneNumberId,
+    input.accessToken,
+    {
+      messaging_product: "whatsapp",
+      to,
+      type: "interactive",
+      interactive: {
+        type: "list",
+        body: { text: input.bodyText },
+        action: {
+          button: input.buttonLabel,
+          sections: input.sections,
+        },
+      },
+    },
+    input.clientId,
+  );
+}
+
 export interface InboundWhatsAppMessage {
   from: string;
   messageId: string;

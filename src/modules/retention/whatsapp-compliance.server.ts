@@ -82,6 +82,14 @@ export async function handleInboundWhatsApp(input: {
   }
 }
 
+export async function handleInboundEvolution(input: {
+  clientId: string;
+  from: string;
+  text: string;
+}): Promise<void> {
+  await handleInboundWhatsApp(input);
+}
+
 export async function listWhatsAppTemplates(clientId: string) {
   const { data, error } = await supabaseAdmin
     .from("whatsapp_templates")

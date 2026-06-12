@@ -308,6 +308,14 @@ export async function attributeDeliveredOrder(orderId: string): Promise<boolean>
   }
 
   await recalculateClientMetrics(order.client_id as string);
+
+  const { enrollAfterCampaignAttribution } = await import(
+    "@/modules/retention/traffic-retention.server"
+  );
+  await enrollAfterCampaignAttribution(orderId).catch((err) =>
+    console.error("[retention] traffic attribution enroll:", err),
+  );
+
   return true;
 }
 

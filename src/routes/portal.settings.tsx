@@ -5,7 +5,11 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useEffect } from 'react'
 import { User, UserPlus, MessageSquare } from 'lucide-react'
-import { useWhatsAppTemplates, useUpdateQuietHours } from '@/modules/retention/hooks/use-retention'
+import {
+  useWhatsAppTemplates,
+  useUpdateQuietHours,
+  useUpdateMarketingSettings,
+} from '@/modules/retention/hooks/use-retention'
 import { PageIntro, Panel } from '@/components/dashboard/panel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -59,8 +63,10 @@ function PortalSettingsPage() {
   const mpCheckout = useStartMercadoPagoCheckout()
   const { data: waTemplates = [] } = useWhatsAppTemplates()
   const { mutate: saveQuietHours, isPending: savingHours } = useUpdateQuietHours()
+  const { mutate: saveMarketing, isPending: savingMarketing } = useUpdateMarketingSettings()
   const [quietStart, setQuietStart] = useState(22)
   const [quietEnd, setQuietEnd] = useState(8)
+  const [implicitOptIn, setImplicitOptIn] = useState(false)
 
   async function handleInvite() {
     if (!inviteEmail) return
@@ -136,6 +142,32 @@ function PortalSettingsPage() {
           </div>
         </Panel>
       )}
+
+      <Panel title="Marketing e LGPD" subtitle="Consentimento para automações de retenção">
+        <label className="flex items-start gap-3 text-sm cursor-pointer">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={implicitOptIn}
+            onChange={(e) => setImplicitOptIn(e.target.checked)}
+          />
+          <span>
+            Opt-in implícito na primeira compra
+            <span className="block text-xs text-muted-foreground mt-1">
+              Desmarcado por padrão (LGPD). Clientes precisam marcar consentimento no checkout ou responder SIM no WhatsApp.
+            </span>
+          </span>
+        </label>
+        <Button
+          type="button"
+          size="sm"
+          className="mt-3"
+          disabled={savingMarketing}
+          onClick={() => saveMarketing(implicitOptIn)}
+        >
+          Salvar preferência
+        </Button>
+      </Panel>
 
       <Panel title="WhatsApp (Meta)" subtitle="Templates e compliance" action={<MessageSquare className="size-4 text-muted-foreground" />}>
         <p className="mb-3 text-sm text-muted-foreground">

@@ -3,6 +3,7 @@ export {
   sendTemplateWithButtons,
   sendTemplateWithImage,
   sendDocumentMessage,
+  sendInteractiveListMessage,
   sendWhatsAppMessage,
   parseInboundMessages,
   type InboundWhatsAppMessage,

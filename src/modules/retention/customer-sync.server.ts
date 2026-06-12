@@ -13,6 +13,8 @@ export interface OrderCustomerInput {
   phone?: string | null;
   acquisitionChannel?: string | null;
   customerName?: string | null;
+  birthday?: string | null;
+  marketingOptIn?: boolean;
 }
 
 export async function syncCustomerFromOrder(input: OrderCustomerInput): Promise<string | null> {
@@ -66,8 +68,24 @@ export async function syncCustomerFromOrder(input: OrderCustomerInput): Promise<
   if (phone) prefsRow.contact_phone = phone;
   if (!existing) {
     prefsRow.first_purchase_at = now;
+    const { data: client } = await supabaseAdmin
+      .from("clients")
+      .select("marketing_implicit_opt_in")
+      .eq("id", input.clientId)
+      .single();
+    const implicitOptIn = Boolean(client?.marketing_implicit_opt_in);
+    const optedIn = input.marketingOptIn ?? implicitOptIn;
+    if (optedIn) {
+      prefsRow.marketing_opt_in = true;
+      prefsRow.marketing_opt_in_at = now;
+    }
+  } else if (input.marketingOptIn === true) {
     prefsRow.marketing_opt_in = true;
     prefsRow.marketing_opt_in_at = now;
+  }
+
+  if (input.birthday) {
+    prefsRow.birthday = input.birthday.slice(0, 10);
   }
 
   await supabaseAdmin
@@ -87,6 +105,7 @@ export async function getOrderContact(orderId: string): Promise<{
   channel: string | null;
   trackingCode: string | null;
   metadata: Record<string, unknown>;
+  birthday: string | null;
 }> {
   const { data: order, error } = await supabaseAdmin
     .from("orders")
@@ -97,6 +116,7 @@ export async function getOrderContact(orderId: string): Promise<{
   if (error || !order) throw new Error(`Order ${orderId} not found`);
 
   const metadata = (order.metadata ?? {}) as Record<string, unknown>;
+  const birthdayRaw = metadata.customer_birthday ?? metadata.birthday ?? metadata.customer_birth_date;
   return {
     orderId: order.id,
     clientId: order.client_id,
@@ -107,5 +127,23 @@ export async function getOrderContact(orderId: string): Promise<{
     channel: order.channel ?? null,
     trackingCode: order.tracking_code ?? null,
     metadata,
+    birthday: birthdayRaw ? String(birthdayRaw).slice(0, 10) : null,
   };
+}
+
+export async function syncCustomerFromOrderMetadata(orderId: string): Promise<string | null> {
+  const contact = await getOrderContact(orderId);
+  const meta = contact.metadata;
+  const marketingOptIn = meta.marketing_opt_in === true || meta.accepts_marketing === true;
+  return syncCustomerFromOrder({
+    orderId,
+    clientId: contact.clientId,
+    valueCents: contact.valueCents,
+    email: contact.email,
+    phone: contact.phone,
+    acquisitionChannel: contact.channel,
+    customerName: contact.customerName,
+    birthday: contact.birthday,
+    marketingOptIn: marketingOptIn ? true : undefined,
+  });
 }

@@ -7,6 +7,7 @@ import {
   LogOut,
   Package,
   Repeat,
+  Gift,
   Settings,
   TrendingUp,
   Truck,
@@ -29,6 +30,7 @@ const nav: NavItem[] = [
   { label: 'Analytics',   to: '/portal/analytics', icon: BarChart3 },
   { label: 'Tráfego',     to: '/portal/traffic', icon: TrendingUp },
   { label: 'Retenção',    to: '/portal/retention', icon: Repeat },
+  { label: 'Fidelidade',  to: '/portal/loyalty', icon: Gift },
   { label: 'Configurações', to: '/portal/settings', icon: Settings },
 ]
 

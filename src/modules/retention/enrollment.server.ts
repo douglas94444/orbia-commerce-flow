@@ -20,6 +20,18 @@ export async function enrollInSequence(input: EnrollInput): Promise<string | nul
   if (!sequences?.length) return null;
 
   const sequence = sequences[0];
+
+  if (input.customerId) {
+    const { data: duplicate } = await supabaseAdmin
+      .from("automation_enrollments")
+      .select("id")
+      .eq("sequence_id", sequence.id)
+      .eq("customer_id", input.customerId)
+      .in("status", ["active", "paused"])
+      .maybeSingle();
+    if (duplicate) return null;
+  }
+
   const delayMs = (input.delayMinutes ?? 0) * 60_000;
   const nextRunAt = new Date(Date.now() + delayMs).toISOString();
 

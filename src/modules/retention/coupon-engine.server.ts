@@ -56,3 +56,79 @@ export async function ensureEnrollmentCoupon(
     coupon_expires_at: expiresAt.toISOString(),
   };
 }
+
+export interface CouponValidation {
+  valid: boolean;
+  code: string;
+  discountPct: number;
+  expiresAt: string;
+  customerId: string | null;
+}
+
+export async function validateAutomationCoupon(
+  clientId: string,
+  code: string,
+): Promise<CouponValidation | null> {
+  const normalized = code.trim().toUpperCase();
+  const { data: row } = await supabaseAdmin
+    .from("automation_coupons")
+    .select("id, discount_pct, expires_at, redeemed_at, customer_id")
+    .eq("client_id", clientId)
+    .eq("code", normalized)
+    .maybeSingle();
+
+  if (!row || row.redeemed_at) return null;
+  if (new Date(row.expires_at as string) < new Date()) return null;
+
+  return {
+    valid: true,
+    code: normalized,
+    discountPct: row.discount_pct as number,
+    expiresAt: row.expires_at as string,
+    customerId: row.customer_id as string | null,
+  };
+}
+
+export async function redeemAutomationCoupon(
+  clientId: string,
+  code: string,
+  orderId?: string,
+): Promise<{ discountPct: number } | null> {
+  const coupon = await validateAutomationCoupon(clientId, code);
+  if (!coupon) return null;
+
+  await supabaseAdmin
+    .from("automation_coupons")
+    .update({
+      redeemed_at: new Date().toISOString(),
+    })
+    .eq("client_id", clientId)
+    .eq("code", coupon.code);
+
+  if (orderId) {
+    const { data: order } = await supabaseAdmin
+      .from("orders")
+      .select("metadata")
+      .eq("id", orderId)
+      .maybeSingle();
+    const meta = (order?.metadata ?? {}) as Record<string, unknown>;
+    await supabaseAdmin
+      .from("orders")
+      .update({
+        metadata: {
+          ...meta,
+          coupon_code: coupon.code,
+          coupon_discount_pct: coupon.discountPct,
+          coupon_redeemed_at: new Date().toISOString(),
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", orderId);
+  }
+
+  return { discountPct: coupon.discountPct };
+}
+
+export function applyDiscountCents(amountCents: number, discountPct: number): number {
+  return Math.max(0, Math.round(amountCents * (1 - discountPct / 100)));
+}

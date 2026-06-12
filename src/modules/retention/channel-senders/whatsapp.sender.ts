@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sendEvolutionDocument, sendEvolutionText } from "@/integrations/evolution/client";
 import {
   sendDocumentMessage,
+  sendInteractiveListMessage,
   sendTemplateMessage,
   sendTemplateWithButtons,
   sendTemplateWithImage,
@@ -148,6 +149,33 @@ export async function sendWhatsAppStep(ctx: SendContext): Promise<SendResult> {
     }
 
     const meta = ctx.metadata;
+    const useInteractiveList = Boolean(
+      meta.use_interactive_list ??
+        (ctx.templateKey === "avaliacao_negativa" || ctx.templateKey === "upsell_7d"),
+    );
+
+    if (useInteractiveList && creds.provider === "meta") {
+      const result = await sendInteractiveListMessage({
+        phoneNumberId: creds.phoneNumberId,
+        accessToken: creds.accessToken,
+        to,
+        bodyText: `Olá ${tplCtx.nome ?? "cliente"}! Como podemos ajudar?`,
+        buttonLabel: "Ver opções",
+        sections: [
+          {
+            title: "Ações",
+            rows: [
+              { id: "ver_pedido", title: "Ver pedido", description: "Status do seu pedido" },
+              { id: "falar_atendimento", title: "Falar com atendimento", description: "Suporte humano" },
+              { id: "ver_produtos", title: "Ver mais produtos", description: "Novidades da loja" },
+            ],
+          },
+        ],
+        clientId: ctx.clientId,
+      });
+      return { success: true, providerMessageId: result.messageId };
+    }
+
     const templateName = String(meta.template_name ?? TEMPLATE_MAP[ctx.templateKey] ?? TEMPLATE_MAP.default);
     const language = String(meta.language ?? "pt_BR");
     const bodyParams = [tplCtx.nome ?? "cliente", tplCtx.loja ?? ctx.storeName];

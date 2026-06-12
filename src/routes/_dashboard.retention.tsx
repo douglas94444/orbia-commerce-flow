@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Mail, Repeat, TrendingUp, Users, ExternalLink } from 'lucide-react'
 import { PageIntro, Panel } from '@/components/dashboard/panel'
@@ -29,6 +29,9 @@ import {
   useUpdateQuietHours,
   useSyncWhatsAppTemplates,
   useUpdateWhatsAppProvider,
+  useQuietHours,
+  useAutomationSteps,
+  useBackfillContacts,
 } from '@/modules/retention/hooks/use-retention'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -57,6 +60,9 @@ function RetentionPage() {
   const { mutate: syncWaTemplates, isPending: syncingWa } = useSyncWhatsAppTemplates()
   const { mutate: setWaProvider } = useUpdateWhatsAppProvider()
   const { mutate: createAb, isPending: creatingAb } = useCreateAbExperiment()
+  const { data: quietHours } = useQuietHours()
+  const { data: automationSteps = [] } = useAutomationSteps()
+  const { mutate: backfillContacts, isPending: backfilling } = useBackfillContacts()
 
   const [logChannel, setLogChannel] = useState<string>('')
   const [logStatus, setLogStatus] = useState<string>('')
@@ -73,6 +79,13 @@ function RetentionPage() {
   const [abStepId, setAbStepId] = useState('')
   const [abVariantA, setAbVariantA] = useState('')
   const [abVariantB, setAbVariantB] = useState('')
+
+  useEffect(() => {
+    if (quietHours) {
+      setQuietStart(quietHours.quietHoursStart)
+      setQuietEnd(quietHours.quietHoursEnd)
+    }
+  }, [quietHours])
 
   const loading = loadingAuto || loadingStats
   const atRiskCount = stats?.rfm.find((s) => s.segment === 'em_risco')?.count ?? 0
@@ -96,6 +109,9 @@ function RetentionPage() {
           </Button>
           <Button size="sm" variant="outline" onClick={() => setWaProvider('meta')}>
             Usar Meta API
+          </Button>
+          <Button size="sm" variant="outline" disabled={backfilling} onClick={() => backfillContacts()}>
+            Backfill contatos
           </Button>
           <Link
             to="/portal/settings"
@@ -457,7 +473,16 @@ function RetentionPage() {
 
           <Panel title="Testes A/B" subtitle="Variantes por step de automação">
             <div className="grid gap-3 sm:grid-cols-3 mb-4">
-              <Input placeholder="Step ID (uuid)" value={abStepId} onChange={(e) => setAbStepId(e.target.value)} className="font-mono text-xs" />
+              <select
+                value={abStepId}
+                onChange={(e) => setAbStepId(e.target.value)}
+                className="rounded-md border border-border bg-background px-2 py-2 text-xs"
+              >
+                <option value="">Selecione o step</option>
+                {automationSteps.map((s) => (
+                  <option key={s.id} value={s.id}>{s.label}</option>
+                ))}
+              </select>
               <Input placeholder="Variante A (template_key)" value={abVariantA} onChange={(e) => setAbVariantA(e.target.value)} />
               <Input placeholder="Variante B (template_key)" value={abVariantB} onChange={(e) => setAbVariantB(e.target.value)} />
             </div>

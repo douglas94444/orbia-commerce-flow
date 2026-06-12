@@ -17,6 +17,7 @@ const titles: Record<string, { title: string; subtitle: string }> = {
   '/portal/analytics':  { title: 'Analytics',         subtitle: 'Performance da sua loja' },
   '/portal/traffic':    { title: 'Tráfego',           subtitle: 'Campanhas e ROAS' },
   '/portal/retention':  { title: 'Retenção',          subtitle: 'Automações pós-venda' },
+  '/portal/loyalty':    { title: 'Fidelidade',        subtitle: 'Pontos e recompensas' },
   '/portal/settings':   { title: 'Configurações',     subtitle: 'Perfil e equipe' },
 }
 

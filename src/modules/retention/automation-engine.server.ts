@@ -37,6 +37,7 @@ async function enrollForOrder(
     phone: contact.phone,
     acquisitionChannel: contact.channel,
     customerName: contact.customerName,
+    birthday: contact.birthday,
   });
 
   const context = await buildEnrollmentContext(orderId);
@@ -59,10 +60,15 @@ export async function onOrderPaid(orderId: string): Promise<void> {
     phone: contact.phone,
     acquisitionChannel: contact.channel,
     customerName: contact.customerName,
+    birthday: contact.birthday,
   });
 
   if (customerId) {
     await earnPointsFromOrder(customerId, contact.clientId, orderId, contact.valueCents);
+    const { enrollTrafficWelcomeOnFirstOrder } = await import("./traffic-retention.server");
+    await enrollTrafficWelcomeOnFirstOrder(orderId).catch((err) =>
+      console.error("[retention] traffic welcome:", err),
+    );
   }
 }
 
@@ -89,6 +95,7 @@ export async function onNfeAuthorized(
     email: contact.email,
     phone: contact.phone,
     acquisitionChannel: contact.channel,
+    birthday: contact.birthday,
   });
 
   const context = await buildEnrollmentContext(orderId);

@@ -223,13 +223,14 @@ async function processEnrollment(
     .select("id")
     .single();
 
-  if (result.providerMessageId && execution) {
+  if (execution) {
     await supabaseAdmin.from("message_delivery_log").insert({
       execution_id: execution.id,
       enrollment_id: enrollment.id,
       channel: step.channel,
-      provider_message_id: result.providerMessageId,
+      provider_message_id: result.providerMessageId ?? null,
       status: result.success ? "sent" : "failed",
+      metadata: { error: result.error ?? null, template_key: templateKey },
     });
   }
 

@@ -20,6 +20,11 @@ import {
   createAbExperiment,
   syncWhatsAppTemplatesAction,
   updateWhatsAppProvider,
+  getQuietHours,
+  getAutomationSteps,
+  updateMarketingSettings,
+  backfillContactsAction,
+  validateAutomationCouponAction,
 } from "../actions.functions";
 
 export const AUTOMATIONS_KEY = ["automations"] as const;
@@ -207,5 +212,44 @@ export function useUpdateWhatsAppProvider() {
     mutationFn: (provider: "meta" | "evolution") => updateWhatsAppProvider({ data: { provider } }),
     onSuccess: () => toast.success("Provedor WhatsApp atualizado."),
     onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useQuietHours() {
+  return useQuery({
+    queryKey: ["quiet-hours"],
+    queryFn: () => getQuietHours(),
+    staleTime: 60_000,
+  });
+}
+
+export function useAutomationSteps() {
+  return useQuery({
+    queryKey: ["automation-steps"],
+    queryFn: () => getAutomationSteps(),
+    staleTime: 60_000,
+  });
+}
+
+export function useUpdateMarketingSettings() {
+  return useMutation({
+    mutationFn: (implicitOptIn: boolean) => updateMarketingSettings({ data: { implicitOptIn } }),
+    onSuccess: () => toast.success("Preferências de marketing atualizadas."),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useBackfillContacts() {
+  return useMutation({
+    mutationFn: () => backfillContactsAction(),
+    onSuccess: (data) => toast.success(`${data.updated} contatos atualizados.`),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useValidateCoupon() {
+  return useMutation({
+    mutationFn: (vars: { code: string; orderId?: string }) =>
+      validateAutomationCouponAction({ data: vars }),
   });
 }
