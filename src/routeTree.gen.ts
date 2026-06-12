@@ -49,6 +49,7 @@ import { Route as ApiWebhooksInstagramRouteImport } from './routes/api/webhooks/
 import { Route as ApiWebhooksAmazonRouteImport } from './routes/api/webhooks/amazon'
 import { Route as ApiCronRunRouteImport } from './routes/api/cron/run'
 import { Route as DashboardLogisticsWarehouseRouteImport } from './routes/_dashboard.logistics.warehouse'
+import { Route as DashboardLogisticsTrackingRouteImport } from './routes/_dashboard.logistics.tracking'
 import { Route as DashboardLogisticsSlaRouteImport } from './routes/_dashboard.logistics.sla'
 import { Route as DashboardLogisticsReturnsRouteImport } from './routes/_dashboard.logistics.returns'
 import { Route as DashboardLogisticsReceivingRouteImport } from './routes/_dashboard.logistics.receiving'
@@ -275,6 +276,12 @@ const DashboardLogisticsWarehouseRoute =
     path: '/warehouse',
     getParentRoute: () => DashboardLogisticsRoute,
   } as any)
+const DashboardLogisticsTrackingRoute =
+  DashboardLogisticsTrackingRouteImport.update({
+    id: '/tracking',
+    path: '/tracking',
+    getParentRoute: () => DashboardLogisticsRoute,
+  } as any)
 const DashboardLogisticsSlaRoute = DashboardLogisticsSlaRouteImport.update({
   id: '/sla',
   path: '/sla',
@@ -457,6 +464,7 @@ export interface FileRoutesByFullPath {
   '/logistics/receiving': typeof DashboardLogisticsReceivingRoute
   '/logistics/returns': typeof DashboardLogisticsReturnsRoute
   '/logistics/sla': typeof DashboardLogisticsSlaRoute
+  '/logistics/tracking': typeof DashboardLogisticsTrackingRoute
   '/logistics/warehouse': typeof DashboardLogisticsWarehouseRoute
   '/api/cron/run': typeof ApiCronRunRoute
   '/api/webhooks/amazon': typeof ApiWebhooksAmazonRoute
@@ -522,6 +530,7 @@ export interface FileRoutesByTo {
   '/logistics/receiving': typeof DashboardLogisticsReceivingRoute
   '/logistics/returns': typeof DashboardLogisticsReturnsRoute
   '/logistics/sla': typeof DashboardLogisticsSlaRoute
+  '/logistics/tracking': typeof DashboardLogisticsTrackingRoute
   '/logistics/warehouse': typeof DashboardLogisticsWarehouseRoute
   '/api/cron/run': typeof ApiCronRunRoute
   '/api/webhooks/amazon': typeof ApiWebhooksAmazonRoute
@@ -590,6 +599,7 @@ export interface FileRoutesById {
   '/_dashboard/logistics/receiving': typeof DashboardLogisticsReceivingRoute
   '/_dashboard/logistics/returns': typeof DashboardLogisticsReturnsRoute
   '/_dashboard/logistics/sla': typeof DashboardLogisticsSlaRoute
+  '/_dashboard/logistics/tracking': typeof DashboardLogisticsTrackingRoute
   '/_dashboard/logistics/warehouse': typeof DashboardLogisticsWarehouseRoute
   '/api/cron/run': typeof ApiCronRunRoute
   '/api/webhooks/amazon': typeof ApiWebhooksAmazonRoute
@@ -658,6 +668,7 @@ export interface FileRouteTypes {
     | '/logistics/receiving'
     | '/logistics/returns'
     | '/logistics/sla'
+    | '/logistics/tracking'
     | '/logistics/warehouse'
     | '/api/cron/run'
     | '/api/webhooks/amazon'
@@ -723,6 +734,7 @@ export interface FileRouteTypes {
     | '/logistics/receiving'
     | '/logistics/returns'
     | '/logistics/sla'
+    | '/logistics/tracking'
     | '/logistics/warehouse'
     | '/api/cron/run'
     | '/api/webhooks/amazon'
@@ -790,6 +802,7 @@ export interface FileRouteTypes {
     | '/_dashboard/logistics/receiving'
     | '/_dashboard/logistics/returns'
     | '/_dashboard/logistics/sla'
+    | '/_dashboard/logistics/tracking'
     | '/_dashboard/logistics/warehouse'
     | '/api/cron/run'
     | '/api/webhooks/amazon'
@@ -1131,6 +1144,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardLogisticsWarehouseRouteImport
       parentRoute: typeof DashboardLogisticsRoute
     }
+    '/_dashboard/logistics/tracking': {
+      id: '/_dashboard/logistics/tracking'
+      path: '/tracking'
+      fullPath: '/logistics/tracking'
+      preLoaderRoute: typeof DashboardLogisticsTrackingRouteImport
+      parentRoute: typeof DashboardLogisticsRoute
+    }
     '/_dashboard/logistics/sla': {
       id: '/_dashboard/logistics/sla'
       path: '/sla'
@@ -1345,6 +1365,7 @@ interface DashboardLogisticsRouteChildren {
   DashboardLogisticsReceivingRoute: typeof DashboardLogisticsReceivingRoute
   DashboardLogisticsReturnsRoute: typeof DashboardLogisticsReturnsRoute
   DashboardLogisticsSlaRoute: typeof DashboardLogisticsSlaRoute
+  DashboardLogisticsTrackingRoute: typeof DashboardLogisticsTrackingRoute
   DashboardLogisticsWarehouseRoute: typeof DashboardLogisticsWarehouseRoute
 }
 
@@ -1361,6 +1382,7 @@ const DashboardLogisticsRouteChildren: DashboardLogisticsRouteChildren = {
   DashboardLogisticsReceivingRoute: DashboardLogisticsReceivingRoute,
   DashboardLogisticsReturnsRoute: DashboardLogisticsReturnsRoute,
   DashboardLogisticsSlaRoute: DashboardLogisticsSlaRoute,
+  DashboardLogisticsTrackingRoute: DashboardLogisticsTrackingRoute,
   DashboardLogisticsWarehouseRoute: DashboardLogisticsWarehouseRoute,
 }
 

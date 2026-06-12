@@ -1,6 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageIntro, Panel } from "@/components/dashboard/panel";
-import { useDeliveryIncidents, useStockRupture } from "@/modules/logistics/hooks/use-fulfillly";
+import {
+  useDeliveryIncidents,
+  useResolveDeliveryIncident,
+  useStockRupture,
+} from "@/modules/logistics/hooks/use-fulfillly";
+import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/dashboard/status-pill";
 
 export const Route = createFileRoute("/_dashboard/logistics/incidents")({
@@ -11,6 +16,7 @@ export const Route = createFileRoute("/_dashboard/logistics/incidents")({
 function IncidentsPage() {
   const { data: incidentsData, isLoading } = useDeliveryIncidents();
   const { data: rupture = [] } = useStockRupture();
+  const resolveIncident = useResolveDeliveryIncident();
 
   return (
     <div className="space-y-6">
@@ -48,10 +54,23 @@ function IncidentsPage() {
                 <p className="font-mono text-xs">{i.orderId.slice(0, 8)}</p>
                 <p className="text-muted-foreground">{i.incidentType}</p>
               </div>
-              <StatusPill
-                label={i.resolved ? "Resolvido" : "Aberto"}
-                tone={i.resolved ? "success" : "warning"}
-              />
+              <div className="flex items-center gap-2">
+                <StatusPill
+                  label={i.resolved ? "Resolvido" : "Aberto"}
+                  tone={i.resolved ? "success" : "warning"}
+                />
+                {!i.resolved && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs"
+                    disabled={resolveIncident.isPending}
+                    onClick={() => resolveIncident.mutate(i.id)}
+                  >
+                    Resolver
+                  </Button>
+                )}
+              </div>
             </div>
           ))}
         </div>

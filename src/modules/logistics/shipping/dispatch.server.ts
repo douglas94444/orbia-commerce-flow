@@ -7,6 +7,11 @@ import type { NormalizedOrderItem } from "../order-ingestion.server";
 import { pushOrderStatusToChannel } from "./channel-status-push.server";
 import { getCarrierToken, selectBestCarrier } from "./routing-engine.server";
 import { computeOrderShipmentSpecs } from "./shipment-specs.server";
+import {
+  applyTrackingTransition,
+  normalizeCarrierStatus,
+  type TrackingOrderContext,
+} from "./tracking-transition.server";
 
 interface OrderRow {
   id: string;
@@ -144,7 +149,7 @@ export async function dispatchOrder(
   );
 
   const customerPhone = String(row.metadata.customer_phone ?? row.metadata.phone ?? "");
-  if (customerPhone) {
+  if (customerPhone && !row.metadata.tracking_notified_dispatched) {
     const { sendTrackingWhatsApp } = await import("../notifications/whatsapp-alerts.server");
     await sendTrackingWhatsApp(
       row.client_id,
@@ -153,6 +158,23 @@ export async function dispatchOrder(
       trackingCode,
       row.external_id,
     );
+    await supabaseAdmin
+      .from("orders")
+      .update({
+        metadata: {
+          ...row.metadata,
+          carrier_provider_id: quote.providerId,
+          shipping_cost_cents: quote.priceCents,
+          label_url: label.labelUrl ?? null,
+          packing_weight_kg: specs.weightKg,
+          packing_length_cm: specs.lengthCm,
+          packing_width_cm: specs.widthCm,
+          packing_height_cm: specs.heightCm,
+          tracking_notified_dispatched: true,
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", orderId);
   }
 
   const stockItems = itemsFromOrderMetadata(orderItems(row.metadata));
@@ -176,29 +198,27 @@ export async function dispatchOrder(
   return { trackingCode, labelUrl: label.labelUrl };
 }
 
-const TRACKING_TO_STATUS: Record<string, string> = {
-  posted: "despachado",
-  in_transit: "em_transito",
-  delivered: "entregue",
-  delivered_to_receiver: "entregue",
-};
-
 function resolveCarrierProviderId(metadata: Record<string, unknown>): string {
   const fromMeta = metadata.carrier_provider_id;
   if (typeof fromMeta === "string" && fromMeta.length > 0) return fromMeta;
   return "melhor_envio";
 }
 
-export async function syncOrderTracking(orderId: string): Promise<{ status: string }> {
+export async function syncOrderTracking(orderId: string): Promise<{
+  status: string;
+  problemRecorded: boolean;
+}> {
   const { data: order, error } = await supabaseAdmin
     .from("orders")
-    .select("id, client_id, status, shipment_external_id, tracking_code, metadata")
+    .select(
+      "id, client_id, external_id, channel, status, shipment_external_id, tracking_code, metadata",
+    )
     .eq("id", orderId)
     .single();
 
   if (error || !order) throw new Error(`Order ${orderId} not found`);
 
-  const row = order as OrderRow;
+  const row = order as OrderRow & { external_id: string; channel: string };
   if (!row.shipment_external_id) {
     throw new Error("Pedido sem envio vinculado");
   }
@@ -212,86 +232,55 @@ export async function syncOrderTracking(orderId: string): Promise<{ status: stri
   }
 
   const tracking = await provider.getTracking(row.shipment_external_id, token);
-  const trackingStatus = tracking.status;
+  const prevStatus = row.status;
 
-  const newStatus = TRACKING_TO_STATUS[trackingStatus] ?? row.status;
-  const meta = { ...(row.metadata ?? {}), carrier_status: trackingStatus };
+  const ctx: TrackingOrderContext = {
+    id: row.id,
+    client_id: row.client_id,
+    external_id: row.external_id,
+    channel: row.channel,
+    status: prevStatus,
+    tracking_code: row.tracking_code,
+    metadata: row.metadata ?? {},
+  };
 
-  if (newStatus === row.status) {
-    await supabaseAdmin
-      .from("orders")
-      .update({ metadata: meta, updated_at: new Date().toISOString() })
-      .eq("id", orderId);
-    return { status: row.status };
-  }
-
-  await supabaseAdmin
-    .from("orders")
-    .update({ status: newStatus, metadata: meta, updated_at: new Date().toISOString() })
-    .eq("id", orderId);
-
-  await supabaseAdmin.from("order_events").insert({
-    order_id: orderId,
-    status: newStatus,
+  const result = await applyTrackingTransition({
+    order: ctx,
+    prevStatus,
+    carrierStatus: tracking.status,
     source: providerId,
-    metadata: { tracking_status: trackingStatus, carrier_provider_id: providerId },
+    eventMetadata: { tracking_status: tracking.status, carrier_provider_id: providerId },
   });
 
-  if (newStatus === "entregue") {
-    await emitDomainEvent("order.delivered", { orderId, clientId: row.client_id });
-  }
-
-  return { status: newStatus };
+  return { status: result.finalStatus, problemRecorded: result.problemRecorded };
 }
 
 export async function handleMelhorEnvioWebhook(payload: unknown): Promise<void> {
   const body = payload as Record<string, unknown>;
   const tracking = String(body.tracking ?? body.tracking_code ?? "");
   const shipmentId = String(body.shipment_id ?? body.id ?? "");
-  const statusRaw = String(body.status ?? body.event ?? "").toLowerCase();
+  const statusRaw = String(body.status ?? body.event ?? "");
 
   if (!tracking && !shipmentId) return;
 
-  const query = supabaseAdmin.from("orders").select("id, client_id, status, metadata");
+  const query = supabaseAdmin.from("orders").select(
+    "id, client_id, external_id, channel, status, tracking_code, metadata",
+  );
 
   const { data: orders } = tracking
     ? await query.eq("tracking_code", tracking)
     : await query.eq("shipment_external_id", shipmentId);
 
-  const order = orders?.[0] as {
-    id: string;
-    client_id: string;
-    status: string;
-    metadata: Record<string, unknown>;
-  } | undefined;
+  const order = orders?.[0] as TrackingOrderContext | undefined;
   if (!order) return;
 
-  const newStatus =
-    statusRaw.includes("deliver") ? "entregue" : statusRaw.includes("transit") ? "em_transito" : null;
-
-  const meta = { ...(order.metadata ?? {}), carrier_status: statusRaw };
-
-  if (!newStatus || newStatus === order.status) {
-    await supabaseAdmin
-      .from("orders")
-      .update({ metadata: meta, updated_at: new Date().toISOString() })
-      .eq("id", order.id);
-    return;
-  }
-
-  await supabaseAdmin
-    .from("orders")
-    .update({ status: newStatus, metadata: meta, updated_at: new Date().toISOString() })
-    .eq("id", order.id);
-
-  await supabaseAdmin.from("order_events").insert({
-    order_id: order.id,
-    status: newStatus,
+  const normalized = normalizeCarrierStatus(statusRaw);
+  await applyTrackingTransition({
+    order,
+    prevStatus: order.status,
+    carrierStatus: statusRaw,
+    newStatus: normalized.orderStatus,
     source: "melhor_envio_webhook",
-    metadata: { raw_status: statusRaw, carrier_status: statusRaw },
+    eventMetadata: { raw_status: statusRaw },
   });
-
-  if (newStatus === "entregue") {
-    await emitDomainEvent("order.delivered", { orderId: order.id, clientId: order.client_id });
-  }
 }

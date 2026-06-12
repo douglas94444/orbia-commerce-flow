@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { Loader2, Lock, PackageCheck, PackageX, Tag, Truck } from 'lucide-react'
+import { ExternalLink, Loader2, Lock, PackageCheck, PackageX, Tag, Truck } from 'lucide-react'
+import { buildTrackingUrl } from '@/modules/logistics/shipping/tracking-link'
 import { PageIntro, Panel } from '@/components/dashboard/panel'
 import { KpiCard } from '@/components/dashboard/kpi-card'
 import { StatusPill, type Tone } from '@/components/dashboard/status-pill'
@@ -63,6 +64,7 @@ function LogisticsPage() {
         <Link to="/logistics/picking"><Button variant="outline" size="sm">Picking</Button></Link>
         <Link to="/logistics/packing"><Button variant="outline" size="sm">Packing</Button></Link>
         <Link to="/logistics/dispatch"><Button variant="outline" size="sm">Expedição</Button></Link>
+        <Link to="/logistics/tracking"><Button variant="outline" size="sm">Rastreamento</Button></Link>
         <Link to="/logistics/sla"><Button variant="outline" size="sm">SLA</Button></Link>
         <Link to="/logistics/incidents"><Button variant="outline" size="sm">Incidentes</Button></Link>
         <Link to="/logistics/returns"><Button variant="outline" size="sm">Devoluções</Button></Link>
@@ -141,7 +143,15 @@ function LogisticsPage() {
                         </Button>
                       )}
                       {o.trackingCode && (
-                        <span className="font-mono text-[10px] text-muted-foreground">{o.trackingCode}</span>
+                        <a
+                          href={buildTrackingUrl(o.trackingCode, o.carrier)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 font-mono text-[10px] text-primary hover:underline"
+                        >
+                          {o.trackingCode}
+                          <ExternalLink className="size-3" />
+                        </a>
                       )}
                     </td>
                   </tr>

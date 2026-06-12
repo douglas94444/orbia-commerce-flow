@@ -97,12 +97,25 @@ export async function generateReturnLabel(returnRequestId: string): Promise<stri
 
   const label = await provider.purchaseLabel(quote.externalId, token);
 
+  const { data: existing } = await supabaseAdmin
+    .from("return_requests")
+    .select("metadata")
+    .eq("id", returnRequestId)
+    .single();
+
+  const prevMeta = (existing?.metadata ?? {}) as Record<string, unknown>;
+
   await supabaseAdmin
     .from("return_requests")
     .update({
       return_label_url: label.labelUrl ?? null,
       tracking_code: label.trackingCode,
       status: "in_transit",
+      metadata: {
+        ...prevMeta,
+        shipment_external_id: label.shipmentId,
+        carrier_provider_id: quote.providerId,
+      },
       updated_at: new Date().toISOString(),
     })
     .eq("id", returnRequestId);

@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
-import { Lock } from 'lucide-react'
+import { ExternalLink, Lock } from 'lucide-react'
+import { buildTrackingUrl } from '@/modules/logistics/shipping/tracking-link'
 import { PageIntro, Panel } from '@/components/dashboard/panel'
 import { StatusPill, type Tone } from '@/components/dashboard/status-pill'
 import { Button } from '@/components/ui/button'
@@ -221,7 +222,7 @@ function PortalLogisticsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-[10px] uppercase text-muted-foreground">
-                  {['Pedido', 'Canal', 'Status', 'NF-e', 'Valor'].map((h) => (
+                  {['Pedido', 'Canal', 'Status', 'Rastreio', 'NF-e', 'Valor'].map((h) => (
                     <th key={h} className="pb-2">{h}</th>
                   ))}
                 </tr>
@@ -232,6 +233,21 @@ function PortalLogisticsPage() {
                     <td className="py-2 font-mono text-xs">{o.id}</td>
                     <td className="py-2 text-muted-foreground">{o.channel}</td>
                     <td className="py-2"><StatusPill label={ORDER_STATUS[o.status].label} tone={ORDER_STATUS[o.status].tone} /></td>
+                    <td className="py-2 font-mono text-xs">
+                      {o.trackingCode ? (
+                        <a
+                          href={buildTrackingUrl(o.trackingCode, o.carrier)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-primary hover:underline"
+                        >
+                          {o.trackingCode}
+                          <ExternalLink className="size-3" />
+                        </a>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
                     <td className="py-2"><StatusPill label={NF_STATUS[o.nf].label} tone={NF_STATUS[o.nf].tone} dot /></td>
                     <td className="py-2 font-mono">{formatBRL(o.value)}</td>
                   </tr>

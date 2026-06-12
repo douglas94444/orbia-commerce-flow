@@ -23,6 +23,9 @@ import {
   inspectReturnFn,
   getStockRuptureFn,
   getDeliveryIncidentsFn,
+  resolveDeliveryIncidentFn,
+  listTrackingQueueFn,
+  getOrderTrackingTimelineFn,
   generateWaveLabelsFn,
   getDispatchManifestFn,
   exportManifestCsvFn,
@@ -279,6 +282,34 @@ export function useStockRupture() {
 
 export function useDeliveryIncidents() {
   return useQuery({ queryKey: ["delivery-incidents"], queryFn: () => getDeliveryIncidentsFn() });
+}
+
+export function useResolveDeliveryIncident() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (incidentId: string) => resolveDeliveryIncidentFn({ data: { incidentId } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["delivery-incidents"] });
+      toast.success("Incidente resolvido");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useTrackingQueue() {
+  return useQuery({
+    queryKey: ["tracking-queue"],
+    queryFn: () => listTrackingQueueFn(),
+    staleTime: 10_000,
+  });
+}
+
+export function useOrderTrackingTimeline(orderId: string | null) {
+  return useQuery({
+    queryKey: ["tracking-timeline", orderId],
+    queryFn: () => getOrderTrackingTimelineFn({ data: { orderId: orderId! } }),
+    enabled: !!orderId,
+  });
 }
 
 export function useGenerateWaveLabels() {

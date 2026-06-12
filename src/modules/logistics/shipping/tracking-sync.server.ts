@@ -1,98 +1,90 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { emitDomainEvent } from "@/shared/lib/domain-events.server";
-import { syncTracking as syncMelhorEnvioTracking } from "../shipping.server";
-import { pushOrderStatusToChannel } from "./channel-status-push.server";
-import { sendTrackingWhatsApp } from "../notifications/whatsapp-alerts.server";
+import { syncTracking as syncOrderTracking } from "../shipping.server";
 
-const PROBLEM_STATUSES = new Set([
-  "undelivered",
-  "failed",
-  "returned",
-  "address_not_found",
-  "recipient_absent",
-]);
+const BATCH = 100;
+const FAILURE_ALERT_THRESHOLD = 3;
 
-export async function syncAllTracking(): Promise<{ synced: number; problems: number }> {
-  const { data: orders } = await supabaseAdmin
+async function incrementSyncFailure(
+  orderId: string,
+  clientId: string,
+  metadata: Record<string, unknown>,
+): Promise<void> {
+  const failures = Number(metadata.tracking_sync_failures ?? 0) + 1;
+  const nextMeta = { ...metadata, tracking_sync_failures: failures };
+
+  await supabaseAdmin
     .from("orders")
-    .select("id, client_id, channel, external_id, status, tracking_code, shipment_external_id, metadata")
-    .in("status", ["despachado", "em_transito"])
-    .not("shipment_external_id", "is", null)
-    .limit(100);
+    .update({ metadata: nextMeta, updated_at: new Date().toISOString() })
+    .eq("id", orderId);
 
+  if (failures >= FAILURE_ALERT_THRESHOLD && !metadata.tracking_sync_alert_sent) {
+    await supabaseAdmin.from("operation_alerts").insert({
+      client_id: clientId,
+      kind: "sla",
+      severity: "warning",
+      title: "Falha no sync de rastreamento",
+      message: `Pedido ${orderId.slice(0, 8)}… com ${failures} falhas consecutivas de sync`,
+      is_resolved: false,
+    });
+    await supabaseAdmin
+      .from("orders")
+      .update({
+        metadata: { ...nextMeta, tracking_sync_alert_sent: true },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", orderId);
+  }
+}
+
+async function resetSyncFailures(orderId: string, metadata: Record<string, unknown>): Promise<void> {
+  if (!metadata.tracking_sync_failures && !metadata.tracking_sync_alert_sent) return;
+  const { tracking_sync_failures: _f, tracking_sync_alert_sent: _a, ...rest } = metadata;
+  await supabaseAdmin
+    .from("orders")
+    .update({ metadata: rest, updated_at: new Date().toISOString() })
+    .eq("id", orderId);
+}
+
+export async function syncAllTracking(): Promise<{
+  synced: number;
+  problems: number;
+  failed: number;
+  batches: number;
+}> {
   let synced = 0;
   let problems = 0;
+  let failed = 0;
+  let batches = 0;
+  let offset = 0;
 
-  for (const order of orders ?? []) {
-    try {
-      const prevStatus = order.status as string;
-      await syncMelhorEnvioTracking(order.id as string);
+  while (true) {
+    const { data: orders } = await supabaseAdmin
+      .from("orders")
+      .select("id, client_id, metadata")
+      .in("status", ["despachado", "em_transito"])
+      .not("shipment_external_id", "is", null)
+      .range(offset, offset + BATCH - 1);
 
-      const { data: updated } = await supabaseAdmin
-        .from("orders")
-        .select("status, tracking_code, metadata")
-        .eq("id", order.id)
-        .single();
+    if (!orders?.length) break;
+    batches += 1;
 
-      if (!updated) continue;
-      synced += 1;
-
-      const customerPhone = (updated.metadata as Record<string, unknown>)?.customer_phone as
-        | string
-        | undefined;
-
-      if (updated.status === "em_transito" && prevStatus === "despachado" && customerPhone) {
-        await sendTrackingWhatsApp(
-          order.client_id as string,
-          customerPhone,
-          "out_for_delivery",
-          updated.tracking_code as string,
-          order.external_id as string,
-        );
+    for (const order of orders) {
+      const meta = (order.metadata ?? {}) as Record<string, unknown>;
+      try {
+        const result = await syncOrderTracking(order.id as string);
+        synced += 1;
+        if (result.problemRecorded) problems += 1;
+        await resetSyncFailures(order.id as string, meta);
+      } catch (err) {
+        failed += 1;
+        console.error(`[sync-tracking] order ${order.id}:`, err);
+        await incrementSyncFailure(order.id as string, order.client_id as string, meta);
       }
-
-      if (updated.status === "entregue") {
-        await emitDomainEvent("order.delivered", {
-          orderId: order.id,
-          clientId: order.client_id,
-        });
-        if (customerPhone) {
-          await sendTrackingWhatsApp(
-            order.client_id as string,
-            customerPhone,
-            "delivered",
-            updated.tracking_code as string,
-            order.external_id as string,
-          );
-        }
-        await pushOrderStatusToChannel(
-          order.client_id as string,
-          order.channel as string,
-          order.external_id as string,
-          "delivered",
-        );
-      }
-
-      const carrierStatus = (updated.metadata as Record<string, unknown>)?.carrier_status as
-        | string
-        | undefined;
-      if (carrierStatus && PROBLEM_STATUSES.has(carrierStatus.toLowerCase())) {
-        await supabaseAdmin.from("delivery_incidents").insert({
-          order_id: order.id,
-          incident_type: carrierStatus,
-          description: `Problema de entrega detectado: ${carrierStatus}`,
-        });
-        await emitDomainEvent("order.delivery_problem", {
-          orderId: order.id,
-          clientId: order.client_id,
-          incidentType: carrierStatus,
-        });
-        problems += 1;
-      }
-    } catch (err) {
-      console.error(`[sync-tracking] order ${order.id}:`, err);
     }
+
+    if (orders.length < BATCH) break;
+    offset += BATCH;
   }
 
-  return { synced, problems };
+  return { synced, problems, failed, batches };
 }

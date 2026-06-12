@@ -56,6 +56,15 @@ export interface RegionHeatPoint {
   count: number;
 }
 
+export async function resolveDeliveryIncident(incidentId: string): Promise<void> {
+  const { error } = await supabaseAdmin
+    .from("delivery_incidents")
+    .update({ resolved: true })
+    .eq("id", incidentId);
+
+  if (error) throw new Error(error.message);
+}
+
 export function buildIncidentHeatMap(incidents: DeliveryIncidentRow[]): RegionHeatPoint[] {
   const map = new Map<string, number>();
   for (const i of incidents) {

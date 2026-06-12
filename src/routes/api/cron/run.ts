@@ -21,6 +21,7 @@ const VALID_JOBS = new Set<CronJobName>([
   "check-stock-alerts",
   "stock-sync-outbox",
   "schedule-pickup",
+  "sync-return-tracking",
   "all",
 ]);
 

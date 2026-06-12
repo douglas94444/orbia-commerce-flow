@@ -68,6 +68,7 @@ export default {
         "process-outbox",
         "stock-sync-outbox",
         "sync-tracking",
+        "sync-return-tracking",
       ],
       "*/10 * * * *": ["check-sla"],
       "*/5 * * * *": ["process-outbox"],

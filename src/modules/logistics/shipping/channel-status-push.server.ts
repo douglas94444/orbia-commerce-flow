@@ -31,17 +31,35 @@ export async function pushOrderStatusToChannel(
       await fetch(`https://api.mercadolibre.com/orders/${externalOrderId}/shipments`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "shipped" }),
+        body: JSON.stringify({
+          status: "shipped",
+          tracking_number: trackingCode ?? undefined,
+        }),
+      });
+    } else if (channel === "mercado_livre" && status === "delivered") {
+      await fetch(`https://api.mercadolibre.com/orders/${externalOrderId}/shipments`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "delivered" }),
       });
     } else if (channel === "shopee" && status === "shipped") {
       const { updateShopeeOrderStatus } = await import("@/integrations/shopee/orders");
       await updateShopeeOrderStatus(externalOrderId, "SHIPPED", token);
+    } else if (channel === "shopee" && status === "delivered") {
+      const { updateShopeeOrderStatus } = await import("@/integrations/shopee/orders");
+      await updateShopeeOrderStatus(externalOrderId, "COMPLETED", token);
     } else if (channel === "amazon" && status === "shipped") {
       const { updateAmazonShipmentStatus } = await import("@/integrations/amazon/orders");
       await updateAmazonShipmentStatus(externalOrderId, "Shipped", token);
+    } else if (channel === "amazon" && status === "delivered") {
+      const { updateAmazonShipmentStatus } = await import("@/integrations/amazon/orders");
+      await updateAmazonShipmentStatus(externalOrderId, "Delivered", token);
     } else if (channel === "tiktok" && status === "shipped") {
       const { updateTiktokShipmentStatus } = await import("@/integrations/tiktok/orders");
       await updateTiktokShipmentStatus(externalOrderId, "IN_TRANSIT", token);
+    } else if (channel === "tiktok" && status === "delivered") {
+      const { updateTiktokShipmentStatus } = await import("@/integrations/tiktok/orders");
+      await updateTiktokShipmentStatus(externalOrderId, "DELIVERED", token);
     } else if (channel === "shopify" && status === "shipped" && trackingCode) {
       const shop = conn.external_account as string;
       await shopifyFetch(shop, token, `/orders/${externalOrderId}/fulfillments.json`, {
@@ -50,6 +68,18 @@ export async function pushOrderStatusToChannel(
           fulfillment: {
             tracking_number: trackingCode,
             notify_customer: true,
+          },
+        }),
+      });
+    } else if (channel === "shopify" && status === "delivered") {
+      const shop = conn.external_account as string;
+      await shopifyFetch(shop, token, `/orders/${externalOrderId}/fulfillments.json`, {
+        method: "POST",
+        body: JSON.stringify({
+          fulfillment: {
+            tracking_number: trackingCode ?? undefined,
+            notify_customer: true,
+            status: "success",
           },
         }),
       });
@@ -62,6 +92,17 @@ export async function pushOrderStatusToChannel(
           shipping_tracking_number: trackingCode ?? null,
         }),
       });
+    } else if (channel === "nuvemshop" && status === "delivered") {
+      const storeId = conn.external_account as string;
+      await nuvemshopFetch(storeId, token, `/orders/${externalOrderId}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          shipping_status: "delivered",
+          shipping_tracking_number: trackingCode ?? null,
+        }),
+      });
+    } else if (channel === "instagram" && (status === "shipped" || status === "delivered")) {
+      // Meta Shops fulfillment API — logged for observability until direct push is wired
     }
 
     await logIntegration({

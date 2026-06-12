@@ -41,6 +41,7 @@ export type CronJobName =
   | "check-stock-alerts"
   | "stock-sync-outbox"
   | "schedule-pickup"
+  | "sync-return-tracking"
   | "all";
 
 export interface JobResult {
@@ -176,6 +177,13 @@ async function runJob(name: Exclude<CronJobName, "all">): Promise<JobResult> {
         metadata = await checkScheduledPickup();
         break;
       }
+      case "sync-return-tracking": {
+        const { syncAllReturnTracking } = await import(
+          "@/modules/logistics/shipping/return-tracking-sync.server"
+        );
+        metadata = await syncAllReturnTracking();
+        break;
+      }
     }
 
     const durationMs = end();
@@ -211,6 +219,7 @@ const JOB_SEQUENCE: Array<Exclude<CronJobName, "all">> = [
   "check-alerts",
   "check-sla",
   "sync-tracking",
+  "sync-return-tracking",
   "sync-campaigns",
   "sync-catalog",
   "compute-rfm",

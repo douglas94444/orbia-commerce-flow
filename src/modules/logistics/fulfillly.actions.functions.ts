@@ -60,7 +60,13 @@ import { predictStockRupture } from "./wms/stock-rupture.server";
 import {
   listDeliveryIncidents,
   buildIncidentHeatMap,
+  resolveDeliveryIncident,
 } from "./shipping/delivery-incidents.server";
+import {
+  listTrackingQueue,
+  getOrderTrackingTimeline,
+  getTrackingStats,
+} from "./shipping/tracking-timeline.server";
 import {
   generateLabelsForWave,
   buildDispatchManifest,
@@ -452,6 +458,30 @@ export const getDeliveryIncidentsFn = createServerFn({ method: "GET" })
     const incidents = await listDeliveryIncidents(clientId);
     return { incidents, heatMap: buildIncidentHeatMap(incidents) };
   });
+
+export const resolveDeliveryIncidentFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ incidentId: z.string().uuid() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data }) => {
+    await resolveDeliveryIncident(data.incidentId);
+    return { ok: true };
+  });
+
+export const listTrackingQueueFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    const [queue, stats] = await Promise.all([
+      listTrackingQueue(clientId),
+      getTrackingStats(clientId),
+    ]);
+    return { queue, stats };
+  });
+
+export const getOrderTrackingTimelineFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ orderId: z.string().uuid() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data }) => getOrderTrackingTimeline(data.orderId));
 
 export const generateWaveLabelsFn = createServerFn({ method: "POST" })
   .inputValidator(z.object({ waveId: z.string().uuid() }))
