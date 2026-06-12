@@ -72,7 +72,10 @@ export interface Campaign {
   platform: 'Meta Ads' | 'Google Ads'
   spend: number
   revenue: number
+  attributedRevenue: number
   roas: number
+  attributedRoas: number
+  revenueDivergencePct: number
   status: 'ativa' | 'atencao' | 'pausada'
 }
 

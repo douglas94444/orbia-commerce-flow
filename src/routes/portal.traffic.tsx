@@ -35,7 +35,7 @@ function PortalTrafficPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-[10px] uppercase text-muted-foreground">
-                  {['Campanha', 'Plataforma', 'Investido', 'ROAS', 'Status'].map((h) => (
+                  {['Campanha', 'Plataforma', 'Investido', 'ROAS pedidos', 'Status'].map((h) => (
                     <th key={h} className="pb-2">{h}</th>
                   ))}
                 </tr>
@@ -46,7 +46,7 @@ function PortalTrafficPage() {
                     <td className="py-2 font-medium">{c.name}</td>
                     <td className="py-2 text-muted-foreground">{c.platform}</td>
                     <td className="py-2 font-mono">{formatBRL(c.spend, true)}</td>
-                    <td className="py-2 font-mono font-semibold">{c.roas.toFixed(1)}x</td>
+                    <td className="py-2 font-mono font-semibold">{c.attributedRoas.toFixed(1)}x</td>
                     <td className="py-2">
                       <StatusPill label={CAMPAIGN_LABEL[c.status]} tone={CAMPAIGN_TONE[c.status]} dot />
                     </td>

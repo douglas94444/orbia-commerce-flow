@@ -59,6 +59,14 @@ onDomainEvent("order.delivered", async (payload) => {
   const clientId = String(payload.clientId ?? "");
   if (!orderId) return;
   await onOrderDelivered(orderId);
+  try {
+    const { attributeDeliveredOrder } = await import(
+      "@/modules/traffic/order-attribution.server"
+    );
+    await attributeDeliveredOrder(orderId);
+  } catch (err) {
+    console.error("[traffic] order.delivered attribution:", err);
+  }
   if (clientId) {
     await recalculateClientMetrics(clientId);
     await notifyCsOnOrderDelivered(orderId, clientId);

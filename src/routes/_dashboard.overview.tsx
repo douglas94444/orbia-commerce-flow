@@ -38,7 +38,7 @@ function OverviewPage() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 xl:grid-cols-8">
         <KpiCard
           label="MRR atual"
           value={loading || loadingMrr ? '—' : formatBRL(mrr, true)}
@@ -73,6 +73,43 @@ function OverviewPage() {
           hint="Autorizadas nos últimos 30 dias"
           icon={FileCheck2}
           accent="success"
+        />
+        <KpiCard
+          label="SLA logística"
+          value={
+            loadingAnalytics
+              ? '—'
+              : `${analytics?.logistics.slaCompliancePercent ?? 100}%`
+          }
+          hint="Cumprimento real de despacho"
+          icon={Truck}
+          accent="primary"
+        />
+        <KpiCard
+          label="Picking"
+          value={
+            loadingAnalytics
+              ? '—'
+              : `${analytics?.logistics.pickingAccuracyPercent ?? 100}%`
+          }
+          hint="Acurácia operacional"
+          icon={Gauge}
+          accent="accent"
+        />
+        <KpiCard
+          label="Fulfillment mês"
+          value={
+            loadingAnalytics
+              ? '—'
+              : String(analytics?.logistics.fulfillmentOrdersMonth ?? 0)
+          }
+          hint={
+            isStaff
+              ? `Incidentes médio ${analytics?.logistics.incidentRatePercent ?? 0}%`
+              : 'Pedidos processados'
+          }
+          icon={HeartPulse}
+          accent="warning"
         />
       </div>
 

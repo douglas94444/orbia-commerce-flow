@@ -18,6 +18,14 @@ export interface LtvCohortRow {
   avgLtv: number;
 }
 
+export interface PortfolioLogisticsMetrics {
+  slaCompliancePercent: number;
+  pickingAccuracyPercent: number;
+  incidentRatePercent: number;
+  avgShippingCostCents: number;
+  fulfillmentOrdersMonth: number;
+}
+
 export interface PortfolioAnalytics {
   gmv30d: number;
   avgRoas: number;
@@ -29,6 +37,7 @@ export interface PortfolioAnalytics {
   channelRoas: Array<{ channel: string; roas: number }>;
   cohortRetention: CohortRow[];
   ltvByCohort: LtvCohortRow[];
+  logistics: PortfolioLogisticsMetrics;
 }
 
 export const getPortfolioAnalytics = createServerFn({ method: "GET" })
@@ -74,8 +83,39 @@ export const getPortfolioAnalytics = createServerFn({ method: "GET" })
             ) / 10
           : 0;
 
-    const delivered = orders.filter((o) => o.status === "entregue").length;
-    const slaPercent = orders.length > 0 ? Math.round((delivered / orders.length) * 1000) / 10 : 0;
+    const { data: profile } = await context.supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", context.userId)
+      .single();
+    const isStaff =
+      profile && ["orbia_admin", "orbia_staff"].includes(profile.role as string);
+
+    const { data: membership } = await context.supabase
+      .from("client_members")
+      .select("client_id")
+      .eq("user_id", context.userId)
+      .eq("status", "active")
+      .maybeSingle();
+
+    const {
+      getClientLogisticsSnapshot,
+      getPortfolioLogisticsSnapshot,
+    } = await import("./logistics-snapshot.server");
+
+    const logistics = isStaff
+      ? await getPortfolioLogisticsSnapshot()
+      : membership?.client_id
+        ? await getClientLogisticsSnapshot(membership.client_id as string)
+        : {
+            slaCompliancePercent: 100,
+            pickingAccuracyPercent: 100,
+            incidentRatePercent: 0,
+            avgShippingCostCents: 0,
+            fulfillmentOrdersMonth: 0,
+          };
+
+    const slaPercent = logistics.slaCompliancePercent;
 
     const gmvByDay = new Map<string, number>();
     for (let i = 29; i >= 0; i--) {
@@ -140,6 +180,7 @@ export const getPortfolioAnalytics = createServerFn({ method: "GET" })
       channelRoas,
       cohortRetention,
       ltvByCohort,
+      logistics,
     };
   });
 

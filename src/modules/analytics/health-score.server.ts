@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { getSlaDashboard } from "@/modules/logistics/sla/sla-engine.server";
 import { refreshOperationAlerts } from "./alert-engine.server";
 
 function clampScore(value: number): number {
@@ -9,7 +10,7 @@ export async function computeHealthScore(clientId: string): Promise<number> {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const [clientRes, ordersRes, customersRes, flowsRes] = await Promise.all([
+  const [clientRes, ordersRes, customersRes, flowsRes, slaDash] = await Promise.all([
     supabaseAdmin.from("clients").select("roas_avg, last_contact_days").eq("id", clientId).single(),
     supabaseAdmin
       .from("orders")
@@ -18,6 +19,7 @@ export async function computeHealthScore(clientId: string): Promise<number> {
       .gte("created_at", thirtyDaysAgo.toISOString()),
     supabaseAdmin.from("customers").select("ltv_cents").eq("client_id", clientId),
     supabaseAdmin.from("automation_flows").select("sent_30d").eq("client_id", clientId),
+    getSlaDashboard(clientId),
   ]);
 
   const client = clientRes.data;
@@ -28,9 +30,7 @@ export async function computeHealthScore(clientId: string): Promise<number> {
   const roas = Number(client?.roas_avg ?? 0);
   const roasScore = roas >= 6 ? 100 : roas >= 4 ? 70 : roas > 0 ? 40 : 50;
 
-  const totalOrders = orders.length;
-  const delivered = orders.filter((o) => o.status === "entregue").length;
-  const slaScore = totalOrders > 0 ? clampScore((delivered / totalOrders) * 100) : 75;
+  const slaScore = clampScore(slaDash.compliancePercent);
 
   const gmvCents = orders
     .filter((o) => o.status !== "cancelado")

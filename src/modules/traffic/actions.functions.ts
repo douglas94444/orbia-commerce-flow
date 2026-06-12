@@ -20,7 +20,9 @@ export const listCampaigns = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<Campaign[]> => {
     const { data, error } = await context.supabase
       .from("campaigns")
-      .select("id, name, platform, status, spend_cents, revenue_cents, roas, clients(name)")
+      .select(
+        "id, name, platform, status, spend_cents, revenue_cents, attributed_revenue_cents, roas, clients(name)",
+      )
       .order("roas", { ascending: false });
 
     if (error) throw new Error(error.message);
@@ -33,18 +35,35 @@ export const listCampaigns = createServerFn({ method: "GET" })
         status: string;
         spend_cents: number;
         revenue_cents: number;
+        attributed_revenue_cents: number;
         roas: number;
         clients: { name: string } | null;
-      }): Campaign => ({
-        id: row.id,
-        name: row.name,
-        client: row.clients?.name ?? "—",
-        platform: PLATFORM_LABEL[row.platform] ?? "Meta Ads",
-        status: row.status as Campaign["status"],
-        spend: Math.round(row.spend_cents / 100),
-        revenue: Math.round(row.revenue_cents / 100),
-        roas: Number(row.roas),
-      }),
+      }): Campaign => {
+        const spend = row.spend_cents;
+        const platformRevenue = row.revenue_cents;
+        const attributedRevenue = row.attributed_revenue_cents ?? 0;
+        const attributedRoas = spend > 0 ? Number((attributedRevenue / spend).toFixed(2)) : 0;
+        const revenueDivergencePct =
+          platformRevenue > 0
+            ? Math.round(
+                (Math.abs(attributedRevenue - platformRevenue) / platformRevenue) * 1000,
+              ) / 10
+            : 0;
+
+        return {
+          id: row.id,
+          name: row.name,
+          client: row.clients?.name ?? "—",
+          platform: PLATFORM_LABEL[row.platform] ?? "Meta Ads",
+          status: row.status as Campaign["status"],
+          spend: Math.round(spend / 100),
+          revenue: Math.round(platformRevenue / 100),
+          attributedRevenue: Math.round(attributedRevenue / 100),
+          roas: Number(row.roas),
+          attributedRoas,
+          revenueDivergencePct,
+        };
+      },
     );
   });
 
@@ -52,10 +71,13 @@ export const listCampaigns = createServerFn({ method: "GET" })
 
 export interface TrafficStats {
   avgRoas: number;
+  avgAttributedRoas: number;
   totalSpend: number; // in BRL
   totalRevenue: number; // in BRL
+  totalAttributedRevenue: number; // in BRL
   campaignCount: number;
   atRisk: number; // ROAS < 4
+  highDivergence: number;
 }
 
 export const getTrafficStats = createServerFn({ method: "GET" })
@@ -63,7 +85,7 @@ export const getTrafficStats = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<TrafficStats> => {
     const { data } = await context.supabase
       .from("campaigns")
-      .select("spend_cents, revenue_cents, roas, status");
+      .select("spend_cents, revenue_cents, attributed_revenue_cents, roas, status");
 
     const rows = data ?? [];
     const total = rows.length;
@@ -73,6 +95,13 @@ export const getTrafficStats = createServerFn({ method: "GET" })
     const totalRevenue = Math.round(
       rows.reduce((s: number, r: { revenue_cents: number }) => s + r.revenue_cents, 0) / 100,
     );
+    const totalAttributedRevenue = Math.round(
+      rows.reduce(
+        (s: number, r: { attributed_revenue_cents?: number }) =>
+          s + (r.attributed_revenue_cents ?? 0),
+        0,
+      ) / 100,
+    );
     const avgRoas =
       total > 0
         ? Number(
@@ -81,9 +110,37 @@ export const getTrafficStats = createServerFn({ method: "GET" })
             ).toFixed(1),
           )
         : 0;
+    const totalSpendCents = rows.reduce(
+      (s: number, r: { spend_cents: number }) => s + r.spend_cents,
+      0,
+    );
+    const totalAttributedCents = rows.reduce(
+      (s: number, r: { attributed_revenue_cents?: number }) =>
+        s + (r.attributed_revenue_cents ?? 0),
+      0,
+    );
+    const avgAttributedRoas =
+      totalSpendCents > 0
+        ? Number((totalAttributedCents / totalSpendCents).toFixed(1))
+        : 0;
     const atRisk = rows.filter((r: { roas: number }) => Number(r.roas) < 4).length;
+    const highDivergence = rows.filter((r: { revenue_cents: number; attributed_revenue_cents?: number }) => {
+      const platform = r.revenue_cents;
+      const attributed = r.attributed_revenue_cents ?? 0;
+      if (platform <= 0 || attributed <= 0) return false;
+      return Math.abs(attributed - platform) / platform > 0.2;
+    }).length;
 
-    return { avgRoas, totalSpend, totalRevenue, campaignCount: total, atRisk };
+    return {
+      avgRoas,
+      avgAttributedRoas,
+      totalSpend,
+      totalRevenue,
+      totalAttributedRevenue,
+      campaignCount: total,
+      atRisk,
+      highDivergence,
+    };
   });
 
 // ─── syncMetaCampaigns ────────────────────────────────────────

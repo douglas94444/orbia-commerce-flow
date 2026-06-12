@@ -338,6 +338,12 @@ export async function upsertOrderFromWebhook(
     if (order.shipping.postalCode) metadata.postal_code = order.shipping.postalCode;
   }
 
+  const { extractAttributionSignals, buildAttributionMeta } = await import(
+    "@/modules/traffic/order-attribution.server"
+  );
+  const attributionSignals = extractAttributionSignals(order.raw, metadata);
+  metadata.attribution = buildAttributionMeta(attributionSignals);
+
   const { data: existing } = await supabaseAdmin
     .from("orders")
     .select("id, status, nf_status, metadata, channel")
@@ -397,6 +403,11 @@ export async function upsertOrderFromWebhook(
 
   await upsertOrderItems(data.id, order.items, clientId);
   await recordFulfillmentUsage(clientId, "orders_processed");
+
+  const { captureAttributionOnIngest } = await import(
+    "@/modules/traffic/order-attribution.server"
+  );
+  await captureAttributionOnIngest(clientId, data.id, order).catch(() => undefined);
 
   await logAudit({
     user_id: "system",

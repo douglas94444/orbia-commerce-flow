@@ -77,6 +77,7 @@ export default {
         "sync-campaigns",
         "retention-crons",
         "attribute-conversions",
+        "attribute-traffic-conversions",
         "forecast-volume",
         "check-stock-alerts",
         "schedule-pickup",

@@ -46,17 +46,24 @@ function TrafficPage() {
           accent="accent"
         />
         <KpiCard
-          label="Receita atribuída"
+          label="Receita plataforma"
           value={loading ? '—' : stats && stats.totalRevenue > 0 ? formatBRL(stats.totalRevenue, true) : '—'}
+          hint="Pixel Meta/Google"
           icon={TrendingUp}
           accent="success"
         />
         <KpiCard
-          label="Threshold crítico"
-          value="4,0x"
-          hint="Alerta automático abaixo disso"
+          label="Receita pedidos"
+          value={
+            loading
+              ? '—'
+              : stats && stats.totalAttributedRevenue > 0
+                ? formatBRL(stats.totalAttributedRevenue, true)
+                : '—'
+          }
+          hint={`ROAS pedidos ${stats?.avgAttributedRoas?.toFixed(1) ?? '—'}x`}
           icon={Target}
-          accent="warning"
+          accent="primary"
         />
       </div>
 
@@ -107,8 +114,8 @@ function TrafficPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border text-left">
-                  {['Campanha','Plataforma','Investido','Receita','ROAS','Status'].map((h, i) => (
-                    <th key={h} className={`pb-3 text-[10px] font-medium uppercase tracking-wider text-muted-foreground${i >= 2 && i <= 4 ? ' text-right' : ''}`}>{h}</th>
+                  {['Campanha','Plataforma','Investido','Rec. plataforma','Rec. pedidos','ROAS','Status'].map((h, i) => (
+                    <th key={h} className={`pb-3 text-[10px] font-medium uppercase tracking-wider text-muted-foreground${i >= 2 && i <= 5 ? ' text-right' : ''}`}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -122,11 +129,18 @@ function TrafficPage() {
                     <td className="py-3 text-sm text-muted-foreground">{c.platform}</td>
                     <td className="py-3 text-right font-mono text-sm text-foreground">{formatBRL(c.spend, true)}</td>
                     <td className="py-3 text-right font-mono text-sm text-foreground">{formatBRL(c.revenue, true)}</td>
+                    <td className="py-3 text-right font-mono text-sm text-foreground">
+                      <span>{formatBRL(c.attributedRevenue, true)}</span>
+                      {c.revenueDivergencePct > 20 && (
+                        <span className="ml-1 text-[10px] text-warning">±{c.revenueDivergencePct}%</span>
+                      )}
+                    </td>
                     <td
                       className="py-3 text-right font-mono text-sm font-semibold"
-                      style={{ color: c.roas < 4 ? 'var(--destructive)' : c.roas < 6 ? 'var(--warning)' : 'var(--success)' }}
+                      style={{ color: c.attributedRoas < 4 ? 'var(--destructive)' : c.attributedRoas < 6 ? 'var(--warning)' : 'var(--success)' }}
+                      title={`Plataforma: ${c.roas.toFixed(1)}x`}
                     >
-                      {c.roas.toFixed(1)}x
+                      {c.attributedRoas.toFixed(1)}x
                     </td>
                     <td className="py-3">
                       <StatusPill label={CAMPAIGN_LABEL[c.status]} tone={CAMPAIGN_TONE[c.status]} dot />

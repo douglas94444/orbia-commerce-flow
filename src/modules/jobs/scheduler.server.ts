@@ -45,6 +45,7 @@ export type CronJobName =
   | "check-marketplace-penalties"
   | "sla-monthly-report"
   | "charge-fulfillment-overage"
+  | "attribute-traffic-conversions"
   | "all";
 
 export interface JobResult {
@@ -204,6 +205,13 @@ async function runJob(name: Exclude<CronJobName, "all">): Promise<JobResult> {
         metadata = await runFulfillmentOverageJob();
         break;
       }
+      case "attribute-traffic-conversions": {
+        const { attributeTrafficConversionsBatch } = await import(
+          "@/modules/traffic/order-attribution.server"
+        );
+        metadata = await attributeTrafficConversionsBatch();
+        break;
+      }
     }
 
     const durationMs = end();
@@ -250,6 +258,7 @@ const JOB_SEQUENCE: Array<Exclude<CronJobName, "all">> = [
   "check-stock-alerts",
   "schedule-pickup",
   "charge-fulfillment-overage",
+  "attribute-traffic-conversions",
   "cleanup-oauth",
 ];
 

@@ -25,6 +25,7 @@ const VALID_JOBS = new Set<CronJobName>([
   "check-marketplace-penalties",
   "sla-monthly-report",
   "charge-fulfillment-overage",
+  "attribute-traffic-conversions",
   "all",
 ]);
 

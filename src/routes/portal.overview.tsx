@@ -59,6 +59,13 @@ function PortalOverviewPage() {
             accent="accent"
           />
           <KpiCard
+            label="SLA despacho"
+            value={logistics ? `${logistics.slaPercent}%` : '—'}
+            hint={logistics && logistics.criticalSkus > 0 ? `${logistics.criticalSkus} SKUs críticos` : undefined}
+            icon={Truck}
+            accent="primary"
+          />
+          <KpiCard
             label="Health score"
             value={isLoading ? '—' : client ? `${client.healthScore}/100` : '—'}
             icon={HeartPulse}
