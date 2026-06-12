@@ -36,6 +36,51 @@ async function refundPagarMe(chargeId: string, amountCents: number): Promise<Ref
   };
 }
 
+async function refundShopify(
+  shop: string,
+  token: string,
+  orderExternalId: string,
+  amountCents: number,
+): Promise<RefundResult> {
+  const res = await fetch(
+    `https://${shop}/admin/api/2024-01/orders/${orderExternalId}/refunds.json`,
+    {
+      method: "POST",
+      headers: {
+        "X-Shopify-Access-Token": token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        refund: {
+          notify: true,
+          shipping: { full_refund: false },
+          refund_line_items: [],
+          transactions: [
+            {
+              parent_id: orderExternalId,
+              amount: (amountCents / 100).toFixed(2),
+              kind: "refund",
+              gateway: "shopify_payments",
+            },
+          ],
+        },
+      }),
+    },
+  );
+
+  const body = (await res.json()) as Record<string, unknown>;
+  if (!res.ok) {
+    throw new Error(String((body.errors as string) ?? `Shopify refund failed: ${res.status}`));
+  }
+
+  const refund = body.refund as Record<string, unknown> | undefined;
+  return {
+    provider: "shopify",
+    providerTxId: String(refund?.id ?? orderExternalId),
+    usedGateway: true,
+  };
+}
+
 async function refundMercadoPago(paymentId: string, amountCents: number): Promise<RefundResult> {
   const { mercadoPago } = getServerConfig();
   if (!mercadoPago.accessToken) {
@@ -70,7 +115,7 @@ export async function refundOrderPayment(
 ): Promise<RefundResult> {
   const { data: order } = await supabaseAdmin
     .from("orders")
-    .select("metadata")
+    .select("metadata, channel, external_id")
     .eq("id", orderId)
     .eq("client_id", clientId)
     .maybeSingle();
@@ -88,6 +133,37 @@ export async function refundOrderPayment(
   }
 
   try {
+    if (
+      paymentProvider === "shopify" ||
+      (order.channel as string) === "shopify"
+    ) {
+      const { data: conn } = await supabaseAdmin
+        .from("oauth_connections")
+        .select("access_token, external_account")
+        .eq("client_id", clientId)
+        .eq("provider", "shopify")
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (conn?.access_token) {
+        const { decryptToken } = await import("@/lib/crypto.server");
+        const result = await refundShopify(
+          conn.external_account as string,
+          decryptToken(conn.access_token),
+          order.external_id as string,
+          amountCents,
+        );
+        await logIntegration({
+          client_id: clientId,
+          provider: "shopify",
+          operation: "refund",
+          status: "success",
+          request_data: { orderId, amountCents },
+        });
+        return result;
+      }
+    }
+
     if (paymentProvider === "pagar_me" || paymentId.startsWith("ch_")) {
       const result = await refundPagarMe(paymentId, amountCents);
       await logIntegration({

@@ -14,7 +14,8 @@ import type { PackingSessionStart } from "@/modules/logistics/packing/packing.se
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BarcodeScanner } from "@/modules/logistics/ops-pwa/barcode-scanner";
-import { Check, CheckCircle2, Loader2, Package, Tag } from "lucide-react";
+import { printLabelViaWebUsb } from "@/modules/logistics/ops-pwa/use-thermal-printer";
+import { Check, CheckCircle2, Loader2, Package, Printer, Tag } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 
 export const Route = createFileRoute("/ops/packing")({
@@ -315,14 +316,24 @@ function OpsPackingPage() {
           </Button>
 
           {labelUrl && (
-            <a
-              href={labelUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="block text-center text-xs text-primary underline"
-            >
-              Reabrir etiqueta
-            </a>
+            <div className="flex flex-col gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void printLabelViaWebUsb(labelUrl)}
+              >
+                <Printer className="mr-2 size-4" />
+                Imprimir (WebUSB)
+              </Button>
+              <a
+                href={labelUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="block text-center text-xs text-primary underline"
+              >
+                Reabrir etiqueta no navegador
+              </a>
+            </div>
           )}
 
           <Button

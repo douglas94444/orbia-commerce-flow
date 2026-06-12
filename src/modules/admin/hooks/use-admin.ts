@@ -14,6 +14,7 @@ import {
 import {
   getClientLogisticsReportFn,
   exportClientLogisticsQbrFn,
+  exportClientLogisticsQbrHtmlFn,
   getClientSlaRulesFn,
   upsertClientSlaRuleFn,
   getPackingProfileFn,
@@ -135,6 +136,13 @@ export function useClientLogisticsReport(clientId: string) {
 export function useExportClientLogisticsQbr(clientId: string) {
   return useMutation({
     mutationFn: () => exportClientLogisticsQbrFn({ data: { clientId } }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useExportClientLogisticsQbrHtml(clientId: string) {
+  return useMutation({
+    mutationFn: () => exportClientLogisticsQbrHtmlFn({ data: { clientId } }),
     onError: (e: Error) => toast.error(e.message),
   });
 }

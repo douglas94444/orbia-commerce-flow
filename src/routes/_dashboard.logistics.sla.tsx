@@ -11,8 +11,12 @@ import {
   useExportSlaReportCsv,
   useSlaMonthlyReport,
   useUpsertChannelSlaRule,
+  useMarketplacePenalties,
+  useSendSlaMonthlyReportEmail,
+  useExportSlaMonthlyReportHtml,
 } from "@/modules/logistics/hooks/use-fulfillly";
-import { Clock, AlertTriangle, CheckCircle, Download, ArrowLeft } from "lucide-react";
+import { formatBRL } from "@/shared/lib/format";
+import { Clock, AlertTriangle, CheckCircle, Download, ArrowLeft, Mail, FileText } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_dashboard/logistics/sla")({
@@ -39,6 +43,9 @@ function SlaPage() {
   const { data: monthlyReport, isLoading: loadingReport } = useSlaMonthlyReport(reportMonth);
   const { data: orders = [], isLoading: loadingOrders } = useSlaOrders(bucket);
   const exportReport = useExportSlaReportCsv();
+  const sendSlaEmail = useSendSlaMonthlyReportEmail();
+  const exportSlaHtml = useExportSlaMonthlyReportHtml();
+  const { data: penalties = [], isLoading: loadingPenalties } = useMarketplacePenalties();
   const upsertRule = useUpsertChannelSlaRule();
 
   const rules = data?.rules ?? [];
@@ -185,12 +192,41 @@ function SlaPage() {
       <Panel
         title={`Relatório SLA mensal — ${monthlyReport?.month ?? reportMonth}`}
         action={
-          <Input
-            type="month"
-            className="w-40"
-            value={reportMonth}
-            onChange={(e) => setReportMonth(e.target.value)}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              type="month"
+              className="w-40"
+              value={reportMonth}
+              onChange={(e) => setReportMonth(e.target.value)}
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={sendSlaEmail.isPending}
+              onClick={() => sendSlaEmail.mutate(reportMonth)}
+            >
+              <Mail className="mr-1 size-4" />
+              E-mail
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={exportSlaHtml.isPending}
+              onClick={() =>
+                exportSlaHtml.mutate(reportMonth, {
+                  onSuccess: ({ html }) => {
+                    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+                    const url = URL.createObjectURL(blob);
+                    window.open(url, "_blank");
+                    toast.success("Abra o relatório e salve como PDF");
+                  },
+                })
+              }
+            >
+              <FileText className="mr-1 size-4" />
+              PDF/HTML
+            </Button>
+          </div>
         }
       >
         {loadingReport ? (
@@ -229,6 +265,41 @@ function SlaPage() {
                 )}
               </div>
             ))}
+          </div>
+        )}
+      </Panel>
+
+      <Panel title="Penalidades marketplace (90 dias)">
+        {loadingPenalties ? (
+          <p className="text-sm text-muted-foreground">Carregando...</p>
+        ) : penalties.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhuma penalidade registrada.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-[10px] uppercase text-muted-foreground">
+                  {["Data", "Canal", "Tipo", "Valor", "Descrição"].map((h) => (
+                    <th key={h} className="pb-2 pr-4">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {penalties.map((p) => (
+                  <tr key={p.id}>
+                    <td className="py-2 pr-4 font-mono text-xs">
+                      {new Date(p.createdAt).toLocaleDateString("pt-BR")}
+                    </td>
+                    <td className="py-2 pr-4 capitalize">{p.channel}</td>
+                    <td className="py-2 pr-4">{p.penaltyType}</td>
+                    <td className="py-2 pr-4 font-mono">{formatBRL(p.amountCents / 100)}</td>
+                    <td className="py-2 text-muted-foreground">{p.description ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </Panel>

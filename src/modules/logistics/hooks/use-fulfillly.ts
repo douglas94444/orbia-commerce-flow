@@ -20,6 +20,12 @@ import {
   listSlaOrdersFn,
   exportSlaReportCsvFn,
   getSlaMonthlyReportFn,
+  sendSlaMonthlyReportEmailFn,
+  exportSlaMonthlyReportHtmlFn,
+  listMarketplacePenaltiesFn,
+  listProductLotsFn,
+  upsertProductLotFn,
+  deleteProductLotFn,
   upsertChannelSlaRuleFn,
   generatePackingLabelFn,
   listCarrierPickupsFn,
@@ -134,6 +140,65 @@ export function useSlaMonthlyReport(month?: string) {
   return useQuery({
     queryKey: ["sla-monthly-report", month ?? "current"],
     queryFn: () => getSlaMonthlyReportFn({ data: month ? { month } : {} }),
+  });
+}
+
+export function useMarketplacePenalties() {
+  return useQuery({
+    queryKey: ["marketplace-penalties"],
+    queryFn: () => listMarketplacePenaltiesFn(),
+    staleTime: 60_000,
+  });
+}
+
+export function useSendSlaMonthlyReportEmail() {
+  return useMutation({
+    mutationFn: (month?: string) =>
+      sendSlaMonthlyReportEmailFn({ data: month ? { month } : {} }),
+    onSuccess: () => toast.success("Relatório SLA enviado por e-mail"),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useExportSlaMonthlyReportHtml() {
+  return useMutation({
+    mutationFn: (month?: string) =>
+      exportSlaMonthlyReportHtmlFn({ data: month ? { month } : {} }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useProductLots() {
+  return useQuery({
+    queryKey: ["product-lots"],
+    queryFn: () => listProductLotsFn(),
+  });
+}
+
+export function useUpsertProductLot() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { sku: string; lotCode: string; expiresAt?: string | null }) =>
+      upsertProductLotFn({ data: input }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["product-lots"] });
+      qc.invalidateQueries({ queryKey: ["expiring-lots"] });
+      toast.success("Lote salvo");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useDeleteProductLot() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (lotId: string) => deleteProductLotFn({ data: { lotId } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["product-lots"] });
+      qc.invalidateQueries({ queryKey: ["expiring-lots"] });
+      toast.success("Lote removido");
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 }
 
@@ -656,6 +721,7 @@ export function useUpsertWarehouseLocation() {
       level?: string;
       binCode: string;
       routeOrder?: number;
+      warehouseId?: string | null;
       id?: string;
     }) => upsertWarehouseLocationFn({ data: input }),
     onSuccess: () => {

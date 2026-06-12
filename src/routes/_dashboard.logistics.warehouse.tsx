@@ -9,10 +9,14 @@ import {
   useExpiringLots,
   useWarehouses,
   useUpsertWarehouse,
+  useProductLots,
+  useUpsertProductLot,
+  useDeleteProductLot,
 } from "@/modules/logistics/hooks/use-fulfillly";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
+import { Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/_dashboard/logistics/warehouse")({
   head: () => ({ meta: [{ title: "Armazém — Fulfillly" }] }),
@@ -29,8 +33,15 @@ function WarehousePage() {
   const upsertLocation = useUpsertWarehouseLocation();
   const { data: warehouses = [] } = useWarehouses();
   const upsertWarehouse = useUpsertWarehouse();
+  const { data: allLots = [] } = useProductLots();
+  const upsertLot = useUpsertProductLot();
+  const deleteLot = useDeleteProductLot();
   const [whName, setWhName] = useState("");
   const [whCode, setWhCode] = useState("");
+  const [lotSku, setLotSku] = useState("");
+  const [lotCode, setLotCode] = useState("");
+  const [lotExpires, setLotExpires] = useState("");
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>("");
   const [sku, setSku] = useState("");
   const [delta, setDelta] = useState(0);
   const [reason, setReason] = useState("");
@@ -85,6 +96,23 @@ function WarehousePage() {
 
       <Panel title="Nova posição">
         <div className="grid gap-3 sm:grid-cols-3">
+          {warehouses.length > 0 && (
+            <div className="sm:col-span-3">
+              <label className="mb-1 block text-xs text-muted-foreground">Galpão</label>
+              <select
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                value={selectedWarehouseId}
+                onChange={(e) => setSelectedWarehouseId(e.target.value)}
+              >
+                <option value="">Sem galpão vinculado</option>
+                {warehouses.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.code} — {w.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <Input placeholder="Corredor" value={locForm.aisle} onChange={(e) => setLocForm({ ...locForm, aisle: e.target.value })} />
           <Input placeholder="Prateleira" value={locForm.shelf} onChange={(e) => setLocForm({ ...locForm, shelf: e.target.value })} />
           <Input placeholder="Nível" value={locForm.level} onChange={(e) => setLocForm({ ...locForm, level: e.target.value })} />
@@ -98,6 +126,7 @@ function WarehousePage() {
                 level: locForm.level,
                 binCode: locForm.binCode,
                 routeOrder: Number(locForm.routeOrder),
+                warehouseId: selectedWarehouseId || null,
               })
             }
             disabled={!locForm.binCode || !locForm.aisle}
@@ -122,6 +151,7 @@ function WarehousePage() {
                   <th className="pb-2">Prateleira</th>
                   <th className="pb-2">Nível</th>
                   <th className="pb-2">Rota</th>
+                  <th className="pb-2">Galpão</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -132,6 +162,9 @@ function WarehousePage() {
                     <td className="py-2">{l.shelf}</td>
                     <td className="py-2">{l.level}</td>
                     <td className="py-2 font-mono">{l.routeOrder}</td>
+                    <td className="py-2 font-mono text-xs">
+                      {warehouses.find((w) => w.id === l.warehouseId)?.code ?? "—"}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -163,6 +196,65 @@ function WarehousePage() {
                     <td className="py-1 font-mono">{row.qty}</td>
                     <td className="py-1">{row.lotCode ?? "—"}</td>
                     <td className="py-1">{row.expiresAt ? new Date(row.expiresAt).toLocaleDateString() : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+
+      <Panel title="Gestão de lotes">
+        <div className="mb-4 grid gap-3 sm:grid-cols-4">
+          <Input placeholder="SKU" value={lotSku} onChange={(e) => setLotSku(e.target.value)} />
+          <Input placeholder="Código do lote" value={lotCode} onChange={(e) => setLotCode(e.target.value)} />
+          <Input type="date" value={lotExpires} onChange={(e) => setLotExpires(e.target.value)} />
+          <Button
+            disabled={!lotSku || !lotCode || upsertLot.isPending}
+            onClick={() =>
+              upsertLot.mutate({
+                sku: lotSku,
+                lotCode,
+                expiresAt: lotExpires || null,
+              })
+            }
+          >
+            Salvar lote
+          </Button>
+        </div>
+        {allLots.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhum lote cadastrado.</p>
+        ) : (
+          <div className="overflow-x-auto text-sm">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border text-left text-xs uppercase text-muted-foreground">
+                  <th className="pb-2">SKU</th>
+                  <th className="pb-2">Lote</th>
+                  <th className="pb-2">Validade</th>
+                  <th className="pb-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {allLots.map((lot) => (
+                  <tr key={lot.id} className="border-b border-border/50">
+                    <td className="py-1 font-mono">{lot.sku}</td>
+                    <td className="py-1">{lot.lotCode}</td>
+                    <td className="py-1">
+                      {lot.expiresAt
+                        ? new Date(lot.expiresAt).toLocaleDateString("pt-BR")
+                        : "—"}
+                    </td>
+                    <td className="py-1 text-right">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => deleteLot.mutate(lot.id)}
+                        disabled={deleteLot.isPending}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -40,7 +40,7 @@ function CarriersPage() {
       <PageIntro
         eyebrow="Fulfillly"
         title="Transportadoras"
-        description="Prioridade e seleção automática por lojista. Correios, Jadlog e demais carriers são cotados via Melhor Envio (proxy) — configure ME como provedor principal."
+        description="Prioridade e seleção automática por lojista. Modelo oficial: Melhor Envio como proxy único para Correios, Jadlog e demais carriers (ver CARRIERS.md)."
         action={<Truck className="size-5 text-primary" />}
       />
 
@@ -151,6 +151,14 @@ function CarriersPage() {
             </table>
           </div>
         )}
+      </Panel>
+
+      <Panel title="Decisão de produto — ME-only">
+        <p className="text-sm text-muted-foreground">
+          Integrações diretas com Correios, Jadlog, J&T, Total Express, Latam e Azul permanecem como
+          stubs. Em produção, todas as cotações e etiquetas passam pelo Melhor Envio quando ativo.
+          Integração direta com um carrier só entra no roadmap se o lojista exigir fora do ME.
+        </p>
       </Panel>
     </div>
   );

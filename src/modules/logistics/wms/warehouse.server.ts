@@ -7,12 +7,13 @@ export interface WarehouseLocation {
   level: string;
   binCode: string;
   routeOrder: number;
+  warehouseId: string | null;
 }
 
 export async function listWarehouseLocations(clientId: string): Promise<WarehouseLocation[]> {
   const { data, error } = await supabaseAdmin
     .from("warehouse_locations")
-    .select("id, aisle, shelf, level, bin_code, route_order")
+    .select("id, aisle, shelf, level, bin_code, route_order, warehouse_id")
     .eq("client_id", clientId)
     .eq("is_active", true)
     .order("route_order");
@@ -26,6 +27,7 @@ export async function listWarehouseLocations(clientId: string): Promise<Warehous
     level: String(r.level),
     binCode: String(r.bin_code),
     routeOrder: Number(r.route_order),
+    warehouseId: r.warehouse_id ? String(r.warehouse_id) : null,
   }));
 }
 
@@ -214,6 +216,7 @@ export async function upsertWarehouseLocation(
         level: input.level,
         bin_code: input.binCode,
         route_order: input.routeOrder,
+        warehouse_id: input.warehouseId ?? null,
       },
       { onConflict: "client_id,bin_code" },
     )

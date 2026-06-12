@@ -16,7 +16,12 @@ import {
   listStockAlertSkus,
   listProductVariations,
 } from "./wms/warehouse.server";
-import { listExpiringLots } from "./wms/product-lots.server";
+import {
+  listExpiringLots,
+  listProductLots,
+  upsertProductLot,
+  deleteProductLot,
+} from "./wms/product-lots.server";
 import {
   listQuarantineItems,
   releaseQuarantineItem,
@@ -178,6 +183,7 @@ const locationSchema = z.object({
   level: z.string().default("1"),
   binCode: z.string(),
   routeOrder: z.number().default(0),
+  warehouseId: z.string().uuid().nullable().optional(),
   id: z.string().uuid().optional(),
 });
 
@@ -1030,6 +1036,86 @@ export const exportClientLogisticsQbrFn = createServerFn({ method: "POST" })
     await requireStaff(context.userId, context.supabase);
     const { exportClientQbrCsv } = await import("./analytics/client-qbr-report.server");
     return { csv: await exportClientQbrCsv(data.clientId) };
+  });
+
+export const exportClientLogisticsQbrHtmlFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ clientId: z.string().uuid() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await requireStaff(context.userId, context.supabase);
+    const { buildClientQbrReportHtml } = await import("./analytics/client-qbr-report.server");
+    return { html: await buildClientQbrReportHtml(data.clientId) };
+  });
+
+export const listMarketplacePenaltiesFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    const { listMarketplacePenalties } = await import("./sla/marketplace-penalties-list.server");
+    return listMarketplacePenalties(clientId);
+  });
+
+export const sendSlaMonthlyReportEmailFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      month: z.string().optional(),
+      email: z.string().email().optional(),
+    }),
+  )
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    let toEmail = data.email;
+    if (!toEmail) {
+      const { data: userData } = await context.supabase.auth.getUser();
+      toEmail = userData.user?.email ?? undefined;
+    }
+    if (!toEmail) throw new Error("E-mail do destinatário não encontrado");
+
+    const { sendSlaMonthlyReportEmail } = await import("./sla/sla-report-email.server");
+    const result = await sendSlaMonthlyReportEmail(clientId, toEmail, data.month);
+    if (!result.sent) throw new Error("Resend não configurado — exporte o HTML manualmente");
+    return result;
+  });
+
+export const exportSlaMonthlyReportHtmlFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ month: z.string().optional() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    const { buildSlaMonthlyReportHtml } = await import("./sla/sla-report-email.server");
+    return { html: await buildSlaMonthlyReportHtml(clientId, data.month) };
+  });
+
+export const listProductLotsFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return listProductLots(clientId);
+  });
+
+export const upsertProductLotFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      sku: z.string().min(1),
+      lotCode: z.string().min(1),
+      expiresAt: z.string().nullable().optional(),
+    }),
+  )
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    const id = await upsertProductLot(clientId, data);
+    return { id };
+  });
+
+export const deleteProductLotFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ lotId: z.string().uuid() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    await deleteProductLot(clientId, data.lotId);
+    return { ok: true };
   });
 
 export const listUnifiedOccurrencesFn = createServerFn({ method: "GET" })

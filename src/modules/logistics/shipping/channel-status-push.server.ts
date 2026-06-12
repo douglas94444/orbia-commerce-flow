@@ -58,6 +58,15 @@ export async function pushOrderInTransitToChannel(
           shipping_tracking_number: trackingCode ?? null,
         }),
       });
+    } else if (channel === "instagram") {
+      const { pushInstagramShipmentStatus } = await import("@/integrations/instagram/fulfillment");
+      await pushInstagramShipmentStatus(
+        clientId,
+        token,
+        externalOrderId,
+        "in_transit",
+        trackingCode,
+      );
     }
 
     await logIntegration({
@@ -175,8 +184,17 @@ export async function pushOrderStatusToChannel(
           shipping_tracking_number: trackingCode ?? null,
         }),
       });
-    } else if (channel === "instagram" && (status === "shipped" || status === "delivered")) {
-      // Meta Shops fulfillment API — logged for observability until direct push is wired
+    } else if (channel === "instagram") {
+      const { pushInstagramShipmentStatus } = await import("@/integrations/instagram/fulfillment");
+      const igStatus =
+        status === "delivered" ? "delivered" : status === "shipped" ? "shipped" : "in_transit";
+      await pushInstagramShipmentStatus(
+        clientId,
+        token,
+        externalOrderId,
+        igStatus,
+        trackingCode,
+      );
     }
 
     await logIntegration({

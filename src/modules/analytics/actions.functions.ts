@@ -67,15 +67,39 @@ async function computePortfolioAnalytics(context: {
     const campaigns = campaignsResult.data ?? [];
     const nfeEmitted = nfeResult.data?.length ?? 0;
 
-    const gmv30d = orders.reduce((sum, o) => sum + (o.value_cents ?? 0), 0) / 100;
+    const gmvCents = orders.reduce((sum, o) => sum + (o.value_cents ?? 0), 0);
+    const gmv30d = gmvCents / 100;
+
+    const { data: products } = await context.supabase
+      .from("products")
+      .select("sku, price_cents, metadata");
+
+    const costBySku = new Map<string, number>();
+    for (const p of products ?? []) {
+      const meta = (p.metadata ?? {}) as Record<string, unknown>;
+      const cost = Number(meta.cost_cents ?? (p.price_cents as number) * 0.55);
+      costBySku.set(p.sku as string, cost);
+    }
+
+    let cogsCents = 0;
+    let fulfillmentCostCents = 0;
+    for (const o of orders) {
+      if (o.status === "cancelado") continue;
+      const meta = (o.metadata ?? {}) as Record<string, unknown>;
+      fulfillmentCostCents += Number(meta.shipping_cost_cents ?? 0);
+      fulfillmentCostCents += Number(meta.fulfillment_fee_cents ?? 0);
+      const items = (meta.items as Array<{ sku: string; qty: number }>) ?? [];
+      for (const item of items) {
+        cogsCents += (costBySku.get(item.sku) ?? 0) * item.qty;
+      }
+    }
 
     const totalSpend = campaigns.reduce((s, c) => s + Number(c.spend_cents ?? 0), 0);
     const adSpend30d = totalSpend / 100;
     const totalRevenue = campaigns.reduce((s, c) => s + Number(c.revenue_cents ?? 0), 0);
+    const marginCents = gmvCents - totalSpend - cogsCents - fulfillmentCostCents;
     const marginPercent =
-      gmv30d > 0
-        ? Math.round(((gmv30d - adSpend30d) / gmv30d) * 1000) / 10
-        : 0;
+      gmvCents > 0 ? Math.round((marginCents / gmvCents) * 1000) / 10 : 0;
     const avgRoas =
       totalSpend > 0
         ? Math.round((totalRevenue / totalSpend) * 10) / 10

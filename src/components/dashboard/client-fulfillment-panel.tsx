@@ -8,6 +8,7 @@ import { formatBRL } from "@/lib/format";
 import {
   useClientLogisticsReport,
   useExportClientLogisticsQbr,
+  useExportClientLogisticsQbrHtml,
   useClientSlaRules,
   useUpsertClientSlaRule,
   useClientPackingProfile,
@@ -21,6 +22,7 @@ interface ClientFulfillmentPanelProps {
 export function ClientFulfillmentPanel({ clientId }: ClientFulfillmentPanelProps) {
   const { data: report, isLoading } = useClientLogisticsReport(clientId);
   const exportQbr = useExportClientLogisticsQbr(clientId);
+  const exportQbrHtml = useExportClientLogisticsQbrHtml(clientId);
   const { data: slaRules = [] } = useClientSlaRules(clientId);
   const upsertSla = useUpsertClientSlaRule(clientId);
   const { data: packingProfile } = useClientPackingProfile(clientId);
@@ -45,6 +47,16 @@ export function ClientFulfillmentPanel({ clientId }: ClientFulfillmentPanelProps
         a.download = `qbr-logistica-${clientId.slice(0, 8)}.csv`;
         a.click();
         URL.revokeObjectURL(url);
+      },
+    });
+  }
+
+  function handleExportQbrDeck() {
+    exportQbrHtml.mutate(undefined, {
+      onSuccess: (res) => {
+        const blob = new Blob([res.html], { type: "text/html;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        window.open(url, "_blank");
       },
     });
   }
@@ -160,6 +172,20 @@ export function ClientFulfillmentPanel({ clientId }: ClientFulfillmentPanelProps
                   <Download className="size-4" />
                 )}
                 Exportar CSV QBR
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2"
+                disabled={exportQbrHtml.isPending}
+                onClick={handleExportQbrDeck}
+              >
+                {exportQbrHtml.isPending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Download className="size-4" />
+                )}
+                QBR deck (PDF)
               </Button>
               <Link to="/logistics/analytics">
                 <Button size="sm" variant="ghost">

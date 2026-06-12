@@ -81,13 +81,84 @@ export function extractAttributionSignals(
   return { utmCampaign, utmSource, gclid, fbclid, source };
 }
 
+export interface AttributionTouchpoint {
+  type: "utm_campaign" | "gclid" | "fbclid" | "utm_source";
+  value: string;
+  weight: number;
+}
+
+export function buildTouchpoints(signals: AttributionSignals): AttributionTouchpoint[] {
+  const points: AttributionTouchpoint[] = [];
+  if (signals.utmCampaign) {
+    points.push({ type: "utm_campaign", value: signals.utmCampaign, weight: 0.4 });
+  }
+  if (signals.gclid) {
+    points.push({ type: "gclid", value: signals.gclid, weight: 0.35 });
+  }
+  if (signals.fbclid) {
+    points.push({ type: "fbclid", value: signals.fbclid, weight: 0.35 });
+  }
+  if (signals.utmSource) {
+    points.push({ type: "utm_source", value: signals.utmSource, weight: 0.25 });
+  }
+  return points;
+}
+
 export function buildAttributionMeta(signals: AttributionSignals): Record<string, unknown> {
+  const touchpoints = buildTouchpoints(signals);
   return {
     utm_campaign: signals.utmCampaign,
     utm_source: signals.utmSource,
     gclid: signals.gclid,
     fbclid: signals.fbclid,
+    touchpoints,
+    model: "multi_touch_linear",
   };
+}
+
+async function resolveCampaignForTouchpoint(
+  clientId: string,
+  touch: AttributionTouchpoint,
+  orderCreatedAt?: string,
+): Promise<string | null> {
+  const signals: AttributionSignals = {
+    utmCampaign: touch.type === "utm_campaign" ? touch.value : null,
+    utmSource: touch.type === "utm_source" ? touch.value : null,
+    gclid: touch.type === "gclid" ? touch.value : null,
+    fbclid: touch.type === "fbclid" ? touch.value : null,
+    source: touch.type,
+  };
+  return resolveCampaignId(clientId, signals, orderCreatedAt);
+}
+
+async function resolveMultiTouchCampaign(
+  clientId: string,
+  signals: AttributionSignals,
+  orderCreatedAt?: string,
+): Promise<string | null> {
+  const touchpoints = buildTouchpoints(signals);
+  if (touchpoints.length === 0) {
+    return resolveCampaignId(clientId, signals, orderCreatedAt);
+  }
+
+  const scores = new Map<string, number>();
+  for (const touch of touchpoints) {
+    const campaignId = await resolveCampaignForTouchpoint(clientId, touch, orderCreatedAt);
+    if (campaignId) {
+      scores.set(campaignId, (scores.get(campaignId) ?? 0) + touch.weight);
+    }
+  }
+
+  let best: string | null = null;
+  let bestScore = 0;
+  for (const [id, score] of scores) {
+    if (score > bestScore) {
+      bestScore = score;
+      best = id;
+    }
+  }
+
+  return best ?? resolveCampaignId(clientId, signals, orderCreatedAt);
 }
 
 async function resolveCampaignId(
@@ -142,7 +213,7 @@ export async function captureAttributionOnIngest(
 ): Promise<void> {
   const signals = extractAttributionSignals(order.raw, {});
   const meta = buildAttributionMeta(signals);
-  const campaignId = await resolveCampaignId(clientId, signals);
+  const campaignId = await resolveMultiTouchCampaign(clientId, signals);
 
   await supabaseAdmin
     .from("orders")
@@ -185,7 +256,7 @@ export async function attributeDeliveredOrder(orderId: string): Promise<boolean>
   };
 
   if (!campaignId) {
-    campaignId = await resolveCampaignId(
+    campaignId = await resolveMultiTouchCampaign(
       order.client_id as string,
       signals,
       order.created_at as string,

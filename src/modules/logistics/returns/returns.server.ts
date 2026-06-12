@@ -103,6 +103,12 @@ export async function approveReturnRequest(returnRequestId: string, userId: stri
     orderId: data.order_id,
     clientId: data.client_id,
   });
+
+  const { createReturnReceivingAppointment } = await import("../receiving/receiving.server");
+  await createReturnReceivingAppointment(
+    data.client_id as string,
+    returnRequestId,
+  ).catch(() => null);
 }
 
 export async function generateReturnLabel(returnRequestId: string): Promise<string> {
