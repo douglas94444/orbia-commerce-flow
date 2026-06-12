@@ -67,19 +67,28 @@ function parseExpectedItems(raw: unknown): ExpectedItem[] {
 
 async function getSessionAppointment(
   sessionId: string,
-): Promise<{ clientId: string; appointmentId: string | null; expectedItems: ExpectedItem[] }> {
+): Promise<{
+  clientId: string;
+  appointmentId: string | null;
+  appointmentType: "inbound" | "return";
+  expectedItems: ExpectedItem[];
+}> {
   const { data: session } = await supabaseAdmin
     .from("receiving_sessions")
-    .select("client_id, appointment_id, receiving_appointments(expected_items)")
+    .select("client_id, appointment_id, receiving_appointments(expected_items, appointment_type)")
     .eq("id", sessionId)
     .single();
 
   if (!session) throw new Error("Sessão não encontrada");
 
-  const appt = session.receiving_appointments as { expected_items: unknown } | null;
+  const appt = session.receiving_appointments as {
+    expected_items: unknown;
+    appointment_type: string;
+  } | null;
   return {
     clientId: session.client_id as string,
     appointmentId: (session.appointment_id as string | null) ?? null,
+    appointmentType: (appt?.appointment_type as "inbound" | "return") ?? "inbound",
     expectedItems: parseExpectedItems(appt?.expected_items),
   };
 }
@@ -281,7 +290,8 @@ export async function confirmReceivingLine(
   line: ReceivingLineInput,
   operatorId: string,
 ): Promise<void> {
-  const { appointmentId, expectedItems } = await getSessionAppointment(sessionId);
+  const { appointmentId, appointmentType, expectedItems } = await getSessionAppointment(sessionId);
+  const isReturnReceiving = appointmentType === "return";
 
   if (appointmentId && expectedItems.length) {
     const allowed = expectedItems.find((i) => i.sku === line.sku);
@@ -333,7 +343,8 @@ export async function confirmReceivingLine(
     location_id: line.locationId ?? null,
   });
 
-  if (line.receivedQty > 0) {
+  // Devoluções: conferência sem movimentar estoque — reintegração só na inspeção.
+  if (line.receivedQty > 0 && !isReturnReceiving) {
     const { data: inv } = await supabaseAdmin
       .from("inventory")
       .select("units")
@@ -390,12 +401,17 @@ export async function completeReceivingSession(
 ): Promise<void> {
   const { data: session } = await supabaseAdmin
     .from("receiving_sessions")
-    .select("appointment_id")
+    .select("appointment_id, receiving_appointments(appointment_type, return_request_id)")
     .eq("id", sessionId)
     .eq("client_id", clientId)
     .single();
 
   if (!session) throw new Error("Sessão não encontrada");
+
+  const appt = session.receiving_appointments as {
+    appointment_type: string;
+    return_request_id: string | null;
+  } | null;
 
   await supabaseAdmin
     .from("receiving_sessions")
@@ -409,7 +425,19 @@ export async function completeReceivingSession(
       .eq("id", session.appointment_id);
   }
 
-  await emitDomainEvent("receiving.completed", { clientId, sessionId });
+  const returnRequestId = appt?.return_request_id ?? null;
+  if (appt?.appointment_type === "return" && returnRequestId) {
+    await supabaseAdmin
+      .from("return_requests")
+      .update({ status: "received", updated_at: new Date().toISOString() })
+      .eq("id", returnRequestId);
+  }
+
+  await emitDomainEvent("receiving.completed", {
+    clientId,
+    sessionId,
+    returnRequestId: returnRequestId ?? undefined,
+  });
 }
 
 export async function listReceivingReports(

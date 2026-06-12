@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { User, Save, Play, Loader2 } from 'lucide-react'
 import { useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useProfile, useUpdateProfile } from '@/modules/auth/hooks/use-profile'
+import { useReturnPolicy, useUpsertReturnPolicy } from '@/modules/logistics/hooks/use-fulfillly'
 
 export const Route = createFileRoute('/_dashboard/settings')({
   head: () => ({ meta: [{ title: 'Configurações — Orbia' }] }),
@@ -33,7 +34,31 @@ const ROLE_LABEL: Record<string, string> = {
 function SettingsPage() {
   const { data: profile, isLoading } = useProfile()
   const { mutate, isPending } = useUpdateProfile()
+  const { data: returnPolicy, isLoading: loadingPolicy } = useReturnPolicy()
+  const upsertPolicy = useUpsertReturnPolicy()
   const isStaff = profile?.role === 'orbia_admin' || profile?.role === 'orbia_staff'
+
+  const [policyForm, setPolicyForm] = useState({
+    approvalMode: 'manual' as 'auto' | 'manual',
+    defaultResolution: 'refund' as 'refund' | 'exchange' | 'store_credit',
+    allowExchange: true,
+    allowStoreCredit: true,
+    autoApproveExchange: false,
+    whatsappPhone: '',
+  })
+
+  useEffect(() => {
+    if (returnPolicy) {
+      setPolicyForm({
+        approvalMode: returnPolicy.approvalMode,
+        defaultResolution: returnPolicy.defaultResolution,
+        allowExchange: returnPolicy.allowExchange,
+        allowStoreCredit: returnPolicy.allowStoreCredit,
+        autoApproveExchange: returnPolicy.autoApproveExchange,
+        whatsappPhone: returnPolicy.whatsappPhone ?? '',
+      })
+    }
+  }, [returnPolicy])
 
   const runJobs = useMutation({
     mutationFn: () => runScheduledJobs({ data: { job: 'all' } }),
@@ -94,6 +119,100 @@ function SettingsPage() {
                 </div>
               </div>
             </div>
+          </Panel>
+
+          <Panel title="Devoluções e trocas" subtitle="Política de logística reversa da loja">
+            {loadingPolicy ? (
+              <div className="h-24 animate-pulse rounded-lg bg-muted/40" />
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label>Aprovação</Label>
+                  <select
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    value={policyForm.approvalMode}
+                    onChange={(e) =>
+                      setPolicyForm((p) => ({
+                        ...p,
+                        approvalMode: e.target.value as 'auto' | 'manual',
+                      }))
+                    }
+                  >
+                    <option value="manual">Manual</option>
+                    <option value="auto">Automática</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Resolução padrão</Label>
+                  <select
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    value={policyForm.defaultResolution}
+                    onChange={(e) =>
+                      setPolicyForm((p) => ({
+                        ...p,
+                        defaultResolution: e.target.value as typeof p.defaultResolution,
+                      }))
+                    }
+                  >
+                    <option value="refund">Reembolso</option>
+                    <option value="exchange">Troca</option>
+                    <option value="store_credit">Crédito em loja</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>WhatsApp da loja (wa.me)</Label>
+                  <Input
+                    placeholder="5511999999999"
+                    value={policyForm.whatsappPhone}
+                    onChange={(e) =>
+                      setPolicyForm((p) => ({ ...p, whatsappPhone: e.target.value }))
+                    }
+                  />
+                </div>
+                <div className="flex flex-col gap-2 text-sm">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={policyForm.allowExchange}
+                      onChange={(e) =>
+                        setPolicyForm((p) => ({ ...p, allowExchange: e.target.checked }))
+                      }
+                    />
+                    Permitir trocas
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={policyForm.allowStoreCredit}
+                      onChange={(e) =>
+                        setPolicyForm((p) => ({ ...p, allowStoreCredit: e.target.checked }))
+                      }
+                    />
+                    Permitir crédito em loja
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={policyForm.autoApproveExchange}
+                      onChange={(e) =>
+                        setPolicyForm((p) => ({ ...p, autoApproveExchange: e.target.checked }))
+                      }
+                    />
+                    Aprovar trocas automaticamente
+                  </label>
+                </div>
+                <div className="sm:col-span-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={upsertPolicy.isPending}
+                    onClick={() => upsertPolicy.mutate(policyForm)}
+                  >
+                    Salvar política de devoluções
+                  </Button>
+                </div>
+              </div>
+            )}
           </Panel>
 
           {isStaff && (

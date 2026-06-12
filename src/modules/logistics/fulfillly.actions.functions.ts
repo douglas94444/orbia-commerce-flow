@@ -58,10 +58,15 @@ import { buildSlaMonthlyReport, exportSlaReportCsv } from "./sla/sla-report.serv
 import {
   createReturnRequest,
   approveReturnRequest,
+  rejectReturnRequest,
   inspectReturn,
   listReturnRequests,
-  markReturnReceived,
+  scheduleReturnReceiving,
+  setReturnRefundAmount,
+  uploadReturnInspectionPhoto,
+  getReturnRateKpi,
 } from "./returns/returns.server";
+import { getReturnPolicy, upsertReturnPolicy } from "./returns/return-policy.server";
 import { predictStockRupture } from "./wms/stock-rupture.server";
 import {
   listDeliveryIncidents,
@@ -448,6 +453,11 @@ const returnSchema = z.object({
   orderId: z.string().uuid(),
   reason: z.string(),
   items: z.array(z.object({ sku: z.string(), qty: z.number() })),
+  requestType: z.enum(["return", "exchange"]).optional(),
+  exchangeSku: z.string().optional(),
+  exchangeQty: z.number().optional(),
+  resolution: z.enum(["refund", "exchange", "store_credit"]).optional(),
+  refundCents: z.number().optional(),
 });
 
 export const createReturnRequestFn = createServerFn({ method: "POST" })
@@ -460,14 +470,40 @@ export const createReturnRequestFn = createServerFn({ method: "POST" })
       orderId: data.orderId,
       reason: data.reason,
       items: data.items,
+      requestType: data.requestType,
+      exchangeSku: data.exchangeSku,
+      exchangeQty: data.exchangeQty,
+      resolution: data.resolution,
+      refundCents: data.refundCents,
     });
   });
 
 export const approveReturnFn = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ returnRequestId: z.string().uuid() }))
+  .inputValidator(
+    z.object({
+      returnRequestId: z.string().uuid(),
+      refundCents: z.number().optional(),
+    }),
+  )
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
+    if (data.refundCents != null) {
+      await setReturnRefundAmount(data.returnRequestId, data.refundCents, context.userId);
+    }
     await approveReturnRequest(data.returnRequestId, context.userId);
+    return { ok: true };
+  });
+
+export const rejectReturnFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      returnRequestId: z.string().uuid(),
+      reason: z.string().optional(),
+    }),
+  )
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await rejectReturnRequest(data.returnRequestId, context.userId, data.reason);
     return { ok: true };
   });
 
@@ -478,13 +514,16 @@ export const listReturnsFn = createServerFn({ method: "GET" })
     return listReturnRequests(clientId);
   });
 
-export const markReturnReceivedFn = createServerFn({ method: "POST" })
+export const scheduleReturnReceivingFn = createServerFn({ method: "POST" })
   .inputValidator(z.object({ returnRequestId: z.string().uuid() }))
   .middleware([requireSupabaseAuth])
   .handler(async ({ data }) => {
-    const appointmentId = await markReturnReceived(data.returnRequestId);
+    const appointmentId = await scheduleReturnReceiving(data.returnRequestId);
     return { ok: true, appointmentId };
   });
+
+/** @deprecated Use scheduleReturnReceivingFn */
+export const markReturnReceivedFn = scheduleReturnReceivingFn;
 
 const inspectReturnSchema = z.object({
   returnRequestId: z.string().uuid(),
@@ -505,6 +544,51 @@ export const inspectReturnFn = createServerFn({ method: "POST" })
       photoUrls: data.photoUrls,
     });
     return { ok: true };
+  });
+
+export const uploadReturnInspectionPhotoFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      returnRequestId: z.string().uuid(),
+      dataUrl: z.string(),
+    }),
+  )
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    const url = await uploadReturnInspectionPhoto(clientId, data.returnRequestId, data.dataUrl);
+    return { url };
+  });
+
+const returnPolicySchema = z.object({
+  approvalMode: z.enum(["auto", "manual"]).optional(),
+  defaultResolution: z.enum(["refund", "exchange", "store_credit"]).optional(),
+  allowExchange: z.boolean().optional(),
+  allowStoreCredit: z.boolean().optional(),
+  autoApproveExchange: z.boolean().optional(),
+  whatsappPhone: z.string().optional(),
+});
+
+export const getReturnPolicyFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return getReturnPolicy(clientId);
+  });
+
+export const upsertReturnPolicyFn = createServerFn({ method: "POST" })
+  .inputValidator(returnPolicySchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return upsertReturnPolicy(clientId, data);
+  });
+
+export const getReturnRateKpiFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await getClientIdForUser(context.userId, context.supabase);
+    return getReturnRateKpi(clientId);
   });
 
 export const getStockRuptureFn = createServerFn({ method: "GET" })

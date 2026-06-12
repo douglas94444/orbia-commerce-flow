@@ -185,6 +185,25 @@ onDomainEvent("return.approved", async (payload) => {
   }
 });
 
+onDomainEvent("return.rejected", async (payload) => {
+  const clientId = String(payload.clientId ?? "");
+  const returnRequestId = String(payload.returnRequestId ?? "");
+  if (!clientId) return;
+
+  try {
+    const { sendWhatsAppToClient } = await import(
+      "@/modules/logistics/notifications/whatsapp-alerts.server"
+    );
+    const reason = payload.reason ? ` Motivo: ${String(payload.reason)}` : "";
+    await sendWhatsAppToClient(
+      clientId,
+      `❌ Solicitação de devolução ${returnRequestId.slice(0, 8)} foi rejeitada.${reason}`,
+    );
+  } catch (err) {
+    console.error("[returns] return.rejected notification:", err);
+  }
+});
+
 onDomainEvent("return.inspected", async (payload) => {
   const clientId = String(payload.clientId ?? "");
   const returnRequestId = String(payload.returnRequestId ?? "");
@@ -196,34 +215,53 @@ onDomainEvent("return.inspected", async (payload) => {
   );
   await recordFulfillmentUsage(clientId, "returns_handled");
 
-  if (destination === "reintegrate" && returnRequestId) {
-    try {
-      const { emitNfeForReturn } = await import("@/modules/fiscal/emit-return-nfe.server");
-      await emitNfeForReturn(returnRequestId);
-    } catch (err) {
-      console.error("[fiscal] return NF-e:", err);
+  if (destination !== "reintegrate" || !returnRequestId) return;
+
+  try {
+    const { emitNfeForReturn } = await import("@/modules/fiscal/emit-return-nfe.server");
+    await emitNfeForReturn(returnRequestId);
+  } catch (err) {
+    console.error("[fiscal] return NF-e:", err);
+  }
+
+  const { data: req } = await supabaseAdmin
+    .from("return_requests")
+    .select("refund_cents, resolution, order_id, customer_id, orders(value_cents)")
+    .eq("id", returnRequestId)
+    .maybeSingle();
+
+  if (!req) return;
+
+  const resolution = String(req.resolution ?? "refund");
+  const orderId = String(req.order_id ?? "");
+  const refundCents =
+    (req.refund_cents as number | null) ??
+    ((req.orders as { value_cents: number } | null)?.value_cents ?? 0);
+
+  try {
+    if (resolution === "exchange") {
+      const { createExchangeOrder } = await import(
+        "@/modules/logistics/returns/exchange-order.server"
+      );
+      await createExchangeOrder(returnRequestId);
+    } else if (resolution === "store_credit" && refundCents > 0) {
+      const { issueStoreCredit } = await import(
+        "@/modules/logistics/returns/store-credit.server"
+      );
+      await issueStoreCredit({
+        clientId,
+        customerId: (req.customer_id as string | null) ?? null,
+        amountCents: refundCents,
+        returnRequestId,
+      });
+    } else if (refundCents > 0) {
+      const { processReturnRefund } = await import(
+        "@/modules/billing/fulfillment-billing.server"
+      );
+      await processReturnRefund(clientId, returnRequestId, orderId, refundCents);
     }
-
-    const { data: req } = await supabaseAdmin
-      .from("return_requests")
-      .select("refund_cents, orders(value_cents)")
-      .eq("id", returnRequestId)
-      .maybeSingle();
-
-    const refundCents =
-      (req?.refund_cents as number | null) ??
-      ((req?.orders as { value_cents: number } | null)?.value_cents ?? 0);
-
-    if (refundCents > 0) {
-      try {
-        const { processReturnRefund } = await import(
-          "@/modules/billing/fulfillment-billing.server"
-        );
-        await processReturnRefund(clientId, returnRequestId, refundCents);
-      } catch (err) {
-        console.error("[billing] return refund:", err);
-      }
-    }
+  } catch (err) {
+    console.error("[returns] post-inspection resolution:", err);
   }
 });
 
@@ -257,7 +295,22 @@ onDomainEvent("picking.completed", async (payload) => {
 onDomainEvent("receiving.completed", async (payload) => {
   const clientId = String(payload.clientId ?? "");
   const sessionId = String(payload.sessionId ?? "");
+  const returnRequestId = String(payload.returnRequestId ?? "");
   if (!clientId || !sessionId) return;
+
+  if (returnRequestId) {
+    try {
+      const { sendWhatsAppToClient } = await import(
+        "@/modules/logistics/notifications/whatsapp-alerts.server"
+      );
+      await sendWhatsAppToClient(
+        clientId,
+        `📦 Devolução ${returnRequestId.slice(0, 8)} conferida no galpão. Aguardando inspeção de qualidade.`,
+      );
+    } catch (err) {
+      console.error("[returns] receiving.completed return notification:", err);
+    }
+  }
 
   const { data: lines } = await supabaseAdmin
     .from("receiving_lines")

@@ -115,6 +115,7 @@ export async function chargeFulfillmentOverage(clientId: string): Promise<string
 export async function processReturnRefund(
   clientId: string,
   returnRequestId: string,
+  orderId: string,
   amountCents: number,
 ): Promise<string> {
   if (amountCents <= 0) throw new Error("Valor de reembolso inválido");
@@ -128,6 +129,20 @@ export async function processReturnRefund(
 
   if (existing) return existing.id as string;
 
+  let provider = "orbia";
+  let providerTxId: string | null = null;
+
+  try {
+    const { refundOrderPayment } = await import("./refund-gateway.server");
+    const gateway = await refundOrderPayment(clientId, orderId, amountCents);
+    if (gateway.usedGateway) {
+      provider = gateway.provider;
+      providerTxId = gateway.providerTxId;
+    }
+  } catch (err) {
+    console.error("[billing] gateway refund fallback to ledger:", err);
+  }
+
   const { data: tx, error } = await supabaseAdmin
     .from("transactions")
     .insert({
@@ -135,7 +150,8 @@ export async function processReturnRefund(
       type: "refund",
       status: "confirmed",
       amount_cents: amountCents,
-      provider: "orbia",
+      provider,
+      provider_tx_id: providerTxId,
       idempotency_key: idempotencyKey,
       description: `Reembolso devolução ${returnRequestId.slice(0, 8)}`,
     })
@@ -163,7 +179,8 @@ export async function processReturnRefund(
     .from("return_requests")
     .update({
       refund_cents: amountCents,
-      credit_issued: true,
+      credit_issued: false,
+      resolution: "refund",
       updated_at: new Date().toISOString(),
     })
     .eq("id", returnRequestId);

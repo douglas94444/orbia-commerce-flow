@@ -3,6 +3,7 @@ import { getCarrierProvider } from "@/integrations/carriers";
 import { emitDomainEvent } from "@/shared/lib/domain-events.server";
 import { logAudit } from "@/shared/lib/logger";
 import { getCarrierToken, selectBestCarrier } from "../shipping/routing-engine.server";
+import { getReturnPolicy, type ReturnResolution } from "./return-policy.server";
 
 export async function createReturnRequest(input: {
   clientId: string;
@@ -11,8 +12,32 @@ export async function createReturnRequest(input: {
   reason: string;
   items: Array<{ sku: string; qty: number; orderItemId?: string }>;
   approvalMode?: "auto" | "manual";
+  requestType?: "return" | "exchange";
+  exchangeSku?: string;
+  exchangeQty?: number;
+  resolution?: ReturnResolution;
+  refundCents?: number;
 }): Promise<string> {
-  const status = input.approvalMode === "auto" ? "approved" : "pending";
+  const policy = await getReturnPolicy(input.clientId);
+  const requestType = input.requestType ?? "return";
+  const resolution =
+    input.resolution ??
+    (requestType === "exchange" ? "exchange" : policy.defaultResolution);
+
+  if (requestType === "exchange" && !policy.allowExchange) {
+    throw new Error("Trocas não habilitadas para esta loja");
+  }
+  if (resolution === "store_credit" && !policy.allowStoreCredit) {
+    throw new Error("Crédito em loja não habilitado para esta loja");
+  }
+  if (requestType === "exchange" && !input.exchangeSku) {
+    throw new Error("Informe o SKU desejado na troca");
+  }
+
+  const approvalMode =
+    input.approvalMode ??
+    (requestType === "exchange" && policy.autoApproveExchange ? "auto" : policy.approvalMode);
+  const status = approvalMode === "auto" ? "approved" : "pending";
 
   const { data, error } = await supabaseAdmin
     .from("return_requests")
@@ -22,7 +47,12 @@ export async function createReturnRequest(input: {
       customer_id: input.customerId ?? null,
       reason: input.reason,
       status,
-      approval_mode: input.approvalMode ?? "manual",
+      approval_mode: approvalMode,
+      request_type: requestType,
+      exchange_sku: input.exchangeSku ?? null,
+      exchange_qty: input.exchangeQty ?? null,
+      resolution,
+      refund_cents: input.refundCents ?? null,
     })
     .select("id")
     .single();
@@ -123,28 +153,112 @@ export async function generateReturnLabel(returnRequestId: string): Promise<stri
   return label.trackingCode;
 }
 
-export async function markReturnReceived(returnRequestId: string): Promise<string> {
+/** Agenda conferência de devolução sem marcar como recebida (status → received só após ops). */
+export async function scheduleReturnReceiving(returnRequestId: string): Promise<string> {
   const { data: req } = await supabaseAdmin
     .from("return_requests")
-    .select("client_id")
+    .select("client_id, status, metadata")
     .eq("id", returnRequestId)
     .single();
 
   if (!req) throw new Error("Solicitação não encontrada");
 
-  await supabaseAdmin
-    .from("return_requests")
-    .update({ status: "received", updated_at: new Date().toISOString() })
-    .eq("id", returnRequestId);
+  const status = req.status as string;
+  if (!["in_transit", "approved"].includes(status)) {
+    throw new Error("Devolução não está elegível para conferência");
+  }
+
+  const { data: existingAppt } = await supabaseAdmin
+    .from("receiving_appointments")
+    .select("id")
+    .eq("return_request_id", returnRequestId)
+    .in("status", ["scheduled", "in_progress"])
+    .maybeSingle();
+
+  if (existingAppt?.id) return existingAppt.id as string;
 
   const { createReturnReceivingAppointment } = await import("../receiving/receiving.server");
-  return createReturnReceivingAppointment(req.client_id as string, returnRequestId);
+  const appointmentId = await createReturnReceivingAppointment(
+    req.client_id as string,
+    returnRequestId,
+  );
+
+  const meta = (req.metadata ?? {}) as Record<string, unknown>;
+  await supabaseAdmin
+    .from("return_requests")
+    .update({
+      metadata: {
+        ...meta,
+        receiving_scheduled: true,
+        carrier_delivered_at: new Date().toISOString(),
+      },
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", returnRequestId);
+
+  return appointmentId;
+}
+
+/** @deprecated Use scheduleReturnReceiving — mantido para compatibilidade de API. */
+export async function markReturnReceived(returnRequestId: string): Promise<string> {
+  return scheduleReturnReceiving(returnRequestId);
+}
+
+export async function rejectReturnRequest(
+  returnRequestId: string,
+  userId: string,
+  rejectReason?: string,
+): Promise<void> {
+  const { data: req } = await supabaseAdmin
+    .from("return_requests")
+    .select("client_id, status, metadata")
+    .eq("id", returnRequestId)
+    .single();
+
+  if (!req) throw new Error("Solicitação não encontrada");
+  if ((req.status as string) !== "pending") {
+    throw new Error("Só é possível rejeitar solicitações pendentes");
+  }
+
+  const meta = (req.metadata ?? {}) as Record<string, unknown>;
+  await supabaseAdmin
+    .from("return_requests")
+    .update({
+      status: "rejected",
+      metadata: { ...meta, reject_reason: rejectReason ?? null },
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", returnRequestId);
+
+  await logAudit({
+    user_id: userId,
+    client_id: req.client_id as string,
+    action: "update",
+    resource: "return_request",
+    resource_id: returnRequestId,
+    new_data: { status: "rejected", reject_reason: rejectReason },
+  });
+
+  await emitDomainEvent("return.rejected", {
+    returnRequestId,
+    clientId: req.client_id,
+    reason: rejectReason,
+  });
+}
+
+async function markOrderAsReturned(orderId: string): Promise<void> {
+  await supabaseAdmin
+    .from("orders")
+    .update({ status: "devolvido", updated_at: new Date().toISOString() })
+    .eq("id", orderId);
 }
 
 export async function listReturnRequests(clientId: string) {
   const { data, error } = await supabaseAdmin
     .from("return_requests")
-    .select("id, order_id, reason, status, tracking_code, refund_cents, created_at")
+    .select(
+      "id, order_id, reason, status, tracking_code, refund_cents, return_label_url, request_type, exchange_sku, exchange_qty, resolution, exchange_order_id, metadata, created_at",
+    )
     .eq("client_id", clientId)
     .order("created_at", { ascending: false })
     .limit(50);
@@ -153,18 +267,92 @@ export async function listReturnRequests(clientId: string) {
   return data ?? [];
 }
 
+export async function setReturnRefundAmount(
+  returnRequestId: string,
+  refundCents: number,
+  userId: string,
+): Promise<void> {
+  const { data } = await supabaseAdmin
+    .from("return_requests")
+    .update({ refund_cents: refundCents, updated_at: new Date().toISOString() })
+    .eq("id", returnRequestId)
+    .select("client_id")
+    .single();
+
+  if (!data) throw new Error("Solicitação não encontrada");
+
+  await logAudit({
+    user_id: userId,
+    client_id: data.client_id as string,
+    action: "update",
+    resource: "return_request",
+    resource_id: returnRequestId,
+    new_data: { refund_cents: refundCents },
+  });
+}
+
+export async function uploadReturnInspectionPhoto(
+  clientId: string,
+  returnRequestId: string,
+  dataUrl: string,
+): Promise<string> {
+  const match = dataUrl.match(/^data:image\/(\w+);base64,(.+)$/);
+  if (!match) throw new Error("Formato de imagem inválido");
+
+  const ext = match[1] === "jpeg" ? "jpg" : match[1];
+  const buffer = Buffer.from(match[2], "base64");
+  const path = `${clientId}/returns/${returnRequestId}/${Date.now()}.${ext}`;
+
+  const { error } = await supabaseAdmin.storage.from("fulfillment-evidence").upload(path, buffer, {
+    contentType: `image/${match[1]}`,
+    upsert: true,
+  });
+  if (error) throw new Error(`Falha no upload: ${error.message}`);
+
+  const { data: urlData } = supabaseAdmin.storage.from("fulfillment-evidence").getPublicUrl(path);
+  return urlData.publicUrl;
+}
+
 export interface ReturnReasonReportRow {
   reason: string;
   channel: string;
   sku: string;
+  carrier: string;
   count: number;
   totalQty: number;
+}
+
+export interface ReturnRateKpi {
+  totalReturns: number;
+  totalDeliveredOrders: number;
+  returnRatePercent: number;
+}
+
+export async function getReturnRateKpi(clientId: string): Promise<ReturnRateKpi> {
+  const [{ count: returnCount }, { count: deliveredCount }] = await Promise.all([
+    supabaseAdmin
+      .from("return_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("client_id", clientId),
+    supabaseAdmin
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .eq("client_id", clientId)
+      .eq("status", "entregue"),
+  ]);
+
+  const totalReturns = returnCount ?? 0;
+  const totalDeliveredOrders = deliveredCount ?? 0;
+  const returnRatePercent =
+    totalDeliveredOrders > 0 ? Math.round((totalReturns / totalDeliveredOrders) * 1000) / 10 : 0;
+
+  return { totalReturns, totalDeliveredOrders, returnRatePercent };
 }
 
 export async function getReturnReasonsReport(clientId: string): Promise<ReturnReasonReportRow[]> {
   const { data: requests, error } = await supabaseAdmin
     .from("return_requests")
-    .select("reason, orders(channel), return_items(sku, qty)")
+    .select("reason, metadata, orders(channel), return_items(sku, qty)")
     .eq("client_id", clientId)
     .order("created_at", { ascending: false })
     .limit(500);
@@ -175,9 +363,11 @@ export async function getReturnReasonsReport(clientId: string): Promise<ReturnRe
 
   for (const req of requests ?? []) {
     const channel = String((req.orders as { channel: string } | null)?.channel ?? "desconhecido");
+    const meta = (req.metadata ?? {}) as Record<string, unknown>;
+    const carrier = String(meta.carrier_provider_id ?? "desconhecido");
     const items = (req.return_items ?? []) as Array<{ sku: string; qty: number }>;
     for (const item of items) {
-      const key = `${req.reason}|${channel}|${item.sku}`;
+      const key = `${req.reason}|${channel}|${item.sku}|${carrier}`;
       const existing = agg.get(key);
       if (existing) {
         existing.count += 1;
@@ -187,6 +377,7 @@ export async function getReturnReasonsReport(clientId: string): Promise<ReturnRe
           reason: String(req.reason),
           channel,
           sku: item.sku,
+          carrier,
           count: 1,
           totalQty: item.qty,
         });
@@ -252,6 +443,10 @@ export async function inspectReturn(input: {
     .from("return_requests")
     .update({ status: "completed", updated_at: new Date().toISOString() })
     .eq("id", input.returnRequestId);
+
+  if (input.destination === "reintegrate" || input.destination === "discard") {
+    await markOrderAsReturned(req.order_id as string);
+  }
 
   await emitDomainEvent("return.inspected", {
     returnRequestId: input.returnRequestId,

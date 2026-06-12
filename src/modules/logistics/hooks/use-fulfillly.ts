@@ -22,8 +22,13 @@ import {
   confirmReceivingLineFn,
   listReturnsFn,
   approveReturnFn,
+  rejectReturnFn,
   markReturnReceivedFn,
   inspectReturnFn,
+  uploadReturnInspectionPhotoFn,
+  getReturnPolicyFn,
+  upsertReturnPolicyFn,
+  getReturnRateKpiFn,
   getStockRuptureFn,
   getDeliveryIncidentsFn,
   resolveDeliveryIncidentFn,
@@ -271,10 +276,24 @@ export function useReturns() {
 export function useApproveReturn() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (returnRequestId: string) => approveReturnFn({ data: { returnRequestId } }),
+    mutationFn: (input: { returnRequestId: string; refundCents?: number }) =>
+      approveReturnFn({ data: input }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["returns"] });
       toast.success("Devolução aprovada");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useRejectReturn() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { returnRequestId: string; reason?: string }) =>
+      rejectReturnFn({ data: input }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["returns"] });
+      toast.success("Solicitação rejeitada");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -288,10 +307,45 @@ export function useMarkReturnReceived() {
       qc.invalidateQueries({ queryKey: ["returns"] });
       qc.invalidateQueries({ queryKey: ["ops-receiving-appointments"] });
       qc.invalidateQueries({ queryKey: ["receiving-appointments"] });
-      toast.success("Devolução recebida — agendamento de conferência criado");
+      toast.success("Conferência de devolução agendada no galpão");
     },
     onError: (e: Error) => toast.error(e.message),
   });
+}
+
+export function useUploadReturnInspectionPhoto() {
+  return useMutation({
+    mutationFn: (input: { returnRequestId: string; dataUrl: string }) =>
+      uploadReturnInspectionPhotoFn({ data: input }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useReturnPolicy() {
+  return useQuery({ queryKey: ["return-policy"], queryFn: () => getReturnPolicyFn() });
+}
+
+export function useUpsertReturnPolicy() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      approvalMode?: "auto" | "manual";
+      defaultResolution?: "refund" | "exchange" | "store_credit";
+      allowExchange?: boolean;
+      allowStoreCredit?: boolean;
+      autoApproveExchange?: boolean;
+      whatsappPhone?: string;
+    }) => upsertReturnPolicyFn({ data: input }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["return-policy"] });
+      toast.success("Política de devoluções salva");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useReturnRateKpi() {
+  return useQuery({ queryKey: ["return-rate-kpi"], queryFn: () => getReturnRateKpiFn() });
 }
 
 export function useInspectReturn() {
@@ -708,6 +762,11 @@ export function useCreateReturnRequest() {
       orderId: string;
       reason: string;
       items: Array<{ sku: string; qty: number }>;
+      requestType?: "return" | "exchange";
+      exchangeSku?: string;
+      exchangeQty?: number;
+      resolution?: "refund" | "exchange" | "store_credit";
+      refundCents?: number;
     }) => createReturnRequestFn({ data: input }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["returns"] });

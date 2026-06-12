@@ -2,7 +2,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getCarrierProvider } from "@/integrations/carriers";
 import { getCarrierToken } from "./routing-engine.server";
 import { normalizeCarrierStatus } from "./tracking-transition.server";
-import { markReturnReceived } from "../returns/returns.server";
+import { scheduleReturnReceiving } from "../returns/returns.server";
 
 const BATCH = 50;
 
@@ -40,7 +40,7 @@ export async function syncAllReturnTracking(): Promise<{
         const normalized = normalizeCarrierStatus(tracking.status);
 
         if (normalized.orderStatus === "entregue") {
-          await markReturnReceived(ret.id as string);
+          await scheduleReturnReceiving(ret.id as string);
           received += 1;
         }
       } catch (err) {

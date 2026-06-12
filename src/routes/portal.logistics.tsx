@@ -13,6 +13,7 @@ import {
   useReturns,
   useCreateReturnRequest,
   useReturnReasonsReport,
+  useReturnPolicy,
 } from '@/modules/logistics/hooks/use-fulfillly'
 import { KpiCard } from '@/components/dashboard/kpi-card'
 import { Truck } from 'lucide-react'
@@ -58,16 +59,29 @@ function PortalLogisticsPage() {
   const { data: sla, isLoading: loadingSla } = useSlaDashboard()
   const { data: returns = [], isLoading: loadingReturns } = useReturns()
   const { data: reasonReport = [], isLoading: loadingReport } = useReturnReasonsReport()
+  const { data: returnPolicy } = useReturnPolicy()
   const createReturn = useCreateReturnRequest()
 
   const [orderId, setOrderId] = useState('')
   const [reason, setReason] = useState('')
   const [sku, setSku] = useState('')
   const [qty, setQty] = useState(1)
+  const [requestType, setRequestType] = useState<'return' | 'exchange'>('return')
+  const [resolution, setResolution] = useState<'refund' | 'exchange' | 'store_credit'>('refund')
+  const [exchangeSku, setExchangeSku] = useState('')
 
   const deliverableOrders = orders.filter((o) =>
     ['despachado', 'em_transito', 'entregue'].includes(o.status as OrderStatus),
   )
+
+  const selectedOrder = deliverableOrders.find((o) => o.internalId === orderId)
+  const waPhone = returnPolicy?.whatsappPhone?.replace(/\D/g, '') ?? ''
+  const waText = encodeURIComponent(
+    `Olá, gostaria de solicitar uma devolução do pedido ${selectedOrder?.id ?? ''}.`,
+  )
+  const waHref = waPhone
+    ? `https://wa.me/${waPhone}?text=${waText}`
+    : `https://wa.me/?text=${waText}`
 
   return (
     <div className="space-y-6">
@@ -83,17 +97,51 @@ function PortalLogisticsPage() {
         <KpiCard label="Estourados" value={loadingSla ? '—' : String(sla?.breached ?? 0)} icon={Truck} accent="warning" />
       </div>
 
-      <Panel title="Solicitar devolução" subtitle="Pós-compra — informe o pedido e o motivo">
+      <Panel title="Solicitar devolução ou troca" subtitle="Pós-compra — informe o pedido e o motivo">
         <div className="mb-4 rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">
           <p className="text-muted-foreground">Prefere pelo WhatsApp?</p>
           <a
-            href="https://wa.me/?text=Ol%C3%A1%2C%20gostaria%20de%20solicitar%20uma%20devolu%C3%A7%C3%A3o%20do%20meu%20pedido."
+            href={waHref}
             target="_blank"
             rel="noopener noreferrer"
             className="mt-1 inline-block font-medium text-primary hover:underline"
           >
             Abrir conversa no WhatsApp
           </a>
+        </div>
+        <div className="mb-3 grid gap-3 sm:grid-cols-3">
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground">Tipo</label>
+            <select
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              value={requestType}
+              onChange={(e) => {
+                const t = e.target.value as 'return' | 'exchange'
+                setRequestType(t)
+                if (t === 'exchange') setResolution('exchange')
+              }}
+            >
+              <option value="return">Devolução</option>
+              {returnPolicy?.allowExchange !== false && (
+                <option value="exchange">Troca</option>
+              )}
+            </select>
+          </div>
+          {requestType === 'return' && (
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Resolução</label>
+              <select
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                value={resolution}
+                onChange={(e) => setResolution(e.target.value as typeof resolution)}
+              >
+                <option value="refund">Reembolso</option>
+                {returnPolicy?.allowStoreCredit !== false && (
+                  <option value="store_credit">Crédito em loja</option>
+                )}
+              </select>
+            </div>
+          )}
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
@@ -123,15 +171,35 @@ function PortalLogisticsPage() {
             <label className="mb-1 block text-xs text-muted-foreground">Quantidade</label>
             <Input type="number" min={1} value={qty} onChange={(e) => setQty(Number(e.target.value))} />
           </div>
+          {requestType === 'exchange' && (
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">SKU desejado na troca</label>
+              <Input
+                placeholder="SKU do novo produto"
+                value={exchangeSku}
+                onChange={(e) => setExchangeSku(e.target.value)}
+              />
+            </div>
+          )}
         </div>
         <Button
           className="mt-4"
-          disabled={!orderId || !reason || !sku || createReturn.isPending}
+          disabled={
+            !orderId ||
+            !reason ||
+            !sku ||
+            (requestType === 'exchange' && !exchangeSku) ||
+            createReturn.isPending
+          }
           onClick={() =>
             createReturn.mutate({
               orderId,
               reason,
               items: [{ sku, qty }],
+              requestType,
+              exchangeSku: requestType === 'exchange' ? exchangeSku : undefined,
+              exchangeQty: requestType === 'exchange' ? qty : undefined,
+              resolution: requestType === 'exchange' ? 'exchange' : resolution,
             })
           }
         >
@@ -149,19 +217,53 @@ function PortalLogisticsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-[10px] uppercase text-muted-foreground">
-                  {['ID', 'Motivo', 'Status', 'Reembolso'].map((h) => (
+                  {['ID', 'Motivo', 'Status', 'Rastreio', 'Reembolso'].map((h) => (
                     <th key={h} className="pb-2 pr-4">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {returns.map((r: { id: string; reason: string; status: string; refund_cents: number | null }) => {
+                {returns.map((r: {
+                  id: string
+                  reason: string
+                  status: string
+                  refund_cents: number | null
+                  tracking_code: string | null
+                  return_label_url: string | null
+                  metadata: Record<string, unknown> | null
+                }) => {
                   const st = RETURN_STATUS[r.status] ?? { label: r.status, tone: 'primary' as Tone }
+                  const meta = (r.metadata ?? {}) as Record<string, unknown>
+                  const carrier = String(meta.carrier_provider_id ?? '')
                   return (
                     <tr key={r.id}>
                       <td className="py-2 pr-4 font-mono text-xs">{r.id.slice(0, 8)}</td>
                       <td className="py-2 pr-4">{r.reason}</td>
                       <td className="py-2 pr-4"><StatusPill label={st.label} tone={st.tone} /></td>
+                      <td className="py-2 pr-4 font-mono text-xs">
+                        {r.tracking_code ? (
+                          <a
+                            href={buildTrackingUrl(r.tracking_code, carrier || undefined)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-primary hover:underline"
+                          >
+                            {r.tracking_code}
+                            <ExternalLink className="size-3" />
+                          </a>
+                        ) : r.return_label_url ? (
+                          <a
+                            href={r.return_label_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline"
+                          >
+                            Etiqueta
+                          </a>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
                       <td className="py-2 font-mono">
                         {r.refund_cents ? formatBRL(r.refund_cents / 100) : '—'}
                       </td>
@@ -184,17 +286,18 @@ function PortalLogisticsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-[10px] uppercase text-muted-foreground">
-                  {['Motivo', 'Canal', 'SKU', 'Ocorrências', 'Qtd total'].map((h) => (
+                  {['Motivo', 'Canal', 'SKU', 'Transportadora', 'Ocorrências', 'Qtd total'].map((h) => (
                     <th key={h} className="pb-2 pr-4">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {reasonReport.map((row) => (
-                  <tr key={`${row.reason}-${row.channel}-${row.sku}`}>
+                  <tr key={`${row.reason}-${row.channel}-${row.sku}-${row.carrier}`}>
                     <td className="py-2 pr-4">{row.reason}</td>
                     <td className="py-2 pr-4 text-muted-foreground">{row.channel}</td>
                     <td className="py-2 pr-4 font-mono text-xs">{row.sku}</td>
+                    <td className="py-2 pr-4 text-muted-foreground">{row.carrier}</td>
                     <td className="py-2 pr-4 font-mono">{row.count}</td>
                     <td className="py-2 font-mono">{row.totalQty}</td>
                   </tr>
