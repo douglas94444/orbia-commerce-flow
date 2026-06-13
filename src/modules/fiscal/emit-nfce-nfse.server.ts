@@ -21,7 +21,7 @@ export async function emitNfceForOrder(orderId: string): Promise<string> {
   const { data: fiscal } = await supabaseAdmin
     .from("fiscal_configs")
     .select(
-      "cnpj, company_name, cert_path, default_cfop, default_cst, default_ncm, state_uf, tax_regime",
+      "cnpj, company_name, default_cfop, default_cst, default_ncm, state_uf, state_registration, tax_regime",
     )
     .eq("client_id", order.client_id)
     .maybeSingle();
@@ -122,7 +122,9 @@ export async function emitNfseForOrder(
 
   const { data: fiscal } = await supabaseAdmin
     .from("fiscal_configs")
-    .select("cnpj, company_name, state_uf")
+    .select(
+      "cnpj, company_name, state_uf, state_registration, municipal_registration, municipality_code",
+    )
     .eq("client_id", order.client_id)
     .maybeSingle();
 
@@ -139,7 +141,11 @@ export async function emitNfseForOrder(
   const payload: FocusNfsePayload = {
     data_emissao: today,
     natureza_operacao: "Prestação de serviço",
-    prestador: { cnpj: fiscal.cnpj },
+    prestador: {
+      cnpj: fiscal.cnpj.replace(/\D/g, ""),
+      inscricao_municipal: fiscal.municipal_registration ?? undefined,
+      codigo_municipio: fiscal.municipality_code ?? undefined,
+    },
     tomador: {
       razao_social: shipping.name ?? "Consumidor Final",
       cpf: focusNfe.env !== "producao" ? "00000000191" : undefined,
@@ -155,6 +161,7 @@ export async function emitNfseForOrder(
       valor_servicos: order.value_cents / 100,
       item_lista_servico: "01.01",
       discriminacao: serviceDescription ?? "Prestação de serviços conforme pedido",
+      codigo_municipio: fiscal.municipality_code ?? undefined,
     },
   };
 

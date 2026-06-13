@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { PageIntro, Panel } from "@/components/dashboard/panel";
 import {
@@ -39,7 +39,6 @@ function ProductsPage() {
   const [editing, setEditing] = useState<WmsProduct | null>(null);
   const [form, setForm] = useState({
     barcode: "",
-    ncm: "",
     lengthMm: "",
     widthMm: "",
     heightMm: "",
@@ -52,7 +51,6 @@ function ProductsPage() {
     setEditing(p);
     setForm({
       barcode: p.barcode ?? "",
-      ncm: p.ncm ?? "",
       lengthMm: p.lengthMm?.toString() ?? "",
       widthMm: p.widthMm?.toString() ?? "",
       heightMm: p.heightMm?.toString() ?? "",
@@ -66,7 +64,7 @@ function ProductsPage() {
     upsert.mutate({
       sku: editing.sku,
       barcode: form.barcode || null,
-      ncm: form.ncm || null,
+      ncm: editing.ncm,
       lengthMm: form.lengthMm ? Number(form.lengthMm) : null,
       widthMm: form.widthMm ? Number(form.widthMm) : null,
       heightMm: form.heightMm ? Number(form.heightMm) : null,
@@ -90,7 +88,12 @@ function ProductsPage() {
       <PageIntro
         eyebrow="Fulfillly WMS"
         title="Produtos e dimensões"
-        description="SKU, código de barras, NCM, foto e estoque mínimo por SKU."
+        description="SKU, código de barras, foto e estoque mínimo. NCM e CFOP ficam no catálogo fiscal."
+        action={
+          <Link to="/catalog/fiscal">
+            <Button size="sm" variant="outline">Configurar NCM / CFOP</Button>
+          </Link>
+        }
       />
 
       {alerts.length > 0 && (
@@ -141,7 +144,13 @@ function ProductsPage() {
                     <td className="py-2 font-mono">{p.sku}</td>
                     <td className="py-2">{p.name}</td>
                     <td className="py-2 font-mono text-muted-foreground">{p.barcode ?? "—"}</td>
-                    <td className="py-2 font-mono text-muted-foreground">{p.ncm ?? "—"}</td>
+                    <td className="py-2 font-mono text-muted-foreground">
+                      {p.ncm ? (
+                        <Link to="/catalog/fiscal" className="text-primary hover:underline">{p.ncm}</Link>
+                      ) : (
+                        <Link to="/catalog/fiscal" className="text-muted-foreground hover:underline">Configurar</Link>
+                      )}
+                    </td>
                     <td className="py-2 font-mono text-muted-foreground">
                       {p.lengthMm && p.widthMm && p.heightMm
                         ? `${p.lengthMm}×${p.widthMm}×${p.heightMm}`
@@ -179,7 +188,10 @@ function ProductsPage() {
         <Panel title={`Editar ${editing.sku}`}>
           <div className="grid gap-3 sm:grid-cols-2">
             <Input placeholder="Barcode" value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} />
-            <Input placeholder="NCM" value={form.ncm} onChange={(e) => setForm({ ...form, ncm: e.target.value })} />
+            <p className="text-sm text-muted-foreground sm:col-span-2">
+              NCM: {editing.ncm ?? "—"} —{' '}
+              <Link to="/catalog/fiscal" className="text-primary hover:underline">editar no catálogo fiscal</Link>
+            </p>
             <Input placeholder="Comprimento mm" value={form.lengthMm} onChange={(e) => setForm({ ...form, lengthMm: e.target.value })} />
             <Input placeholder="Largura mm" value={form.widthMm} onChange={(e) => setForm({ ...form, widthMm: e.target.value })} />
             <Input placeholder="Altura mm" value={form.heightMm} onChange={(e) => setForm({ ...form, heightMm: e.target.value })} />

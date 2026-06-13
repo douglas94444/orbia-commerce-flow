@@ -8,7 +8,8 @@ import { PageIntro, Panel } from '@/components/dashboard/panel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useFiscalConfig, useUpsertFiscalConfig, useUploadFiscalCertificate, useInutilizarNumeracao } from '@/modules/fiscal/hooks/use-fiscal'
+import { useFiscalConfig, useUpsertFiscalConfig, useUploadFiscalCertificate, useInutilizarNumeracao, useFiscalReadiness } from '@/modules/fiscal/hooks/use-fiscal'
+import { StatusPill } from '@/components/dashboard/status-pill'
 
 export const Route = createFileRoute('/_dashboard/fiscal/config')({
   head: () => ({ meta: [{ title: 'Configuração Fiscal — Orbia' }] }),
@@ -20,6 +21,9 @@ const schema = z.object({
   companyName: z.string().min(2, 'Nome da empresa é obrigatório').max(150),
   taxRegime:   z.enum(['simples', 'lucro_presumido', 'lucro_real']),
   stateUf:     z.string().length(2, 'UF deve ter 2 letras'),
+  stateRegistration: z.string().min(1, 'Inscrição estadual é obrigatória'),
+  municipalRegistration: z.string().max(20).optional().nullable(),
+  municipalityCode: z.string().max(10).optional().nullable(),
   defaultCfop: z.string().max(10).optional().nullable(),
   defaultCst:  z.string().max(10).optional().nullable(),
   defaultNcm:  z.string().max(10).optional().nullable(),
@@ -40,6 +44,7 @@ const UF_OPTIONS = [
 
 function FiscalConfigPage() {
   const { data: config, isLoading } = useFiscalConfig()
+  const { data: readiness } = useFiscalReadiness()
   const { mutate, isPending } = useUpsertFiscalConfig()
   const uploadCert = useUploadFiscalCertificate()
   const inutilizar = useInutilizarNumeracao()
@@ -54,6 +59,7 @@ function FiscalConfigPage() {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -62,6 +68,9 @@ function FiscalConfigPage() {
       companyName: '',
       taxRegime:   'simples',
       stateUf:     'SP',
+      stateRegistration: '',
+      municipalRegistration: '',
+      municipalityCode: '',
       defaultCfop: '',
       defaultCst:  '',
       defaultNcm:  '',
@@ -75,6 +84,9 @@ function FiscalConfigPage() {
         companyName: config.companyName,
         taxRegime:   config.taxRegime as FormValues['taxRegime'],
         stateUf:     config.stateUf ?? 'SP',
+        stateRegistration: config.stateRegistration ?? '',
+        municipalRegistration: config.municipalRegistration ?? '',
+        municipalityCode: config.municipalityCode ?? '',
         defaultCfop: config.defaultCfop ?? '',
         defaultCst:  config.defaultCst ?? '',
         defaultNcm:  config.defaultNcm ?? '',
@@ -82,12 +94,17 @@ function FiscalConfigPage() {
     }
   }, [config, reset])
 
+  const taxRegime = watch('taxRegime')
+
   function onSubmit(values: FormValues) {
     mutate({
       cnpj:        values.cnpj,
       companyName: values.companyName,
       taxRegime:   values.taxRegime,
       stateUf:     values.stateUf,
+      stateRegistration: values.stateRegistration,
+      municipalRegistration: values.municipalRegistration || null,
+      municipalityCode: values.municipalityCode || null,
       defaultCfop: values.defaultCfop || null,
       defaultCst:  values.defaultCst || null,
       defaultNcm:  values.defaultNcm || null,
@@ -116,6 +133,30 @@ function FiscalConfigPage() {
         <div className="h-64 animate-pulse rounded-xl bg-muted/40" />
       ) : (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {readiness && (
+            <Panel title="Prontidão para emissão" subtitle={readiness.ready ? 'Tudo pronto para emitir NF-e' : 'Complete os itens abaixo'}>
+              <div className="flex flex-wrap gap-2">
+                {readiness.items.map((item) => (
+                  <StatusPill
+                    key={item.key}
+                    label={item.label}
+                    tone={item.status === 'ok' ? 'success' : item.status === 'warning' ? 'warning' : 'danger'}
+                    dot
+                  />
+                ))}
+              </div>
+              {!readiness.ready && (
+                <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
+                  {readiness.items
+                    .filter((i) => i.status !== 'ok' && i.message)
+                    .map((i) => (
+                      <li key={i.key}>• {i.label}: {i.message}</li>
+                    ))}
+                </ul>
+              )}
+            </Panel>
+          )}
+
           <Panel title="Identificação da empresa" action={<ShieldCheck className="size-4 text-muted-foreground" />}>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
@@ -167,6 +208,25 @@ function FiscalConfigPage() {
                 <p className="text-xs text-muted-foreground">Define CFOP inter/intraestadual no motor tributário</p>
                 {errors.stateUf && <p className="text-xs text-destructive">{errors.stateUf.message}</p>}
               </div>
+
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="stateRegistration">Inscrição estadual (IE)</Label>
+                <Input id="stateRegistration" placeholder="ISENTO ou número da IE" {...register('stateRegistration')} />
+                {errors.stateRegistration && <p className="text-xs text-destructive">{errors.stateRegistration.message}</p>}
+              </div>
+            </div>
+          </Panel>
+
+          <Panel title="Dados NFS-e" subtitle="Obrigatórios apenas se emitir nota de serviço">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="municipalRegistration">Inscrição municipal</Label>
+                <Input id="municipalRegistration" placeholder="IM" {...register('municipalRegistration')} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="municipalityCode">Código município (IBGE)</Label>
+                <Input id="municipalityCode" placeholder="3550308" className="font-mono" {...register('municipalityCode')} />
+              </div>
             </div>
           </Panel>
 
@@ -177,8 +237,13 @@ function FiscalConfigPage() {
                 <Input id="defaultCfop" placeholder="5102" maxLength={10} {...register('defaultCfop')} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="defaultCst">CST padrão</Label>
-                <Input id="defaultCst" placeholder="000" maxLength={10} {...register('defaultCst')} />
+                <Label htmlFor="defaultCst">{taxRegime === 'simples' ? 'CSOSN padrão' : 'CST padrão'}</Label>
+                <Input
+                  id="defaultCst"
+                  placeholder={taxRegime === 'simples' ? '102' : '00'}
+                  maxLength={10}
+                  {...register('defaultCst')}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="defaultNcm">NCM padrão</Label>

@@ -14,7 +14,9 @@ export async function resolveOrderItemsSkus(
 
     const { data: byVariant } = await supabaseAdmin
       .from("channel_listings")
-      .select("products(sku, name, ncm, cfop, cst)")
+      .select(
+        "products(sku, name, ncm, cfop, cfop_intra, cfop_inter, cst, cest, icms_origem)",
+      )
       .eq("client_id", clientId)
       .eq("channel", channel)
       .eq("external_variant_id", externalVariantId)
@@ -24,7 +26,9 @@ export async function resolveOrderItemsSkus(
       ? { data: null }
       : await supabaseAdmin
           .from("channel_listings")
-          .select("products(sku, name, ncm, cfop, cst)")
+          .select(
+            "products(sku, name, ncm, cfop, cfop_intra, cfop_inter, cst, cest, icms_origem)",
+          )
           .eq("client_id", clientId)
           .eq("channel", channel)
           .eq("external_product_id", externalProductId)
@@ -36,7 +40,11 @@ export async function resolveOrderItemsSkus(
       name: string;
       ncm: string | null;
       cfop: string | null;
+      cfop_intra: string | null;
+      cfop_inter: string | null;
       cst: string | null;
+      cest: string | null;
+      icms_origem: string | null;
     } | null;
 
     if (product) {
@@ -45,7 +53,7 @@ export async function resolveOrderItemsSkus(
         sku: product.sku,
         name: product.name,
         ncm: product.ncm ?? item.ncm,
-        cfop: product.cfop ?? item.cfop,
+        cfop: product.cfop_intra ?? product.cfop ?? item.cfop,
         cst: product.cst ?? item.cst,
       });
     } else {

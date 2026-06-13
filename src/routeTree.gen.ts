@@ -79,6 +79,7 @@ import { Route as DashboardChannelsMercadoLivreRouteImport } from './routes/_das
 import { Route as DashboardChannelsLojasRouteImport } from './routes/_dashboard.channels.lojas'
 import { Route as DashboardChannelsInstagramRouteImport } from './routes/_dashboard.channels.instagram'
 import { Route as DashboardChannelsAmazonRouteImport } from './routes/_dashboard.channels.amazon'
+import { Route as DashboardCatalogFiscalRouteImport } from './routes/_dashboard.catalog.fiscal'
 import { Route as ApiOauthWhatsappCallbackRouteImport } from './routes/api/oauth/whatsapp/callback'
 import { Route as ApiOauthTiktokCallbackRouteImport } from './routes/api/oauth/tiktok/callback'
 import { Route as ApiOauthShopifyCallbackRouteImport } from './routes/api/oauth/shopify/callback'
@@ -457,6 +458,11 @@ const DashboardChannelsAmazonRoute = DashboardChannelsAmazonRouteImport.update({
   path: '/amazon',
   getParentRoute: () => DashboardChannelsRoute,
 } as any)
+const DashboardCatalogFiscalRoute = DashboardCatalogFiscalRouteImport.update({
+  id: '/fiscal',
+  path: '/fiscal',
+  getParentRoute: () => DashboardCatalogRoute,
+} as any)
 const ApiOauthWhatsappCallbackRoute =
   ApiOauthWhatsappCallbackRouteImport.update({
     id: '/api/oauth/whatsapp/callback',
@@ -525,7 +531,7 @@ export interface FileRoutesByFullPath {
   '/portal': typeof PortalRouteWithChildren
   '/analytics': typeof DashboardAnalyticsRoute
   '/billing': typeof DashboardBillingRoute
-  '/catalog': typeof DashboardCatalogRoute
+  '/catalog': typeof DashboardCatalogRouteWithChildren
   '/channels': typeof DashboardChannelsRouteWithChildren
   '/clients': typeof DashboardClientsRouteWithChildren
   '/fiscal': typeof DashboardFiscalRouteWithChildren
@@ -549,6 +555,7 @@ export interface FileRoutesByFullPath {
   '/portal/settings': typeof PortalSettingsRoute
   '/portal/traffic': typeof PortalTrafficRoute
   '/ops/': typeof OpsIndexRoute
+  '/catalog/fiscal': typeof DashboardCatalogFiscalRoute
   '/channels/amazon': typeof DashboardChannelsAmazonRoute
   '/channels/instagram': typeof DashboardChannelsInstagramRoute
   '/channels/lojas': typeof DashboardChannelsLojasRoute
@@ -606,7 +613,7 @@ export interface FileRoutesByTo {
   '/portal': typeof PortalRouteWithChildren
   '/analytics': typeof DashboardAnalyticsRoute
   '/billing': typeof DashboardBillingRoute
-  '/catalog': typeof DashboardCatalogRoute
+  '/catalog': typeof DashboardCatalogRouteWithChildren
   '/channels': typeof DashboardChannelsRouteWithChildren
   '/clients': typeof DashboardClientsRouteWithChildren
   '/fiscal': typeof DashboardFiscalRouteWithChildren
@@ -630,6 +637,7 @@ export interface FileRoutesByTo {
   '/portal/settings': typeof PortalSettingsRoute
   '/portal/traffic': typeof PortalTrafficRoute
   '/ops': typeof OpsIndexRoute
+  '/catalog/fiscal': typeof DashboardCatalogFiscalRoute
   '/channels/amazon': typeof DashboardChannelsAmazonRoute
   '/channels/instagram': typeof DashboardChannelsInstagramRoute
   '/channels/lojas': typeof DashboardChannelsLojasRoute
@@ -690,7 +698,7 @@ export interface FileRoutesById {
   '/portal': typeof PortalRouteWithChildren
   '/_dashboard/analytics': typeof DashboardAnalyticsRoute
   '/_dashboard/billing': typeof DashboardBillingRoute
-  '/_dashboard/catalog': typeof DashboardCatalogRoute
+  '/_dashboard/catalog': typeof DashboardCatalogRouteWithChildren
   '/_dashboard/channels': typeof DashboardChannelsRouteWithChildren
   '/_dashboard/clients': typeof DashboardClientsRouteWithChildren
   '/_dashboard/fiscal': typeof DashboardFiscalRouteWithChildren
@@ -714,6 +722,7 @@ export interface FileRoutesById {
   '/portal/settings': typeof PortalSettingsRoute
   '/portal/traffic': typeof PortalTrafficRoute
   '/ops/': typeof OpsIndexRoute
+  '/_dashboard/catalog/fiscal': typeof DashboardCatalogFiscalRoute
   '/_dashboard/channels/amazon': typeof DashboardChannelsAmazonRoute
   '/_dashboard/channels/instagram': typeof DashboardChannelsInstagramRoute
   '/_dashboard/channels/lojas': typeof DashboardChannelsLojasRoute
@@ -798,6 +807,7 @@ export interface FileRouteTypes {
     | '/portal/settings'
     | '/portal/traffic'
     | '/ops/'
+    | '/catalog/fiscal'
     | '/channels/amazon'
     | '/channels/instagram'
     | '/channels/lojas'
@@ -879,6 +889,7 @@ export interface FileRouteTypes {
     | '/portal/settings'
     | '/portal/traffic'
     | '/ops'
+    | '/catalog/fiscal'
     | '/channels/amazon'
     | '/channels/instagram'
     | '/channels/lojas'
@@ -962,6 +973,7 @@ export interface FileRouteTypes {
     | '/portal/settings'
     | '/portal/traffic'
     | '/ops/'
+    | '/_dashboard/catalog/fiscal'
     | '/_dashboard/channels/amazon'
     | '/_dashboard/channels/instagram'
     | '/_dashboard/channels/lojas'
@@ -1540,6 +1552,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardChannelsAmazonRouteImport
       parentRoute: typeof DashboardChannelsRoute
     }
+    '/_dashboard/catalog/fiscal': {
+      id: '/_dashboard/catalog/fiscal'
+      path: '/fiscal'
+      fullPath: '/catalog/fiscal'
+      preLoaderRoute: typeof DashboardCatalogFiscalRouteImport
+      parentRoute: typeof DashboardCatalogRoute
+    }
     '/api/oauth/whatsapp/callback': {
       id: '/api/oauth/whatsapp/callback'
       path: '/api/oauth/whatsapp/callback'
@@ -1619,6 +1638,17 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface DashboardCatalogRouteChildren {
+  DashboardCatalogFiscalRoute: typeof DashboardCatalogFiscalRoute
+}
+
+const DashboardCatalogRouteChildren: DashboardCatalogRouteChildren = {
+  DashboardCatalogFiscalRoute: DashboardCatalogFiscalRoute,
+}
+
+const DashboardCatalogRouteWithChildren =
+  DashboardCatalogRoute._addFileChildren(DashboardCatalogRouteChildren)
 
 interface DashboardChannelsRouteChildren {
   DashboardChannelsAmazonRoute: typeof DashboardChannelsAmazonRoute
@@ -1710,7 +1740,7 @@ const DashboardLogisticsRouteWithChildren =
 interface DashboardRouteChildren {
   DashboardAnalyticsRoute: typeof DashboardAnalyticsRoute
   DashboardBillingRoute: typeof DashboardBillingRoute
-  DashboardCatalogRoute: typeof DashboardCatalogRoute
+  DashboardCatalogRoute: typeof DashboardCatalogRouteWithChildren
   DashboardChannelsRoute: typeof DashboardChannelsRouteWithChildren
   DashboardClientsRoute: typeof DashboardClientsRouteWithChildren
   DashboardFiscalRoute: typeof DashboardFiscalRouteWithChildren
@@ -1725,7 +1755,7 @@ interface DashboardRouteChildren {
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardAnalyticsRoute: DashboardAnalyticsRoute,
   DashboardBillingRoute: DashboardBillingRoute,
-  DashboardCatalogRoute: DashboardCatalogRoute,
+  DashboardCatalogRoute: DashboardCatalogRouteWithChildren,
   DashboardChannelsRoute: DashboardChannelsRouteWithChildren,
   DashboardClientsRoute: DashboardClientsRouteWithChildren,
   DashboardFiscalRoute: DashboardFiscalRouteWithChildren,

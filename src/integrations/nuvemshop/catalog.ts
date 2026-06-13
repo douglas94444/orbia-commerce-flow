@@ -7,6 +7,7 @@ export interface CatalogProductRow {
   externalProductId: string;
   externalVariantId: string;
   stockQty: number;
+  ncm?: string | null;
 }
 
 interface NuvemshopProduct {

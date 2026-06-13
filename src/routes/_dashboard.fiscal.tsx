@@ -75,8 +75,13 @@ function FiscalPage() {
         }
       />
 
-      {(stats?.certExpiringSoon || stats?.missingCert) && (
+      {(stats?.certExpiringSoon || stats?.missingCert || stats?.configIncomplete) && (
         <div className="flex flex-wrap gap-2">
+          {stats.configIncomplete && (
+            <Link to="/fiscal/config">
+              <StatusPill label="Configuração fiscal incompleta — configurar" tone="danger" dot />
+            </Link>
+          )}
           {stats.missingCert && (
             <StatusPill label="Certificado A1 não cadastrado" tone="danger" dot />
           )}

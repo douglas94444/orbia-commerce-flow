@@ -96,7 +96,7 @@ export async function retryNfeEmission(emissionId: string): Promise<void> {
   const { data: fiscal } = await supabaseAdmin
     .from("fiscal_configs")
     .select(
-      "cnpj, company_name, cert_path, default_cfop, default_cst, default_ncm, state_uf, tax_regime",
+      "cnpj, company_name, default_cfop, default_cst, default_ncm, state_uf, state_registration, tax_regime",
     )
     .eq("client_id", order.client_id)
     .maybeSingle();

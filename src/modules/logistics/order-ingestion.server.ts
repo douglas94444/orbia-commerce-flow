@@ -434,6 +434,24 @@ export async function upsertOrderFromWebhook(
 }
 
 export async function triggerNfeForOrder(orderId: string): Promise<void> {
+  const { data: order } = await supabaseAdmin
+    .from("orders")
+    .select("client_id")
+    .eq("id", orderId)
+    .single();
+
+  if (!order) return;
+
+  const { validateFiscalReadiness } = await import("@/modules/fiscal/fiscal-readiness.server");
+  const readiness = await validateFiscalReadiness(order.client_id);
+  if (!readiness.ready) {
+    console.warn(
+      `[fiscal] NF-e não disparada para pedido ${orderId}: config incompleta`,
+      readiness.items.filter((i) => i.status === "error").map((i) => i.key),
+    );
+    return;
+  }
+
   await emitNfeForOrder(orderId);
 }
 

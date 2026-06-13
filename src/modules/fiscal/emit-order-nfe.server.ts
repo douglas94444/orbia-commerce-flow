@@ -5,6 +5,9 @@ import { logAudit } from "@/shared/lib/logger";
 import { emitDomainEvent } from "@/shared/lib/domain-events.server";
 import { uploadNfeXmlToStorage } from "./nfe-storage.server";
 import { buildNfePayloadForOrder } from "./nfe-payload.server";
+import { validateFiscalReadiness } from "./fiscal-readiness.server";
+import { loadProductFiscalBySkus } from "./product-fiscal.server";
+import type { NormalizedOrderItem } from "@/modules/logistics/order-ingestion.server";
 
 export async function emitNfeForOrder(orderId: string): Promise<void> {
   const { focusNfe } = getServerConfig();
@@ -22,16 +25,44 @@ export async function emitNfeForOrder(orderId: string): Promise<void> {
   if (orderError || !order) throw new Error(`Order ${orderId} not found`);
   if (order.nf_status === "autorizada") return;
 
+  const readiness = await validateFiscalReadiness(order.client_id, { attemptFocusSync: true });
+  if (!readiness.ready) {
+    const missing = readiness.items
+      .filter((i) => i.status === "error")
+      .map((i) => i.label)
+      .join(", ");
+    throw new Error(`Configuração fiscal incompleta: ${missing}. Ajuste em /fiscal/config`);
+  }
+
   const { data: fiscal, error: fiscalError } = await supabaseAdmin
     .from("fiscal_configs")
     .select(
-      "cnpj, company_name, cert_path, default_cfop, default_cst, default_ncm, state_uf, tax_regime",
+      "cnpj, company_name, default_cfop, default_cst, default_ncm, state_uf, state_registration, tax_regime",
     )
     .eq("client_id", order.client_id)
     .maybeSingle();
 
   if (fiscalError || !fiscal) {
     throw new Error("Fiscal config not found for client — configure em /fiscal/config");
+  }
+
+  const metadata = (order.metadata ?? {}) as Record<string, unknown>;
+  const orderItems = (metadata.items ?? []) as NormalizedOrderItem[];
+  if (orderItems.length > 0) {
+    const productFiscal = await loadProductFiscalBySkus(
+      order.client_id,
+      orderItems.map((i) => i.sku).filter(Boolean),
+    );
+    const missingNcm = orderItems.filter((item) => {
+      const pf = productFiscal.get(item.sku);
+      const ncm = pf?.ncm ?? item.ncm ?? fiscal.default_ncm;
+      return !ncm || !/^\d{8}$/.test(String(ncm).replace(/\D/g, ""));
+    });
+    if (missingNcm.length > 0) {
+      throw new Error(
+        `SKUs sem NCM válido: ${missingNcm.map((i) => i.sku).join(", ")}. Configure em /catalog/fiscal`,
+      );
+    }
   }
 
   const ref = `orbia-${order.client_id.slice(0, 8)}-${order.external_id}`.replace(
@@ -54,7 +85,6 @@ export async function emitNfeForOrder(orderId: string): Promise<void> {
 
   if (insertError) throw new Error(`Failed to create nfe_emissions row: ${insertError.message}`);
 
-  const metadata = (order.metadata ?? {}) as Record<string, unknown>;
   const payload = await buildNfePayloadForOrder(
     order.client_id,
     {

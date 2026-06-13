@@ -7,6 +7,7 @@ import {
   getFiscalConfig,
   upsertFiscalConfig,
   uploadFiscalCertificate,
+  getFiscalReadiness,
   retryNfeEmissionFn,
   cancelNfeEmissionFn,
   exportNfePeriodCsv,
@@ -55,12 +56,24 @@ export function useFiscalConfig() {
   });
 }
 
+export const FISCAL_READINESS_KEY = ["fiscal-readiness"] as const;
+
+export function useFiscalReadiness() {
+  return useQuery({
+    queryKey: FISCAL_READINESS_KEY,
+    queryFn: () => getFiscalReadiness(),
+    staleTime: 30_000,
+  });
+}
+
 export function useUpsertFiscalConfig() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: FiscalConfigInput) => upsertFiscalConfig({ data: input }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: FISCAL_CONFIG_KEY });
+      queryClient.invalidateQueries({ queryKey: FISCAL_READINESS_KEY });
+      queryClient.invalidateQueries({ queryKey: FISCAL_STATS_KEY });
       toast.success("Configuração fiscal salva com sucesso.");
     },
     onError: (err: Error) => toast.error(err.message),
@@ -78,6 +91,8 @@ export function useUploadFiscalCertificate() {
     }) => uploadFiscalCertificate({ data: input }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: FISCAL_CONFIG_KEY });
+      queryClient.invalidateQueries({ queryKey: FISCAL_READINESS_KEY });
+      queryClient.invalidateQueries({ queryKey: FISCAL_STATS_KEY });
       toast.success("Certificado A1 enviado com sucesso.");
     },
     onError: (err: Error) => toast.error(err.message),

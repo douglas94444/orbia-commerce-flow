@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
-import { Package, RefreshCw, Upload } from 'lucide-react'
+import { createFileRoute, Link } from '@tanstack/react-router'
+import { AlertTriangle, Package, RefreshCw, Upload } from 'lucide-react'
 import { PageIntro, Panel } from '@/components/dashboard/panel'
 import { StatusPill } from '@/components/dashboard/status-pill'
 import { Button } from '@/components/ui/button'
@@ -9,14 +9,13 @@ import {
   useChannelListings,
   useProducts,
   usePricingRules,
+  useProductFiscalReadiness,
   usePublishSku,
   useStockBuffers,
   useSyncAllCatalogs,
   useUpsertPricingRule,
   useUpsertStockBuffer,
-  useUpsertProductFiscal,
 } from '@/modules/catalog/hooks/use-catalog'
-import type { ProductRow } from '@/modules/catalog/actions.functions'
 import { formatBRL } from '@/lib/format'
 
 export const Route = createFileRoute('/_dashboard/catalog')({
@@ -26,57 +25,12 @@ export const Route = createFileRoute('/_dashboard/catalog')({
 
 const CHANNELS = ['nuvemshop', 'shopify', 'mercado_livre', 'shopee', 'amazon', 'tiktok'] as const
 
-function ProductFiscalFields({ product }: { product: ProductRow }) {
-  const upsert = useUpsertProductFiscal()
-  const [ncm, setNcm] = useState(product.ncm ?? '')
-  const [cfop, setCfop] = useState(product.cfop ?? '')
-  const [cst, setCst] = useState(product.cst ?? '')
-
-  return (
-    <div className="flex flex-wrap items-center gap-1">
-      <Input
-        className="h-7 w-20 font-mono text-xs"
-        placeholder="NCM"
-        value={ncm}
-        onChange={(e) => setNcm(e.target.value)}
-      />
-      <Input
-        className="h-7 w-14 font-mono text-xs"
-        placeholder="CFOP"
-        value={cfop}
-        onChange={(e) => setCfop(e.target.value)}
-      />
-      <Input
-        className="h-7 w-12 font-mono text-xs"
-        placeholder="CST"
-        value={cst}
-        onChange={(e) => setCst(e.target.value)}
-      />
-      <Button
-        size="sm"
-        variant="ghost"
-        className="h-7 text-xs"
-        disabled={upsert.isPending}
-        onClick={() =>
-          upsert.mutate({
-            productId: product.id,
-            ncm: ncm || null,
-            cfop: cfop || null,
-            cst: cst || null,
-          })
-        }
-      >
-        Salvar
-      </Button>
-    </div>
-  )
-}
-
 function CatalogPage() {
   const { data: products = [], isLoading } = useProducts()
   const { data: listings = [] } = useChannelListings()
   const { data: pricingRules = [] } = usePricingRules()
   const { data: stockBuffers = [] } = useStockBuffers()
+  const { data: readiness } = useProductFiscalReadiness()
   const syncAll = useSyncAllCatalogs()
   const publishSku = usePublishSku()
   const upsertPricing = useUpsertPricingRule()
@@ -95,12 +49,31 @@ function CatalogPage() {
         title="Catálogo centralizado"
         description="Publique uma vez, venda em 6 canais — preço, estoque e buffers por marketplace."
         action={
-          <Button size="sm" disabled={syncAll.isPending} onClick={() => syncAll.mutate()}>
-            <RefreshCw className={`mr-2 size-4 ${syncAll.isPending ? 'animate-spin' : ''}`} />
-            Sincronizar tudo
-          </Button>
+          <div className="flex gap-2">
+            <Link to="/catalog/fiscal">
+              <Button size="sm" variant="outline">Fiscal por produto</Button>
+            </Link>
+            <Button size="sm" disabled={syncAll.isPending} onClick={() => syncAll.mutate()}>
+              <RefreshCw className={`mr-2 size-4 ${syncAll.isPending ? 'animate-spin' : ''}`} />
+              Sincronizar tudo
+            </Button>
+          </div>
         }
       />
+
+      {readiness && readiness.incomplete > 0 && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+          <div className="flex items-center gap-2 text-sm">
+            <AlertTriangle className="size-4 text-amber-400" />
+            <span>
+              {readiness.incomplete} SKU(s) sem NCM — cobertura fiscal {readiness.coveragePct}%
+            </span>
+          </div>
+          <Link to="/catalog/fiscal">
+            <Button size="sm" variant="outline">Completar fiscal</Button>
+          </Link>
+        </div>
+      )}
 
       <Panel title="Publicar SKU" action={<Upload className="size-4 text-muted-foreground" />}>
         <div className="flex flex-wrap items-end gap-3">
@@ -218,7 +191,11 @@ function CatalogPage() {
         </Panel>
       </div>
 
-      <Panel title="Produtos" action={<Package className="size-4 text-muted-foreground" />} subtitle="NCM, CFOP e CST por SKU — usados na emissão de NF-e">
+      <Panel
+        title="Produtos"
+        action={<Package className="size-4 text-muted-foreground" />}
+        subtitle="Dados fiscais completos em Fiscal por produto"
+      >
         {isLoading ? (
           <div className="h-32 animate-pulse rounded-xl bg-muted/40" />
         ) : products.length === 0 ? (
@@ -231,34 +208,41 @@ function CatalogPage() {
                   <th className="pb-2 pr-4">SKU</th>
                   <th className="pb-2 pr-4">Nome</th>
                   <th className="pb-2 pr-4">Preço base</th>
-                  <th className="pb-2 pr-4">Fiscal (NCM/CFOP/CST)</th>
+                  <th className="pb-2 pr-4">NCM</th>
                   <th className="pb-2">Ação</th>
                 </tr>
               </thead>
               <tbody>
-                {products.map((p) => (
-                  <tr key={p.id} className="border-b border-border/50">
-                    <td className="py-2 pr-4 font-mono text-xs">{p.sku}</td>
-                    <td className="py-2 pr-4">{p.name}</td>
-                    <td className="py-2 pr-4 font-mono">
-                      {p.priceCents ? formatBRL(p.priceCents / 100) : '—'}
-                    </td>
-                    <td className="py-2 pr-4">
-                      <ProductFiscalFields product={p} />
-                    </td>
-                    <td className="py-2">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 text-xs"
-                        disabled={publishSku.isPending}
-                        onClick={() => publishSku.mutate({ sku: p.sku, channels: [...CHANNELS] })}
-                      >
-                        Publicar
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
+                {products.map((p) => {
+                  const ncmOk = p.ncm && /^\d{8}$/.test(p.ncm.replace(/\D/g, ''))
+                  return (
+                    <tr key={p.id} className="border-b border-border/50">
+                      <td className="py-2 pr-4 font-mono text-xs">{p.sku}</td>
+                      <td className="py-2 pr-4">{p.name}</td>
+                      <td className="py-2 pr-4 font-mono">
+                        {p.priceCents ? formatBRL(p.priceCents / 100) : '—'}
+                      </td>
+                      <td className="py-2 pr-4">
+                        <StatusPill
+                          label={ncmOk ? (p.ncm ?? '') : 'Sem NCM'}
+                          tone={ncmOk ? 'success' : 'warning'}
+                          dot
+                        />
+                      </td>
+                      <td className="py-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs"
+                          disabled={publishSku.isPending}
+                          onClick={() => publishSku.mutate({ sku: p.sku, channels: [...CHANNELS] })}
+                        >
+                          Publicar
+                        </Button>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

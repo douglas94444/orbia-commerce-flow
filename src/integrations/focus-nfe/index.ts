@@ -10,6 +10,7 @@ export {
   cartaCorrecaoNFe,
   inutilizarNumeracao,
 } from "./client";
+export { getFocusEmpresa, upsertFocusEmpresa, mapTaxRegimeToFocus } from "./empresa";
 export type {
   FocusNfePayload,
   FocusNfeItem,
@@ -18,3 +19,4 @@ export type {
   FocusNfsePayload,
   FocusInutilizacaoPayload,
 } from "./client";
+export type { FocusEmpresaPayload, FocusEmpresaResponse } from "./empresa";

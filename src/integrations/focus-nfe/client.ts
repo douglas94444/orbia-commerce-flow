@@ -13,6 +13,9 @@ export interface FocusNfeItem {
   codigo_ncm: string;
   icms_situacao_tributaria: string;
   icms_origem: string;
+  cest?: string;
+  icms_aliquota?: number;
+  icms_modalidade_base_calculo_st?: string;
 }
 
 export interface FocusNfePayload {
@@ -24,6 +27,7 @@ export interface FocusNfePayload {
   consumidor_final: string;
   presenca_comprador: string;
   cnpj_emitente: string;
+  inscricao_estadual_emitente?: string;
   certificado?: string;
   nome_destinatario: string;
   cpf_destinatario?: string;

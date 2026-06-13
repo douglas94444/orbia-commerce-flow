@@ -46,6 +46,17 @@ async function upsertCatalogRows(
   let listings = 0;
 
   for (const row of rows) {
+    const { data: existing } = await supabaseAdmin
+      .from("products")
+      .select("ncm")
+      .eq("client_id", clientId)
+      .eq("sku", row.sku)
+      .maybeSingle();
+
+    const channelNcm = row.ncm?.replace(/\D/g, "");
+    const shouldFillNcm =
+      channelNcm && channelNcm.length === 8 && !existing?.ncm;
+
     const { data: product } = await supabaseAdmin
       .from("products")
       .upsert(
@@ -55,6 +66,7 @@ async function upsertCatalogRows(
           name: row.name,
           price_cents: row.priceCents,
           is_active: true,
+          ...(shouldFillNcm ? { ncm: channelNcm } : {}),
           updated_at: new Date().toISOString(),
         },
         { onConflict: "client_id,sku" },

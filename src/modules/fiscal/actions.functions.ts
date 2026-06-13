@@ -5,6 +5,9 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { logAudit } from "@/shared/lib/logger";
 import type { NfEmission, NfStatus } from "@/shared/types/orbia";
 import { canCancelWithinWindow } from "./fiscal-ops.server";
+import { validateCnpj } from "./tax-engine.server";
+import { encryptCertPassword, parsePfxExpiry } from "./fiscal-cert.server";
+import { syncFiscalConfigToFocus } from "./focus-empresa-sync.server";
 
 function mapEmissionRow(row: {
   id: string;
@@ -88,6 +91,9 @@ export interface FiscalConfig {
   companyName: string;
   taxRegime: string;
   stateUf: string;
+  stateRegistration: string | null;
+  municipalRegistration: string | null;
+  municipalityCode: string | null;
   defaultCfop: string | null;
   defaultCst: string | null;
   defaultNcm: string | null;
@@ -95,6 +101,7 @@ export interface FiscalConfig {
   certPath: string | null;
   hasCertPassword: boolean;
   certExpiringSoon: boolean;
+  focusSyncedAt: string | null;
 }
 
 export const getFiscalConfig = createServerFn({ method: "GET" })
@@ -112,7 +119,7 @@ export const getFiscalConfig = createServerFn({ method: "GET" })
     const { data, error } = await supabaseAdmin
       .from("fiscal_configs")
       .select(
-        "id, cnpj, company_name, tax_regime, state_uf, default_cfop, default_cst, default_ncm, cert_expires_at, cert_path, cert_password",
+        "id, cnpj, company_name, tax_regime, state_uf, state_registration, municipal_registration, municipality_code, default_cfop, default_cst, default_ncm, cert_expires_at, cert_path, cert_password, focus_synced_at",
       )
       .eq("client_id", member.client_id)
       .maybeSingle();
@@ -131,6 +138,9 @@ export const getFiscalConfig = createServerFn({ method: "GET" })
       companyName: data.company_name,
       taxRegime: data.tax_regime,
       stateUf: data.state_uf ?? "SP",
+      stateRegistration: data.state_registration,
+      municipalRegistration: data.municipal_registration,
+      municipalityCode: data.municipality_code,
       defaultCfop: data.default_cfop,
       defaultCst: data.default_cst,
       defaultNcm: data.default_ncm,
@@ -138,16 +148,23 @@ export const getFiscalConfig = createServerFn({ method: "GET" })
       certPath: data.cert_path,
       hasCertPassword: Boolean(data.cert_password),
       certExpiringSoon,
+      focusSyncedAt: data.focus_synced_at,
     };
   });
 
 // ─── upsertFiscalConfig ───────────────────────────────────────
 
 const fiscalConfigSchema = z.object({
-  cnpj: z.string().regex(/^\d{14}$/, "CNPJ deve ter 14 dígitos sem pontuação"),
+  cnpj: z
+    .string()
+    .regex(/^\d{14}$/, "CNPJ deve ter 14 dígitos sem pontuação")
+    .refine(validateCnpj, "CNPJ inválido (dígitos verificadores)"),
   companyName: z.string().min(2).max(150),
   taxRegime: z.enum(["simples", "lucro_presumido", "lucro_real"]),
   stateUf: z.string().length(2).optional(),
+  stateRegistration: z.string().min(1).max(20),
+  municipalRegistration: z.string().max(20).optional().nullable(),
+  municipalityCode: z.string().max(10).optional().nullable(),
   defaultCfop: z.string().max(10).optional().nullable(),
   defaultCst: z.string().max(10).optional().nullable(),
   defaultNcm: z.string().max(10).optional().nullable(),
@@ -178,6 +195,9 @@ export const upsertFiscalConfig = createServerFn({ method: "POST" })
           company_name: data.companyName,
           tax_regime: data.taxRegime,
           state_uf: data.stateUf?.toUpperCase() ?? "SP",
+          state_registration: data.stateRegistration,
+          municipal_registration: data.municipalRegistration ?? null,
+          municipality_code: data.municipalityCode ?? null,
           default_cfop: data.defaultCfop ?? null,
           default_cst: data.defaultCst ?? null,
           default_ncm: data.defaultNcm ?? null,
@@ -199,6 +219,12 @@ export const upsertFiscalConfig = createServerFn({ method: "POST" })
       new_data: data,
     });
 
+    try {
+      await syncFiscalConfigToFocus(clientId);
+    } catch (err) {
+      console.warn("[fiscal] Focus sync após save falhou:", (err as Error).message);
+    }
+
     return { success: true };
   });
 
@@ -211,6 +237,7 @@ export interface FiscalStats {
   rejectedToday: number;
   certExpiringSoon: boolean;
   missingCert: boolean;
+  configIncomplete: boolean;
   rejectionReasons: Array<{ reason: string; count: number }>;
 }
 
@@ -221,15 +248,26 @@ export const getFiscalStats = createServerFn({ method: "GET" })
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const [{ data: rows }, { data: config }] = await Promise.all([
+    const [{ data: rows }, { data: config }, readiness] = await Promise.all([
       context.supabase
         .from("nfe_emissions")
         .select("status, retries, created_at, last_error")
         .gte("created_at", thirtyDaysAgo),
       context.supabase
         .from("fiscal_configs")
-        .select("cert_path, cert_expires_at")
+        .select("cert_path, cert_expires_at, client_id")
         .maybeSingle(),
+      (async () => {
+        const { data: member } = await context.supabase
+          .from("client_members")
+          .select("client_id")
+          .eq("user_id", context.userId)
+          .eq("status", "active")
+          .maybeSingle();
+        if (!member) return { ready: false };
+        const { validateFiscalReadiness } = await import("./fiscal-readiness.server");
+        return validateFiscalReadiness(member.client_id);
+      })(),
     ]);
 
     const emissions = rows ?? [];
@@ -268,6 +306,7 @@ export const getFiscalStats = createServerFn({ method: "GET" })
       rejectedToday,
       certExpiringSoon,
       missingCert: !config?.cert_path,
+      configIncomplete: !readiness.ready,
       rejectionReasons,
     };
   });
@@ -306,17 +345,30 @@ export const uploadFiscalCertificate = createServerFn({ method: "POST" })
 
     if (uploadError) throw new Error(`Upload falhou: ${uploadError.message}`);
 
+    const encryptedPassword = data.certPassword ? encryptCertPassword(data.certPassword) : null;
+    let certExpiresAt = data.certExpiresAt ?? null;
+    if (data.certPassword) {
+      const parsed = await parsePfxExpiry(buffer, data.certPassword);
+      if (parsed) certExpiresAt = parsed;
+    }
+
     const { error: updateError } = await supabaseAdmin
       .from("fiscal_configs")
       .update({
         cert_path: storagePath,
-        cert_password: data.certPassword ?? null,
-        cert_expires_at: data.certExpiresAt ?? null,
+        cert_password: encryptedPassword,
+        cert_expires_at: certExpiresAt,
         updated_at: new Date().toISOString(),
       })
       .eq("client_id", clientId);
 
     if (updateError) throw new Error(updateError.message);
+
+    try {
+      await syncFiscalConfigToFocus(clientId);
+    } catch (err) {
+      console.warn("[fiscal] Focus sync após upload falhou:", (err as Error).message);
+    }
 
     await logAudit({
       user_id: context.userId,
@@ -506,4 +558,22 @@ export const emitNfseForOrderFn = createServerFn({ method: "POST" })
       resource_id: emissionId,
     });
     return { success: true, emissionId };
+  });
+
+// ─── getFiscalReadiness ───────────────────────────────────────
+
+export const getFiscalReadiness = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: member } = await context.supabase
+      .from("client_members")
+      .select("client_id")
+      .eq("user_id", context.userId)
+      .eq("status", "active")
+      .single();
+
+    if (!member) throw new Error("Nenhum cliente associado a este usuário.");
+
+    const { validateFiscalReadiness } = await import("./fiscal-readiness.server");
+    return validateFiscalReadiness(member.client_id);
   });

@@ -7,6 +7,7 @@ export interface CatalogProductRow {
   externalProductId: string;
   externalVariantId: string;
   stockQty: number;
+  ncm?: string | null;
 }
 
 interface MlSearchResponse {
@@ -20,6 +21,15 @@ interface MlItem {
   price: number;
   available_quantity: number;
   seller_custom_field?: string;
+  attributes?: Array<{ id: string; value_name?: string; value_id?: string }>;
+}
+
+function extractMlNcm(item: MlItem): string | null {
+  const attr = item.attributes?.find(
+    (a) => a.id === "NCM" || a.id.toLowerCase().includes("ncm"),
+  );
+  const raw = attr?.value_name?.replace(/\D/g, "") ?? "";
+  return raw.length === 8 ? raw : null;
 }
 
 export async function pullMercadoLivreProducts(
@@ -48,6 +58,7 @@ export async function pullMercadoLivreProducts(
         externalProductId: item.id,
         externalVariantId: item.id,
         stockQty: item.available_quantity ?? 0,
+        ncm: extractMlNcm(item),
       });
     }
 

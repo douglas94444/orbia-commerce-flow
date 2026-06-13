@@ -1303,6 +1303,7 @@ export type Database = {
       fiscal_configs: {
         Row: {
           cert_expires_at: string | null
+          cert_password: string | null
           cert_path: string | null
           client_id: string
           cnpj: string
@@ -1311,12 +1312,18 @@ export type Database = {
           default_cfop: string | null
           default_cst: string | null
           default_ncm: string | null
+          focus_synced_at: string | null
           id: string
+          municipal_registration: string | null
+          municipality_code: string | null
+          state_registration: string | null
+          state_uf: string
           tax_regime: string
           updated_at: string
         }
         Insert: {
           cert_expires_at?: string | null
+          cert_password?: string | null
           cert_path?: string | null
           client_id: string
           cnpj: string
@@ -1325,12 +1332,18 @@ export type Database = {
           default_cfop?: string | null
           default_cst?: string | null
           default_ncm?: string | null
+          focus_synced_at?: string | null
           id?: string
+          municipal_registration?: string | null
+          municipality_code?: string | null
+          state_registration?: string | null
+          state_uf?: string
           tax_regime: string
           updated_at?: string
         }
         Update: {
           cert_expires_at?: string | null
+          cert_password?: string | null
           cert_path?: string | null
           client_id?: string
           cnpj?: string
@@ -1339,7 +1352,12 @@ export type Database = {
           default_cfop?: string | null
           default_cst?: string | null
           default_ncm?: string | null
+          focus_synced_at?: string | null
           id?: string
+          municipal_registration?: string | null
+          municipality_code?: string | null
+          state_registration?: string | null
+          state_uf?: string
           tax_regime?: string
           updated_at?: string
         }
@@ -1348,6 +1366,65 @@ export type Database = {
             foreignKeyName: "fiscal_configs_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: true
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fiscal_product_templates: {
+        Row: {
+          id: string
+          client_id: string
+          segment: string
+          name: string
+          default_ncm: string | null
+          cfop_intra: string | null
+          cfop_inter: string | null
+          cfop_return_intra: string | null
+          cfop_return_inter: string | null
+          default_cst: string | null
+          cest: string | null
+          icms_st: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          segment: string
+          name: string
+          default_ncm?: string | null
+          cfop_intra?: string | null
+          cfop_inter?: string | null
+          cfop_return_intra?: string | null
+          cfop_return_inter?: string | null
+          default_cst?: string | null
+          cest?: string | null
+          icms_st?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          segment?: string
+          name?: string
+          default_ncm?: string | null
+          cfop_intra?: string | null
+          cfop_inter?: string | null
+          cfop_return_intra?: string | null
+          cfop_return_inter?: string | null
+          default_cst?: string | null
+          cest?: string | null
+          icms_st?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_product_templates_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -2608,9 +2685,19 @@ export type Database = {
       products: {
         Row: {
           barcode: string | null
+          cfop: string | null
+          cfop_intra: string | null
+          cfop_inter: string | null
+          cfop_return_intra: string | null
+          cfop_return_inter: string | null
+          cest: string | null
           client_id: string
           created_at: string
+          cst: string | null
           height_mm: number | null
+          icms_origem: string
+          icms_rates: Json
+          icms_st: boolean
           id: string
           is_active: boolean
           length_mm: number | null
@@ -2628,9 +2715,19 @@ export type Database = {
         }
         Insert: {
           barcode?: string | null
+          cfop?: string | null
+          cfop_intra?: string | null
+          cfop_inter?: string | null
+          cfop_return_intra?: string | null
+          cfop_return_inter?: string | null
+          cest?: string | null
           client_id: string
           created_at?: string
+          cst?: string | null
           height_mm?: number | null
+          icms_origem?: string
+          icms_rates?: Json
+          icms_st?: boolean
           id?: string
           is_active?: boolean
           length_mm?: number | null
@@ -2648,9 +2745,19 @@ export type Database = {
         }
         Update: {
           barcode?: string | null
+          cfop?: string | null
+          cfop_intra?: string | null
+          cfop_inter?: string | null
+          cfop_return_intra?: string | null
+          cfop_return_inter?: string | null
+          cest?: string | null
           client_id?: string
           created_at?: string
+          cst?: string | null
           height_mm?: number | null
+          icms_origem?: string
+          icms_rates?: Json
+          icms_st?: boolean
           id?: string
           is_active?: boolean
           length_mm?: number | null
