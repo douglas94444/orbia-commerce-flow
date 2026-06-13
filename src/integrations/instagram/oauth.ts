@@ -44,7 +44,7 @@ export async function exchangeInstagramCode(code: string): Promise<InstagramToke
     throw new Error(`Instagram token exchange failed: ${body}`);
   }
 
-  return body;
+  return res.json() as Promise<InstagramTokenResponse>;
 }
 
 export async function refreshInstagramToken(refreshToken: string): Promise<InstagramTokenResponse> {

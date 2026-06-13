@@ -11,13 +11,14 @@ import {
   fetchMlQuestions,
   suggestMlAnswer,
   fetchMlReputation,
+  checkMlComplaints,
 } from "./mercado-livre-advanced.server";
 import {
   fetchShopeePenaltyMetrics,
   fetchShopeeShopScore,
   fetchShopeePromotions,
 } from "./shopee-advanced.server";
-import { fetchFbaInventory, fetchAccountHealth } from "./amazon-advanced.server";
+import { fetchFbaInventory, fetchAccountHealth, checkBuyBoxStatus } from "./amazon-advanced.server";
 import { getSalesByOrigin, getAffiliateCommissions } from "./tiktok-advanced.server";
 import {
   fetchPaymentGatewayMetadata,
@@ -25,6 +26,7 @@ import {
   listShopifyGiftCards,
 } from "./storefront-advanced.server";
 import { syncInstagramCatalogToMeta } from "./instagram-commerce.server";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 async function resolveClientId(
   supabase: { rpc: (fn: string) => Promise<{ data: string | null; error: unknown }>; from: (t: string) => unknown },
@@ -86,6 +88,13 @@ export const getMlReputationDashboard = createServerFn({ method: "GET" })
     return fetchMlReputation(clientId);
   });
 
+export const getMlComplaintsDashboard = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await resolveClientId(context.supabase);
+    return checkMlComplaints(clientId);
+  });
+
 export const getShopeeMetricsDashboard = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -107,6 +116,14 @@ export const getAmazonMetricsDashboard = createServerFn({ method: "GET" })
       fetchFbaInventory(clientId),
     ]);
     return { health, inventory };
+  });
+
+export const checkBuyBoxStatusFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ asin: z.string().min(5).max(20) }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await resolveClientId(context.supabase);
+    return checkBuyBoxStatus(clientId, data.asin.trim().toUpperCase());
   });
 
 export const getTiktokMetricsDashboard = createServerFn({ method: "GET" })
@@ -138,6 +155,39 @@ export const getInstagramCommerceDashboard = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const clientId = await resolveClientId(context.supabase);
     return syncInstagramCatalogToMeta(clientId);
+  });
+
+export const getInstagramMetaAttributionSummary = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const clientId = await resolveClientId(context.supabase);
+    const { data: orders } = await supabaseAdmin
+      .from("orders")
+      .select("external_id, value_cents, metadata")
+      .eq("client_id", clientId)
+      .order("created_at", { ascending: false })
+      .limit(200);
+
+    const attributed = (orders ?? []).filter((o) => {
+      const meta = (o.metadata ?? {}) as Record<string, unknown>;
+      return meta.meta_ads_attribution != null;
+    });
+
+    return {
+      totalOrders: attributed.length,
+      totalGmvCents: attributed.reduce((s, o) => s + Number(o.value_cents ?? 0), 0),
+      orders: attributed.slice(0, 20).map((o) => {
+        const meta = (o.metadata ?? {}) as Record<string, unknown>;
+        const attr = (meta.meta_ads_attribution ?? {}) as Record<string, unknown>;
+        return {
+          orderId: String(o.external_id ?? ""),
+          campaignId: attr.campaign_id ? String(attr.campaign_id) : null,
+          adId: attr.ad_id ? String(attr.ad_id) : null,
+          spendCents: Number(attr.spend_cents ?? 0),
+          gmvCents: Number(o.value_cents ?? 0),
+        };
+      }),
+    };
   });
 
 export const runMarketplaceAdvancedSyncFn = createServerFn({ method: "POST" })

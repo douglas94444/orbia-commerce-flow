@@ -38,16 +38,21 @@ export function PageIntro({
   eyebrow,
   title,
   description,
+  action,
 }: {
   eyebrow: string;
   title: string;
   description: string;
+  action?: ReactNode;
 }) {
   return (
-    <div className="mb-8">
-      <p className="text-label mb-2">{eyebrow}</p>
-      <h2 className="text-2xl font-bold tracking-tight text-foreground">{title}</h2>
-      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{description}</p>
+    <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <p className="text-label mb-2">{eyebrow}</p>
+        <h2 className="text-2xl font-bold tracking-tight text-foreground">{title}</h2>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{description}</p>
+      </div>
+      {action}
     </div>
   );
 }

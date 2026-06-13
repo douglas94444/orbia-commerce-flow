@@ -72,6 +72,12 @@ import { Route as DashboardLogisticsCarriersRouteImport } from './routes/_dashbo
 import { Route as DashboardLogisticsAnalyticsRouteImport } from './routes/_dashboard.logistics.analytics'
 import { Route as DashboardFiscalConfigRouteImport } from './routes/_dashboard.fiscal.config'
 import { Route as DashboardClientsIdRouteImport } from './routes/_dashboard.clients.$id'
+import { Route as DashboardChannelsTiktokRouteImport } from './routes/_dashboard.channels.tiktok'
+import { Route as DashboardChannelsShopeeRouteImport } from './routes/_dashboard.channels.shopee'
+import { Route as DashboardChannelsMercadoLivreRouteImport } from './routes/_dashboard.channels.mercado-livre'
+import { Route as DashboardChannelsLojasRouteImport } from './routes/_dashboard.channels.lojas'
+import { Route as DashboardChannelsInstagramRouteImport } from './routes/_dashboard.channels.instagram'
+import { Route as DashboardChannelsAmazonRouteImport } from './routes/_dashboard.channels.amazon'
 import { Route as ApiOauthWhatsappCallbackRouteImport } from './routes/api/oauth/whatsapp/callback'
 import { Route as ApiOauthTiktokCallbackRouteImport } from './routes/api/oauth/tiktok/callback'
 import { Route as ApiOauthShopifyCallbackRouteImport } from './routes/api/oauth/shopify/callback'
@@ -413,6 +419,38 @@ const DashboardClientsIdRoute = DashboardClientsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => DashboardClientsRoute,
 } as any)
+const DashboardChannelsTiktokRoute = DashboardChannelsTiktokRouteImport.update({
+  id: '/tiktok',
+  path: '/tiktok',
+  getParentRoute: () => DashboardChannelsRoute,
+} as any)
+const DashboardChannelsShopeeRoute = DashboardChannelsShopeeRouteImport.update({
+  id: '/shopee',
+  path: '/shopee',
+  getParentRoute: () => DashboardChannelsRoute,
+} as any)
+const DashboardChannelsMercadoLivreRoute =
+  DashboardChannelsMercadoLivreRouteImport.update({
+    id: '/mercado-livre',
+    path: '/mercado-livre',
+    getParentRoute: () => DashboardChannelsRoute,
+  } as any)
+const DashboardChannelsLojasRoute = DashboardChannelsLojasRouteImport.update({
+  id: '/lojas',
+  path: '/lojas',
+  getParentRoute: () => DashboardChannelsRoute,
+} as any)
+const DashboardChannelsInstagramRoute =
+  DashboardChannelsInstagramRouteImport.update({
+    id: '/instagram',
+    path: '/instagram',
+    getParentRoute: () => DashboardChannelsRoute,
+  } as any)
+const DashboardChannelsAmazonRoute = DashboardChannelsAmazonRouteImport.update({
+  id: '/amazon',
+  path: '/amazon',
+  getParentRoute: () => DashboardChannelsRoute,
+} as any)
 const ApiOauthWhatsappCallbackRoute =
   ApiOauthWhatsappCallbackRouteImport.update({
     id: '/api/oauth/whatsapp/callback',
@@ -482,7 +520,7 @@ export interface FileRoutesByFullPath {
   '/analytics': typeof DashboardAnalyticsRoute
   '/billing': typeof DashboardBillingRoute
   '/catalog': typeof DashboardCatalogRoute
-  '/channels': typeof DashboardChannelsRoute
+  '/channels': typeof DashboardChannelsRouteWithChildren
   '/clients': typeof DashboardClientsRouteWithChildren
   '/fiscal': typeof DashboardFiscalRouteWithChildren
   '/logistics': typeof DashboardLogisticsRouteWithChildren
@@ -505,6 +543,12 @@ export interface FileRoutesByFullPath {
   '/portal/settings': typeof PortalSettingsRoute
   '/portal/traffic': typeof PortalTrafficRoute
   '/ops/': typeof OpsIndexRoute
+  '/channels/amazon': typeof DashboardChannelsAmazonRoute
+  '/channels/instagram': typeof DashboardChannelsInstagramRoute
+  '/channels/lojas': typeof DashboardChannelsLojasRoute
+  '/channels/mercado-livre': typeof DashboardChannelsMercadoLivreRoute
+  '/channels/shopee': typeof DashboardChannelsShopeeRoute
+  '/channels/tiktok': typeof DashboardChannelsTiktokRoute
   '/clients/$id': typeof DashboardClientsIdRoute
   '/fiscal/config': typeof DashboardFiscalConfigRoute
   '/logistics/analytics': typeof DashboardLogisticsAnalyticsRoute
@@ -556,7 +600,7 @@ export interface FileRoutesByTo {
   '/analytics': typeof DashboardAnalyticsRoute
   '/billing': typeof DashboardBillingRoute
   '/catalog': typeof DashboardCatalogRoute
-  '/channels': typeof DashboardChannelsRoute
+  '/channels': typeof DashboardChannelsRouteWithChildren
   '/clients': typeof DashboardClientsRouteWithChildren
   '/fiscal': typeof DashboardFiscalRouteWithChildren
   '/logistics': typeof DashboardLogisticsRouteWithChildren
@@ -579,6 +623,12 @@ export interface FileRoutesByTo {
   '/portal/settings': typeof PortalSettingsRoute
   '/portal/traffic': typeof PortalTrafficRoute
   '/ops': typeof OpsIndexRoute
+  '/channels/amazon': typeof DashboardChannelsAmazonRoute
+  '/channels/instagram': typeof DashboardChannelsInstagramRoute
+  '/channels/lojas': typeof DashboardChannelsLojasRoute
+  '/channels/mercado-livre': typeof DashboardChannelsMercadoLivreRoute
+  '/channels/shopee': typeof DashboardChannelsShopeeRoute
+  '/channels/tiktok': typeof DashboardChannelsTiktokRoute
   '/clients/$id': typeof DashboardClientsIdRoute
   '/fiscal/config': typeof DashboardFiscalConfigRoute
   '/logistics/analytics': typeof DashboardLogisticsAnalyticsRoute
@@ -633,7 +683,7 @@ export interface FileRoutesById {
   '/_dashboard/analytics': typeof DashboardAnalyticsRoute
   '/_dashboard/billing': typeof DashboardBillingRoute
   '/_dashboard/catalog': typeof DashboardCatalogRoute
-  '/_dashboard/channels': typeof DashboardChannelsRoute
+  '/_dashboard/channels': typeof DashboardChannelsRouteWithChildren
   '/_dashboard/clients': typeof DashboardClientsRouteWithChildren
   '/_dashboard/fiscal': typeof DashboardFiscalRouteWithChildren
   '/_dashboard/logistics': typeof DashboardLogisticsRouteWithChildren
@@ -656,6 +706,12 @@ export interface FileRoutesById {
   '/portal/settings': typeof PortalSettingsRoute
   '/portal/traffic': typeof PortalTrafficRoute
   '/ops/': typeof OpsIndexRoute
+  '/_dashboard/channels/amazon': typeof DashboardChannelsAmazonRoute
+  '/_dashboard/channels/instagram': typeof DashboardChannelsInstagramRoute
+  '/_dashboard/channels/lojas': typeof DashboardChannelsLojasRoute
+  '/_dashboard/channels/mercado-livre': typeof DashboardChannelsMercadoLivreRoute
+  '/_dashboard/channels/shopee': typeof DashboardChannelsShopeeRoute
+  '/_dashboard/channels/tiktok': typeof DashboardChannelsTiktokRoute
   '/_dashboard/clients/$id': typeof DashboardClientsIdRoute
   '/_dashboard/fiscal/config': typeof DashboardFiscalConfigRoute
   '/_dashboard/logistics/analytics': typeof DashboardLogisticsAnalyticsRoute
@@ -733,6 +789,12 @@ export interface FileRouteTypes {
     | '/portal/settings'
     | '/portal/traffic'
     | '/ops/'
+    | '/channels/amazon'
+    | '/channels/instagram'
+    | '/channels/lojas'
+    | '/channels/mercado-livre'
+    | '/channels/shopee'
+    | '/channels/tiktok'
     | '/clients/$id'
     | '/fiscal/config'
     | '/logistics/analytics'
@@ -807,6 +869,12 @@ export interface FileRouteTypes {
     | '/portal/settings'
     | '/portal/traffic'
     | '/ops'
+    | '/channels/amazon'
+    | '/channels/instagram'
+    | '/channels/lojas'
+    | '/channels/mercado-livre'
+    | '/channels/shopee'
+    | '/channels/tiktok'
     | '/clients/$id'
     | '/fiscal/config'
     | '/logistics/analytics'
@@ -883,6 +951,12 @@ export interface FileRouteTypes {
     | '/portal/settings'
     | '/portal/traffic'
     | '/ops/'
+    | '/_dashboard/channels/amazon'
+    | '/_dashboard/channels/instagram'
+    | '/_dashboard/channels/lojas'
+    | '/_dashboard/channels/mercado-livre'
+    | '/_dashboard/channels/shopee'
+    | '/_dashboard/channels/tiktok'
     | '/_dashboard/clients/$id'
     | '/_dashboard/fiscal/config'
     | '/_dashboard/logistics/analytics'
@@ -1405,6 +1479,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardClientsIdRouteImport
       parentRoute: typeof DashboardClientsRoute
     }
+    '/_dashboard/channels/tiktok': {
+      id: '/_dashboard/channels/tiktok'
+      path: '/tiktok'
+      fullPath: '/channels/tiktok'
+      preLoaderRoute: typeof DashboardChannelsTiktokRouteImport
+      parentRoute: typeof DashboardChannelsRoute
+    }
+    '/_dashboard/channels/shopee': {
+      id: '/_dashboard/channels/shopee'
+      path: '/shopee'
+      fullPath: '/channels/shopee'
+      preLoaderRoute: typeof DashboardChannelsShopeeRouteImport
+      parentRoute: typeof DashboardChannelsRoute
+    }
+    '/_dashboard/channels/mercado-livre': {
+      id: '/_dashboard/channels/mercado-livre'
+      path: '/mercado-livre'
+      fullPath: '/channels/mercado-livre'
+      preLoaderRoute: typeof DashboardChannelsMercadoLivreRouteImport
+      parentRoute: typeof DashboardChannelsRoute
+    }
+    '/_dashboard/channels/lojas': {
+      id: '/_dashboard/channels/lojas'
+      path: '/lojas'
+      fullPath: '/channels/lojas'
+      preLoaderRoute: typeof DashboardChannelsLojasRouteImport
+      parentRoute: typeof DashboardChannelsRoute
+    }
+    '/_dashboard/channels/instagram': {
+      id: '/_dashboard/channels/instagram'
+      path: '/instagram'
+      fullPath: '/channels/instagram'
+      preLoaderRoute: typeof DashboardChannelsInstagramRouteImport
+      parentRoute: typeof DashboardChannelsRoute
+    }
+    '/_dashboard/channels/amazon': {
+      id: '/_dashboard/channels/amazon'
+      path: '/amazon'
+      fullPath: '/channels/amazon'
+      preLoaderRoute: typeof DashboardChannelsAmazonRouteImport
+      parentRoute: typeof DashboardChannelsRoute
+    }
     '/api/oauth/whatsapp/callback': {
       id: '/api/oauth/whatsapp/callback'
       path: '/api/oauth/whatsapp/callback'
@@ -1485,6 +1601,27 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface DashboardChannelsRouteChildren {
+  DashboardChannelsAmazonRoute: typeof DashboardChannelsAmazonRoute
+  DashboardChannelsInstagramRoute: typeof DashboardChannelsInstagramRoute
+  DashboardChannelsLojasRoute: typeof DashboardChannelsLojasRoute
+  DashboardChannelsMercadoLivreRoute: typeof DashboardChannelsMercadoLivreRoute
+  DashboardChannelsShopeeRoute: typeof DashboardChannelsShopeeRoute
+  DashboardChannelsTiktokRoute: typeof DashboardChannelsTiktokRoute
+}
+
+const DashboardChannelsRouteChildren: DashboardChannelsRouteChildren = {
+  DashboardChannelsAmazonRoute: DashboardChannelsAmazonRoute,
+  DashboardChannelsInstagramRoute: DashboardChannelsInstagramRoute,
+  DashboardChannelsLojasRoute: DashboardChannelsLojasRoute,
+  DashboardChannelsMercadoLivreRoute: DashboardChannelsMercadoLivreRoute,
+  DashboardChannelsShopeeRoute: DashboardChannelsShopeeRoute,
+  DashboardChannelsTiktokRoute: DashboardChannelsTiktokRoute,
+}
+
+const DashboardChannelsRouteWithChildren =
+  DashboardChannelsRoute._addFileChildren(DashboardChannelsRouteChildren)
+
 interface DashboardClientsRouteChildren {
   DashboardClientsIdRoute: typeof DashboardClientsIdRoute
 }
@@ -1553,7 +1690,7 @@ interface DashboardRouteChildren {
   DashboardAnalyticsRoute: typeof DashboardAnalyticsRoute
   DashboardBillingRoute: typeof DashboardBillingRoute
   DashboardCatalogRoute: typeof DashboardCatalogRoute
-  DashboardChannelsRoute: typeof DashboardChannelsRoute
+  DashboardChannelsRoute: typeof DashboardChannelsRouteWithChildren
   DashboardClientsRoute: typeof DashboardClientsRouteWithChildren
   DashboardFiscalRoute: typeof DashboardFiscalRouteWithChildren
   DashboardLogisticsRoute: typeof DashboardLogisticsRouteWithChildren
@@ -1568,7 +1705,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardAnalyticsRoute: DashboardAnalyticsRoute,
   DashboardBillingRoute: DashboardBillingRoute,
   DashboardCatalogRoute: DashboardCatalogRoute,
-  DashboardChannelsRoute: DashboardChannelsRoute,
+  DashboardChannelsRoute: DashboardChannelsRouteWithChildren,
   DashboardClientsRoute: DashboardClientsRouteWithChildren,
   DashboardFiscalRoute: DashboardFiscalRouteWithChildren,
   DashboardLogisticsRoute: DashboardLogisticsRouteWithChildren,

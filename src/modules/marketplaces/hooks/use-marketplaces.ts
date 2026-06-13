@@ -6,11 +6,14 @@ import {
   getMlQuestionsDashboard,
   suggestMlAnswerFn,
   getMlReputationDashboard,
+  getMlComplaintsDashboard,
   getShopeeMetricsDashboard,
   getAmazonMetricsDashboard,
+  checkBuyBoxStatusFn,
   getTiktokMetricsDashboard,
   getStorefrontMetricsDashboard,
   getInstagramCommerceDashboard,
+  getInstagramMetaAttributionSummary,
   runMarketplaceAdvancedSyncFn,
   getChannelAnalytics,
   getIntegrationHealthDashboard,
@@ -22,11 +25,14 @@ export const CHANNEL_ANALYTICS_KEY = ["channel-analytics"] as const;
 export const INTEGRATION_HEALTH_KEY = ["integration-health"] as const;
 export const ML_QUESTIONS_KEY = ["ml-questions"] as const;
 export const ML_REPUTATION_KEY = ["ml-reputation"] as const;
+export const ML_COMPLAINTS_KEY = ["ml-complaints"] as const;
 export const SHOPEE_METRICS_KEY = ["shopee-metrics"] as const;
 export const AMAZON_METRICS_KEY = ["amazon-metrics"] as const;
 export const TIKTOK_METRICS_KEY = ["tiktok-metrics"] as const;
 export const STOREFRONT_METRICS_KEY = ["storefront-metrics"] as const;
 export const INSTAGRAM_COMMERCE_KEY = ["instagram-commerce"] as const;
+export const INSTAGRAM_ATTRIBUTION_KEY = ["instagram-attribution"] as const;
+export const BUY_BOX_KEY = ["buy-box"] as const;
 
 export function useMarketplaceProfitability() {
   return useQuery({
@@ -89,6 +95,14 @@ export function useMlReputation() {
   });
 }
 
+export function useMlComplaints() {
+  return useQuery({
+    queryKey: ML_COMPLAINTS_KEY,
+    queryFn: () => getMlComplaintsDashboard(),
+    staleTime: 60_000,
+  });
+}
+
 export function useShopeeMetrics() {
   return useQuery({
     queryKey: SHOPEE_METRICS_KEY,
@@ -102,6 +116,13 @@ export function useAmazonMetrics() {
     queryKey: AMAZON_METRICS_KEY,
     queryFn: () => getAmazonMetricsDashboard(),
     staleTime: 60_000,
+  });
+}
+
+export function useBuyBoxCheck() {
+  return useMutation({
+    mutationFn: (asin: string) => checkBuyBoxStatusFn({ data: { asin } }),
+    onError: (err: Error) => toast.error(err.message),
   });
 }
 
@@ -129,6 +150,14 @@ export function useInstagramCommerce() {
   });
 }
 
+export function useInstagramMetaAttribution() {
+  return useQuery({
+    queryKey: INSTAGRAM_ATTRIBUTION_KEY,
+    queryFn: () => getInstagramMetaAttributionSummary(),
+    staleTime: 60_000,
+  });
+}
+
 export function useRunMarketplaceAdvancedSync() {
   const qc = useQueryClient();
   return useMutation({
@@ -136,10 +165,15 @@ export function useRunMarketplaceAdvancedSync() {
     onSuccess: () => {
       toast.success("Sincronização avançada de marketplaces concluída");
       void qc.invalidateQueries({ queryKey: MARKETPLACE_PROFITABILITY_KEY });
+      void qc.invalidateQueries({ queryKey: ML_QUESTIONS_KEY });
       void qc.invalidateQueries({ queryKey: ML_REPUTATION_KEY });
+      void qc.invalidateQueries({ queryKey: ML_COMPLAINTS_KEY });
       void qc.invalidateQueries({ queryKey: SHOPEE_METRICS_KEY });
       void qc.invalidateQueries({ queryKey: AMAZON_METRICS_KEY });
       void qc.invalidateQueries({ queryKey: TIKTOK_METRICS_KEY });
+      void qc.invalidateQueries({ queryKey: STOREFRONT_METRICS_KEY });
+      void qc.invalidateQueries({ queryKey: INSTAGRAM_COMMERCE_KEY });
+      void qc.invalidateQueries({ queryKey: INSTAGRAM_ATTRIBUTION_KEY });
     },
     onError: (err: Error) => toast.error(err.message),
   });
