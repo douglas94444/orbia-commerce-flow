@@ -1,11 +1,30 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { refreshClientLastContact } from "./admin.server";
+import { createSacTicket } from "@/modules/sac/tickets/ticket-factory.server";
 
 /** Abre atividade CS quando há problema de entrega. */
 export async function notifyCsOnDeliveryProblem(
   orderId: string,
   clientId: string,
 ): Promise<void> {
+  const { data: order } = await supabaseAdmin
+    .from("orders")
+    .select("customer_id, external_id")
+    .eq("id", orderId)
+    .single();
+
+  await createSacTicket({
+    clientId,
+    channel: "whatsapp",
+    category: "atraso",
+    priority: "high",
+    customerId: order?.customer_id ?? null,
+    orderId,
+    subject: `Problema de entrega — ${order?.external_id ?? orderId.slice(0, 8)}`,
+    initialMessage: "Problema de entrega detectado — ticket SAC proativo.",
+    metadata: { auto: true, source: "delivery_problem" },
+  });
+
   const { data: staff } = await supabaseAdmin
     .from("profiles")
     .select("id")

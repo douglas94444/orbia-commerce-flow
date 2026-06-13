@@ -55,6 +55,10 @@ export type CronJobName =
   | "marketplace-advanced-sync"
   | "sales-nurture"
   | "sales-upsell-scan"
+  | "sac-sla-check"
+  | "sac-automations"
+  | "sac-marketplace-poll"
+  | "sac-reclame-aqui-poll"
   | "all";
 
 export interface JobResult {
@@ -261,6 +265,26 @@ async function runJob(name: Exclude<CronJobName, "all">): Promise<JobResult> {
         metadata = { created: await scanUpsellOpportunities() };
         break;
       }
+      case "sac-sla-check": {
+        const { checkSacSlaBreaches } = await import("@/modules/sac/sla/sac-sla.server");
+        metadata = { alerted: await checkSacSlaBreaches() };
+        break;
+      }
+      case "sac-automations": {
+        const { runSacAutomations } = await import("@/modules/sac/automations/sac-automations.server");
+        metadata = await runSacAutomations();
+        break;
+      }
+      case "sac-marketplace-poll": {
+        const { runSacMarketplacePoll } = await import("@/modules/sac/marketplace-claims/sac-marketplace-poll.server");
+        metadata = await runSacMarketplacePoll();
+        break;
+      }
+      case "sac-reclame-aqui-poll": {
+        const { runReclameAquiPoll } = await import("@/modules/sac/reclame-aqui/reclame-aqui.server");
+        metadata = await runReclameAquiPoll();
+        break;
+      }
       case "marketplace-advanced-sync": {
         const { runMarketplaceAdvancedSync } = await import("@/modules/marketplaces");
         metadata = await runMarketplaceAdvancedSync();
@@ -319,6 +343,9 @@ const JOB_SEQUENCE: Array<Exclude<CronJobName, "all">> = [
   "attribute-traffic-conversions",
   "sales-nurture",
   "sales-upsell-scan",
+  "sac-sla-check",
+  "sac-automations",
+  "sac-marketplace-poll",
   "capture-benchmarks",
   "sla-monthly-report",
   "monthly-analytics-report",

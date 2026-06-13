@@ -122,6 +122,61 @@ export interface NfEmission {
   canCancel: boolean
 }
 
+export type SacChannel =
+  | 'whatsapp'
+  | 'email'
+  | 'chat'
+  | 'instagram'
+  | 'mercado_livre'
+  | 'shopee'
+  | 'amazon'
+  | 'site_form'
+
+export type SacPriority = 'low' | 'normal' | 'high' | 'urgent' | 'critical'
+
+export type SacStatus =
+  | 'open'
+  | 'in_progress'
+  | 'waiting_customer'
+  | 'resolved'
+  | 'closed'
+  | 'merged'
+
+export type SacCategory =
+  | 'rastreio'
+  | 'atraso'
+  | 'produto_errado'
+  | 'produto_danificado'
+  | 'devolucao'
+  | 'troca'
+  | 'cancelamento'
+  | 'duvida'
+  | 'elogio'
+  | 'fraude'
+  | 'chargeback'
+
+export interface SacTicket {
+  id: string
+  protocol: string
+  channel: SacChannel
+  category: SacCategory
+  priority: SacPriority
+  status: SacStatus
+  customerId: string | null
+  orderId: string | null
+  assignedTo: string | null
+  createdAt: string
+}
+
+export interface SacMessage {
+  id: string
+  ticketId: string
+  direction: 'inbound' | 'outbound' | 'system' | 'bot'
+  body: string
+  senderType: 'customer' | 'agent' | 'bot' | 'system'
+  createdAt: string
+}
+
 export interface AutomationFlow {
   id: string
   name: string

@@ -18,6 +18,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as OpsIndexRouteImport } from './routes/ops.index'
 import { Route as PropostaTokenRouteImport } from './routes/proposta.$token'
 import { Route as PortalTrafficRouteImport } from './routes/portal.traffic'
+import { Route as PortalSupportRouteImport } from './routes/portal.support'
 import { Route as PortalSettingsRouteImport } from './routes/portal.settings'
 import { Route as PortalRetentionRouteImport } from './routes/portal.retention'
 import { Route as PortalOverviewRouteImport } from './routes/portal.overview'
@@ -31,12 +32,14 @@ import { Route as OpsPickingRouteImport } from './routes/ops.picking'
 import { Route as OpsPackingRouteImport } from './routes/ops.packing'
 import { Route as OpsDispatchRouteImport } from './routes/ops.dispatch'
 import { Route as MinhaContaTokenRouteImport } from './routes/minha-conta.$token'
+import { Route as HelpSlugRouteImport } from './routes/help.$slug'
 import { Route as DiagnosticoSegmentRouteImport } from './routes/diagnostico.$segment'
 import { Route as ContratoTokenRouteImport } from './routes/contrato.$token'
 import { Route as DashboardTrafficRouteImport } from './routes/_dashboard.traffic'
 import { Route as DashboardSuccessRouteImport } from './routes/_dashboard.success'
 import { Route as DashboardSettingsRouteImport } from './routes/_dashboard.settings'
 import { Route as DashboardSalesRouteImport } from './routes/_dashboard.sales'
+import { Route as DashboardSacRouteImport } from './routes/_dashboard.sac'
 import { Route as DashboardRetentionRouteImport } from './routes/_dashboard.retention'
 import { Route as DashboardOverviewRouteImport } from './routes/_dashboard.overview'
 import { Route as DashboardLogisticsRouteImport } from './routes/_dashboard.logistics'
@@ -64,6 +67,9 @@ import { Route as ApiCronRunRouteImport } from './routes/api/cron/run'
 import { Route as DashboardSalesPartnersRouteImport } from './routes/_dashboard.sales.partners'
 import { Route as DashboardSalesMetricsRouteImport } from './routes/_dashboard.sales.metrics'
 import { Route as DashboardSalesProspectIdRouteImport } from './routes/_dashboard.sales.$prospectId'
+import { Route as DashboardSacMetricsRouteImport } from './routes/_dashboard.sac.metrics'
+import { Route as DashboardSacKnowledgeRouteImport } from './routes/_dashboard.sac.knowledge'
+import { Route as DashboardSacTicketIdRouteImport } from './routes/_dashboard.sac.$ticketId'
 import { Route as DashboardLogisticsWarehouseRouteImport } from './routes/_dashboard.logistics.warehouse'
 import { Route as DashboardLogisticsTrackingRouteImport } from './routes/_dashboard.logistics.tracking'
 import { Route as DashboardLogisticsSlaRouteImport } from './routes/_dashboard.logistics.sla'
@@ -146,6 +152,11 @@ const PortalTrafficRoute = PortalTrafficRouteImport.update({
   path: '/traffic',
   getParentRoute: () => PortalRoute,
 } as any)
+const PortalSupportRoute = PortalSupportRouteImport.update({
+  id: '/support',
+  path: '/support',
+  getParentRoute: () => PortalRoute,
+} as any)
 const PortalSettingsRoute = PortalSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -211,6 +222,11 @@ const MinhaContaTokenRoute = MinhaContaTokenRouteImport.update({
   path: '/minha-conta/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HelpSlugRoute = HelpSlugRouteImport.update({
+  id: '/help/$slug',
+  path: '/help/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DiagnosticoSegmentRoute = DiagnosticoSegmentRouteImport.update({
   id: '/$segment',
   path: '/$segment',
@@ -239,6 +255,11 @@ const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
 const DashboardSalesRoute = DashboardSalesRouteImport.update({
   id: '/sales',
   path: '/sales',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardSacRoute = DashboardSacRouteImport.update({
+  id: '/sac',
+  path: '/sac',
   getParentRoute: () => DashboardRoute,
 } as any)
 const DashboardRetentionRoute = DashboardRetentionRouteImport.update({
@@ -378,6 +399,21 @@ const DashboardSalesProspectIdRoute =
     path: '/$prospectId',
     getParentRoute: () => DashboardSalesRoute,
   } as any)
+const DashboardSacMetricsRoute = DashboardSacMetricsRouteImport.update({
+  id: '/metrics',
+  path: '/metrics',
+  getParentRoute: () => DashboardSacRoute,
+} as any)
+const DashboardSacKnowledgeRoute = DashboardSacKnowledgeRouteImport.update({
+  id: '/knowledge',
+  path: '/knowledge',
+  getParentRoute: () => DashboardSacRoute,
+} as any)
+const DashboardSacTicketIdRoute = DashboardSacTicketIdRouteImport.update({
+  id: '/$ticketId',
+  path: '/$ticketId',
+  getParentRoute: () => DashboardSacRoute,
+} as any)
 const DashboardLogisticsWarehouseRoute =
   DashboardLogisticsWarehouseRouteImport.update({
     id: '/warehouse',
@@ -601,12 +637,14 @@ export interface FileRoutesByFullPath {
   '/logistics': typeof DashboardLogisticsRouteWithChildren
   '/overview': typeof DashboardOverviewRoute
   '/retention': typeof DashboardRetentionRoute
+  '/sac': typeof DashboardSacRouteWithChildren
   '/sales': typeof DashboardSalesRouteWithChildren
   '/settings': typeof DashboardSettingsRoute
   '/success': typeof DashboardSuccessRoute
   '/traffic': typeof DashboardTrafficRoute
   '/contrato/$token': typeof ContratoTokenRoute
   '/diagnostico/$segment': typeof DiagnosticoSegmentRoute
+  '/help/$slug': typeof HelpSlugRoute
   '/minha-conta/$token': typeof MinhaContaTokenRoute
   '/ops/dispatch': typeof OpsDispatchRoute
   '/ops/packing': typeof OpsPackingRoute
@@ -620,6 +658,7 @@ export interface FileRoutesByFullPath {
   '/portal/overview': typeof PortalOverviewRoute
   '/portal/retention': typeof PortalRetentionRoute
   '/portal/settings': typeof PortalSettingsRoute
+  '/portal/support': typeof PortalSupportRoute
   '/portal/traffic': typeof PortalTrafficRoute
   '/proposta/$token': typeof PropostaTokenRoute
   '/ops/': typeof OpsIndexRoute
@@ -649,6 +688,9 @@ export interface FileRoutesByFullPath {
   '/logistics/sla': typeof DashboardLogisticsSlaRoute
   '/logistics/tracking': typeof DashboardLogisticsTrackingRoute
   '/logistics/warehouse': typeof DashboardLogisticsWarehouseRoute
+  '/sac/$ticketId': typeof DashboardSacTicketIdRoute
+  '/sac/knowledge': typeof DashboardSacKnowledgeRoute
+  '/sac/metrics': typeof DashboardSacMetricsRoute
   '/sales/$prospectId': typeof DashboardSalesProspectIdRoute
   '/sales/metrics': typeof DashboardSalesMetricsRoute
   '/sales/partners': typeof DashboardSalesPartnersRoute
@@ -693,12 +735,14 @@ export interface FileRoutesByTo {
   '/logistics': typeof DashboardLogisticsRouteWithChildren
   '/overview': typeof DashboardOverviewRoute
   '/retention': typeof DashboardRetentionRoute
+  '/sac': typeof DashboardSacRouteWithChildren
   '/sales': typeof DashboardSalesRouteWithChildren
   '/settings': typeof DashboardSettingsRoute
   '/success': typeof DashboardSuccessRoute
   '/traffic': typeof DashboardTrafficRoute
   '/contrato/$token': typeof ContratoTokenRoute
   '/diagnostico/$segment': typeof DiagnosticoSegmentRoute
+  '/help/$slug': typeof HelpSlugRoute
   '/minha-conta/$token': typeof MinhaContaTokenRoute
   '/ops/dispatch': typeof OpsDispatchRoute
   '/ops/packing': typeof OpsPackingRoute
@@ -712,6 +756,7 @@ export interface FileRoutesByTo {
   '/portal/overview': typeof PortalOverviewRoute
   '/portal/retention': typeof PortalRetentionRoute
   '/portal/settings': typeof PortalSettingsRoute
+  '/portal/support': typeof PortalSupportRoute
   '/portal/traffic': typeof PortalTrafficRoute
   '/proposta/$token': typeof PropostaTokenRoute
   '/ops': typeof OpsIndexRoute
@@ -741,6 +786,9 @@ export interface FileRoutesByTo {
   '/logistics/sla': typeof DashboardLogisticsSlaRoute
   '/logistics/tracking': typeof DashboardLogisticsTrackingRoute
   '/logistics/warehouse': typeof DashboardLogisticsWarehouseRoute
+  '/sac/$ticketId': typeof DashboardSacTicketIdRoute
+  '/sac/knowledge': typeof DashboardSacKnowledgeRoute
+  '/sac/metrics': typeof DashboardSacMetricsRoute
   '/sales/$prospectId': typeof DashboardSalesProspectIdRoute
   '/sales/metrics': typeof DashboardSalesMetricsRoute
   '/sales/partners': typeof DashboardSalesPartnersRoute
@@ -788,12 +836,14 @@ export interface FileRoutesById {
   '/_dashboard/logistics': typeof DashboardLogisticsRouteWithChildren
   '/_dashboard/overview': typeof DashboardOverviewRoute
   '/_dashboard/retention': typeof DashboardRetentionRoute
+  '/_dashboard/sac': typeof DashboardSacRouteWithChildren
   '/_dashboard/sales': typeof DashboardSalesRouteWithChildren
   '/_dashboard/settings': typeof DashboardSettingsRoute
   '/_dashboard/success': typeof DashboardSuccessRoute
   '/_dashboard/traffic': typeof DashboardTrafficRoute
   '/contrato/$token': typeof ContratoTokenRoute
   '/diagnostico/$segment': typeof DiagnosticoSegmentRoute
+  '/help/$slug': typeof HelpSlugRoute
   '/minha-conta/$token': typeof MinhaContaTokenRoute
   '/ops/dispatch': typeof OpsDispatchRoute
   '/ops/packing': typeof OpsPackingRoute
@@ -807,6 +857,7 @@ export interface FileRoutesById {
   '/portal/overview': typeof PortalOverviewRoute
   '/portal/retention': typeof PortalRetentionRoute
   '/portal/settings': typeof PortalSettingsRoute
+  '/portal/support': typeof PortalSupportRoute
   '/portal/traffic': typeof PortalTrafficRoute
   '/proposta/$token': typeof PropostaTokenRoute
   '/ops/': typeof OpsIndexRoute
@@ -836,6 +887,9 @@ export interface FileRoutesById {
   '/_dashboard/logistics/sla': typeof DashboardLogisticsSlaRoute
   '/_dashboard/logistics/tracking': typeof DashboardLogisticsTrackingRoute
   '/_dashboard/logistics/warehouse': typeof DashboardLogisticsWarehouseRoute
+  '/_dashboard/sac/$ticketId': typeof DashboardSacTicketIdRoute
+  '/_dashboard/sac/knowledge': typeof DashboardSacKnowledgeRoute
+  '/_dashboard/sac/metrics': typeof DashboardSacMetricsRoute
   '/_dashboard/sales/$prospectId': typeof DashboardSalesProspectIdRoute
   '/_dashboard/sales/metrics': typeof DashboardSalesMetricsRoute
   '/_dashboard/sales/partners': typeof DashboardSalesPartnersRoute
@@ -883,12 +937,14 @@ export interface FileRouteTypes {
     | '/logistics'
     | '/overview'
     | '/retention'
+    | '/sac'
     | '/sales'
     | '/settings'
     | '/success'
     | '/traffic'
     | '/contrato/$token'
     | '/diagnostico/$segment'
+    | '/help/$slug'
     | '/minha-conta/$token'
     | '/ops/dispatch'
     | '/ops/packing'
@@ -902,6 +958,7 @@ export interface FileRouteTypes {
     | '/portal/overview'
     | '/portal/retention'
     | '/portal/settings'
+    | '/portal/support'
     | '/portal/traffic'
     | '/proposta/$token'
     | '/ops/'
@@ -931,6 +988,9 @@ export interface FileRouteTypes {
     | '/logistics/sla'
     | '/logistics/tracking'
     | '/logistics/warehouse'
+    | '/sac/$ticketId'
+    | '/sac/knowledge'
+    | '/sac/metrics'
     | '/sales/$prospectId'
     | '/sales/metrics'
     | '/sales/partners'
@@ -975,12 +1035,14 @@ export interface FileRouteTypes {
     | '/logistics'
     | '/overview'
     | '/retention'
+    | '/sac'
     | '/sales'
     | '/settings'
     | '/success'
     | '/traffic'
     | '/contrato/$token'
     | '/diagnostico/$segment'
+    | '/help/$slug'
     | '/minha-conta/$token'
     | '/ops/dispatch'
     | '/ops/packing'
@@ -994,6 +1056,7 @@ export interface FileRouteTypes {
     | '/portal/overview'
     | '/portal/retention'
     | '/portal/settings'
+    | '/portal/support'
     | '/portal/traffic'
     | '/proposta/$token'
     | '/ops'
@@ -1023,6 +1086,9 @@ export interface FileRouteTypes {
     | '/logistics/sla'
     | '/logistics/tracking'
     | '/logistics/warehouse'
+    | '/sac/$ticketId'
+    | '/sac/knowledge'
+    | '/sac/metrics'
     | '/sales/$prospectId'
     | '/sales/metrics'
     | '/sales/partners'
@@ -1069,12 +1135,14 @@ export interface FileRouteTypes {
     | '/_dashboard/logistics'
     | '/_dashboard/overview'
     | '/_dashboard/retention'
+    | '/_dashboard/sac'
     | '/_dashboard/sales'
     | '/_dashboard/settings'
     | '/_dashboard/success'
     | '/_dashboard/traffic'
     | '/contrato/$token'
     | '/diagnostico/$segment'
+    | '/help/$slug'
     | '/minha-conta/$token'
     | '/ops/dispatch'
     | '/ops/packing'
@@ -1088,6 +1156,7 @@ export interface FileRouteTypes {
     | '/portal/overview'
     | '/portal/retention'
     | '/portal/settings'
+    | '/portal/support'
     | '/portal/traffic'
     | '/proposta/$token'
     | '/ops/'
@@ -1117,6 +1186,9 @@ export interface FileRouteTypes {
     | '/_dashboard/logistics/sla'
     | '/_dashboard/logistics/tracking'
     | '/_dashboard/logistics/warehouse'
+    | '/_dashboard/sac/$ticketId'
+    | '/_dashboard/sac/knowledge'
+    | '/_dashboard/sac/metrics'
     | '/_dashboard/sales/$prospectId'
     | '/_dashboard/sales/metrics'
     | '/_dashboard/sales/partners'
@@ -1156,6 +1228,7 @@ export interface RootRouteChildren {
   OpsRoute: typeof OpsRouteWithChildren
   PortalRoute: typeof PortalRouteWithChildren
   ContratoTokenRoute: typeof ContratoTokenRoute
+  HelpSlugRoute: typeof HelpSlugRoute
   MinhaContaTokenRoute: typeof MinhaContaTokenRoute
   ParceirosCadastroRoute: typeof ParceirosCadastroRoute
   PropostaTokenRoute: typeof PropostaTokenRoute
@@ -1251,6 +1324,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PortalTrafficRouteImport
       parentRoute: typeof PortalRoute
     }
+    '/portal/support': {
+      id: '/portal/support'
+      path: '/support'
+      fullPath: '/portal/support'
+      preLoaderRoute: typeof PortalSupportRouteImport
+      parentRoute: typeof PortalRoute
+    }
     '/portal/settings': {
       id: '/portal/settings'
       path: '/settings'
@@ -1342,6 +1422,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MinhaContaTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/help/$slug': {
+      id: '/help/$slug'
+      path: '/help/$slug'
+      fullPath: '/help/$slug'
+      preLoaderRoute: typeof HelpSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/diagnostico/$segment': {
       id: '/diagnostico/$segment'
       path: '/$segment'
@@ -1382,6 +1469,13 @@ declare module '@tanstack/react-router' {
       path: '/sales'
       fullPath: '/sales'
       preLoaderRoute: typeof DashboardSalesRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/sac': {
+      id: '/_dashboard/sac'
+      path: '/sac'
+      fullPath: '/sac'
+      preLoaderRoute: typeof DashboardSacRouteImport
       parentRoute: typeof DashboardRoute
     }
     '/_dashboard/retention': {
@@ -1572,6 +1666,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/sales/$prospectId'
       preLoaderRoute: typeof DashboardSalesProspectIdRouteImport
       parentRoute: typeof DashboardSalesRoute
+    }
+    '/_dashboard/sac/metrics': {
+      id: '/_dashboard/sac/metrics'
+      path: '/metrics'
+      fullPath: '/sac/metrics'
+      preLoaderRoute: typeof DashboardSacMetricsRouteImport
+      parentRoute: typeof DashboardSacRoute
+    }
+    '/_dashboard/sac/knowledge': {
+      id: '/_dashboard/sac/knowledge'
+      path: '/knowledge'
+      fullPath: '/sac/knowledge'
+      preLoaderRoute: typeof DashboardSacKnowledgeRouteImport
+      parentRoute: typeof DashboardSacRoute
+    }
+    '/_dashboard/sac/$ticketId': {
+      id: '/_dashboard/sac/$ticketId'
+      path: '/$ticketId'
+      fullPath: '/sac/$ticketId'
+      preLoaderRoute: typeof DashboardSacTicketIdRouteImport
+      parentRoute: typeof DashboardSacRoute
     }
     '/_dashboard/logistics/warehouse': {
       id: '/_dashboard/logistics/warehouse'
@@ -1933,6 +2048,22 @@ const DashboardLogisticsRouteChildren: DashboardLogisticsRouteChildren = {
 const DashboardLogisticsRouteWithChildren =
   DashboardLogisticsRoute._addFileChildren(DashboardLogisticsRouteChildren)
 
+interface DashboardSacRouteChildren {
+  DashboardSacTicketIdRoute: typeof DashboardSacTicketIdRoute
+  DashboardSacKnowledgeRoute: typeof DashboardSacKnowledgeRoute
+  DashboardSacMetricsRoute: typeof DashboardSacMetricsRoute
+}
+
+const DashboardSacRouteChildren: DashboardSacRouteChildren = {
+  DashboardSacTicketIdRoute: DashboardSacTicketIdRoute,
+  DashboardSacKnowledgeRoute: DashboardSacKnowledgeRoute,
+  DashboardSacMetricsRoute: DashboardSacMetricsRoute,
+}
+
+const DashboardSacRouteWithChildren = DashboardSacRoute._addFileChildren(
+  DashboardSacRouteChildren,
+)
+
 interface DashboardSalesRouteChildren {
   DashboardSalesProspectIdRoute: typeof DashboardSalesProspectIdRoute
   DashboardSalesMetricsRoute: typeof DashboardSalesMetricsRoute
@@ -1959,6 +2090,7 @@ interface DashboardRouteChildren {
   DashboardLogisticsRoute: typeof DashboardLogisticsRouteWithChildren
   DashboardOverviewRoute: typeof DashboardOverviewRoute
   DashboardRetentionRoute: typeof DashboardRetentionRoute
+  DashboardSacRoute: typeof DashboardSacRouteWithChildren
   DashboardSalesRoute: typeof DashboardSalesRouteWithChildren
   DashboardSettingsRoute: typeof DashboardSettingsRoute
   DashboardSuccessRoute: typeof DashboardSuccessRoute
@@ -1975,6 +2107,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardLogisticsRoute: DashboardLogisticsRouteWithChildren,
   DashboardOverviewRoute: DashboardOverviewRoute,
   DashboardRetentionRoute: DashboardRetentionRoute,
+  DashboardSacRoute: DashboardSacRouteWithChildren,
   DashboardSalesRoute: DashboardSalesRouteWithChildren,
   DashboardSettingsRoute: DashboardSettingsRoute,
   DashboardSuccessRoute: DashboardSuccessRoute,
@@ -2025,6 +2158,7 @@ interface PortalRouteChildren {
   PortalOverviewRoute: typeof PortalOverviewRoute
   PortalRetentionRoute: typeof PortalRetentionRoute
   PortalSettingsRoute: typeof PortalSettingsRoute
+  PortalSupportRoute: typeof PortalSupportRoute
   PortalTrafficRoute: typeof PortalTrafficRoute
 }
 
@@ -2036,6 +2170,7 @@ const PortalRouteChildren: PortalRouteChildren = {
   PortalOverviewRoute: PortalOverviewRoute,
   PortalRetentionRoute: PortalRetentionRoute,
   PortalSettingsRoute: PortalSettingsRoute,
+  PortalSupportRoute: PortalSupportRoute,
   PortalTrafficRoute: PortalTrafficRoute,
 }
 
@@ -2050,6 +2185,7 @@ const rootRouteChildren: RootRouteChildren = {
   OpsRoute: OpsRouteWithChildren,
   PortalRoute: PortalRouteWithChildren,
   ContratoTokenRoute: ContratoTokenRoute,
+  HelpSlugRoute: HelpSlugRoute,
   MinhaContaTokenRoute: MinhaContaTokenRoute,
   ParceirosCadastroRoute: ParceirosCadastroRoute,
   PropostaTokenRoute: PropostaTokenRoute,

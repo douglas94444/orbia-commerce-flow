@@ -33,6 +33,10 @@ const VALID_JOBS = new Set<CronJobName>([
   "marketplace-advanced-sync",
   "sales-nurture",
   "sales-upsell-scan",
+  "sac-sla-check",
+  "sac-automations",
+  "sac-marketplace-poll",
+  "sac-reclame-aqui-poll",
   "all",
 ]);
 

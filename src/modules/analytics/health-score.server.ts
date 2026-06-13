@@ -10,7 +10,7 @@ export async function computeHealthScore(clientId: string): Promise<number> {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const [clientRes, ordersRes, customersRes, flowsRes, slaDash] = await Promise.all([
+  const [clientRes, ordersRes, customersRes, flowsRes, slaDash, sacRes, csatRes] = await Promise.all([
     supabaseAdmin.from("clients").select("roas_avg, last_contact_days").eq("id", clientId).single(),
     supabaseAdmin
       .from("orders")
@@ -20,6 +20,17 @@ export async function computeHealthScore(clientId: string): Promise<number> {
     supabaseAdmin.from("customers").select("ltv_cents").eq("client_id", clientId),
     supabaseAdmin.from("automation_flows").select("sent_30d").eq("client_id", clientId),
     getSlaDashboard(clientId),
+    supabaseAdmin
+      .from("sac_tickets")
+      .select("id, status")
+      .eq("client_id", clientId)
+      .gte("created_at", thirtyDaysAgo.toISOString()),
+    supabaseAdmin
+      .from("sac_csat_surveys")
+      .select("score")
+      .eq("client_id", clientId)
+      .not("score", "is", null)
+      .gte("created_at", thirtyDaysAgo.toISOString()),
   ]);
 
   const client = clientRes.data;
@@ -45,12 +56,21 @@ export async function computeHealthScore(clientId: string): Promise<number> {
   const contactDays = client?.last_contact_days ?? 0;
   const csScore = contactDays === 0 ? 75 : contactDays <= 7 ? 100 : contactDays <= 14 ? 70 : 40;
 
+  const sacTickets = sacRes.data ?? [];
+  const openSac = sacTickets.filter((t) => !["closed", "merged", "resolved"].includes(t.status)).length;
+  const sacVolume = sacTickets.length;
+  const sacPenalty = sacVolume > 0 ? Math.min(40, openSac * 5 + sacVolume) : 0;
+  const csatScores = (csatRes.data ?? []).map((c) => c.score as number);
+  const csatAvg = csatScores.length > 0 ? csatScores.reduce((s, v) => s + v, 0) / csatScores.length : 4;
+  const sacScore = clampScore(100 - sacPenalty + (csatAvg - 3) * 10);
+
   const weighted =
-    roasScore * 0.3 +
-    slaScore * 0.25 +
-    ltvScore * 0.2 +
-    engagementScore * 0.15 +
-    csScore * 0.1;
+    roasScore * 0.27 +
+    slaScore * 0.23 +
+    ltvScore * 0.18 +
+    engagementScore * 0.12 +
+    csScore * 0.1 +
+    sacScore * 0.1;
 
   return clampScore(weighted);
 }
