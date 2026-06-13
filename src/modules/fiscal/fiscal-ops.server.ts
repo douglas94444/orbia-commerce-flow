@@ -8,8 +8,9 @@ import {
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { logAudit, logJob, startTimer } from "@/shared/lib/logger";
 import { emitDomainEvent } from "@/shared/lib/domain-events.server";
-import { uploadNfeXmlToStorage } from "./nfe-storage.server";
+import { createNfeXmlSignedUrl, uploadNfeXmlToStorage } from "./nfe-storage.server";
 import { buildNfePayloadForOrder } from "./nfe-payload.server";
+import { recordNfeFiscalEvent } from "./nfe-fiscal-events.server";
 
 const CANCEL_WINDOW_MS = 24 * 60 * 60 * 1000;
 const MAX_RETRIES = 3;
@@ -27,8 +28,9 @@ async function finalizeAuthorizedEmission(
   },
 ): Promise<void> {
   let xmlUrl = result.caminho_xml_nota_fiscal ?? null;
-  const storedXml = xmlUrl ? await uploadNfeXmlToStorage(clientId, ref, xmlUrl) : null;
-  if (storedXml) xmlUrl = storedXml;
+  const storagePath = xmlUrl ? await uploadNfeXmlToStorage(clientId, ref, xmlUrl) : null;
+  const xmlSigned = storagePath ? await createNfeXmlSignedUrl(storagePath) : null;
+  if (xmlSigned) xmlUrl = xmlSigned;
 
   await supabaseAdmin
     .from("nfe_emissions")
@@ -36,6 +38,7 @@ async function finalizeAuthorizedEmission(
       status: "autorizada",
       access_key: result.chave_nfe ?? null,
       xml_url: xmlUrl,
+      xml_storage_path: storagePath,
       danfe_url: result.caminho_danfe ?? null,
       authorized_at: new Date().toISOString(),
       last_error: null,
@@ -87,7 +90,7 @@ export async function retryNfeEmission(emissionId: string): Promise<void> {
 
   const { data: order } = await supabaseAdmin
     .from("orders")
-    .select("id, client_id, external_id, value_cents, metadata")
+    .select("id, client_id, external_id, value_cents, metadata, channel")
     .eq("id", emission.order_id)
     .single();
 
@@ -123,7 +126,7 @@ export async function retryNfeEmission(emissionId: string): Promise<void> {
   const payload = await buildNfePayloadForOrder(
     order.client_id,
     { ...fiscal, state_uf: fiscal.state_uf ?? "SP", tax_regime: fiscal.tax_regime ?? "simples" },
-    { value_cents: order.value_cents, metadata },
+    { value_cents: order.value_cents, metadata, channel: order.channel },
     focusNfe.env,
   );
 
@@ -206,6 +209,14 @@ export async function cancelNfeEmission(
     resource_id: emissionId,
     new_data: { justificativa: justificativa.trim() },
   });
+
+  await recordNfeFiscalEvent({
+    clientId: emission.client_id as string,
+    nfeEmissionId: emissionId,
+    eventType: "cancelamento",
+    description: justificativa.trim(),
+    payload: { justificativa: justificativa.trim() },
+  });
 }
 
 export async function cartaCorrecaoNfeEmission(
@@ -237,6 +248,14 @@ export async function cartaCorrecaoNfeEmission(
     resource: "nfe_emission",
     resource_id: emissionId,
     new_data: { correcao: correcao.trim().slice(0, 200) },
+  });
+
+  await recordNfeFiscalEvent({
+    clientId: emission.client_id as string,
+    nfeEmissionId: emissionId,
+    eventType: "carta_correcao",
+    description: correcao.trim().slice(0, 200),
+    payload: { correcao: correcao.trim() },
   });
 }
 
@@ -277,6 +296,17 @@ export async function inutilizarNumeracaoFiscal(input: {
     action: "nfe_inutilizacao",
     resource: "fiscal_config",
     new_data: {
+      serie: input.serie,
+      numero_inicial: input.numeroInicial,
+      numero_final: input.numeroFinal,
+    },
+  });
+
+  await recordNfeFiscalEvent({
+    clientId: input.clientId,
+    eventType: "inutilizacao",
+    description: input.justificativa.trim(),
+    payload: {
       serie: input.serie,
       numero_inicial: input.numeroInicial,
       numero_final: input.numeroFinal,

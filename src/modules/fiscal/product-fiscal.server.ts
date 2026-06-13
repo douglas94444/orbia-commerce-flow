@@ -4,6 +4,7 @@ import type { NormalizedOrderItem } from "@/modules/logistics/order-ingestion.se
 import {
   resolveDefaultCst,
   resolveIcmsAliquota,
+  resolveItemTaxBreakdown,
   resolveLocalDestino,
   resolveReturnCfop,
   resolveSaleCfop,
@@ -103,10 +104,21 @@ export function buildFocusNfeItemFromEnriched(
     icms_origem?: string;
     icms_aliquota?: number;
     icms_st?: boolean;
+    barcode?: string;
   },
   index: number,
   fiscal: ProductFiscalConfigDefaults,
+  localDestino: LocalDestino,
 ): FocusNfeItem {
+  const valorBruto = (item.unitPriceCents * item.quantity) / 100;
+  const icmsAliquota = item.icms_aliquota ?? 0;
+  const taxes = resolveItemTaxBreakdown(
+    fiscal.tax_regime,
+    valorBruto,
+    icmsAliquota,
+    localDestino,
+  );
+
   const base: FocusNfeItem = {
     numero_item: String(index + 1),
     codigo_produto: item.sku,
@@ -115,19 +127,30 @@ export function buildFocusNfeItemFromEnriched(
     unidade_comercial: "UN",
     quantidade_comercial: item.quantity,
     valor_unitario_comercial: item.unitPriceCents / 100,
-    valor_bruto: (item.unitPriceCents * item.quantity) / 100,
+    valor_bruto: valorBruto,
     codigo_ncm: item.ncm,
     icms_situacao_tributaria: item.cst,
     icms_origem: item.icms_origem ?? "0",
+    icms_base_calculo: taxes.icms_base,
+    icms_valor: taxes.icms_valor,
+    pis_situacao_tributaria: taxes.pis_cst,
+    pis_aliquota: taxes.pis_aliquota,
+    pis_base_calculo: taxes.icms_base,
+    pis_valor: Math.round((taxes.icms_base * taxes.pis_aliquota) / 100 * 100) / 100,
+    cofins_situacao_tributaria: taxes.cofins_cst,
+    cofins_aliquota: taxes.cofins_aliquota,
+    cofins_base_calculo: taxes.icms_base,
+    cofins_valor: Math.round((taxes.icms_base * taxes.cofins_aliquota) / 100 * 100) / 100,
+    ipi_situacao_tributaria: "53",
   };
 
   if (item.cest) base.cest = item.cest;
-  if (item.icms_aliquota != null && item.icms_aliquota > 0) {
-    base.icms_aliquota = item.icms_aliquota;
+  if (icmsAliquota > 0) base.icms_aliquota = icmsAliquota;
+  if (taxes.percentual_icms_interestadual != null) {
+    base.percentual_icms_interestadual = taxes.percentual_icms_interestadual;
   }
-  if (item.icms_st) {
-    base.icms_modalidade_base_calculo_st = "4";
-  }
+  if (item.icms_st) base.icms_modalidade_base_calculo_st = "4";
+  if (item.barcode) base.codigo_barras_comercial = item.barcode;
 
   return base;
 }

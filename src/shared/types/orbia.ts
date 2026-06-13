@@ -79,6 +79,29 @@ export interface Campaign {
   status: 'ativa' | 'atencao' | 'pausada'
 }
 
+export type ProspectTemperature = 'cold' | 'warm' | 'hot'
+
+export type ProspectSource =
+  | 'inbound'
+  | 'partner'
+  | 'paid_ads'
+  | 'app_store'
+  | 'content'
+  | 'referral'
+  | 'chatbot'
+
+export interface SalesProspect {
+  id: string
+  companyName: string
+  contactName: string
+  email: string
+  qualificationScore: number
+  temperature: ProspectTemperature
+  stageLabel: string
+  source: ProspectSource
+  monthlyRevenueCents: number
+}
+
 export interface NfEmission {
   id: string
   emissionId: string

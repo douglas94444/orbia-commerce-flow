@@ -12,9 +12,11 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as PortalRouteImport } from './routes/portal'
 import { Route as OpsRouteImport } from './routes/ops'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as DiagnosticoRouteImport } from './routes/diagnostico'
 import { Route as DashboardRouteImport } from './routes/_dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as OpsIndexRouteImport } from './routes/ops.index'
+import { Route as PropostaTokenRouteImport } from './routes/proposta.$token'
 import { Route as PortalTrafficRouteImport } from './routes/portal.traffic'
 import { Route as PortalSettingsRouteImport } from './routes/portal.settings'
 import { Route as PortalRetentionRouteImport } from './routes/portal.retention'
@@ -23,14 +25,18 @@ import { Route as PortalLoyaltyRouteImport } from './routes/portal.loyalty'
 import { Route as PortalLogisticsRouteImport } from './routes/portal.logistics'
 import { Route as PortalCatalogRouteImport } from './routes/portal.catalog'
 import { Route as PortalAnalyticsRouteImport } from './routes/portal.analytics'
+import { Route as ParceirosCadastroRouteImport } from './routes/parceiros.cadastro'
 import { Route as OpsReceivingRouteImport } from './routes/ops.receiving'
 import { Route as OpsPickingRouteImport } from './routes/ops.picking'
 import { Route as OpsPackingRouteImport } from './routes/ops.packing'
 import { Route as OpsDispatchRouteImport } from './routes/ops.dispatch'
 import { Route as MinhaContaTokenRouteImport } from './routes/minha-conta.$token'
+import { Route as DiagnosticoSegmentRouteImport } from './routes/diagnostico.$segment'
+import { Route as ContratoTokenRouteImport } from './routes/contrato.$token'
 import { Route as DashboardTrafficRouteImport } from './routes/_dashboard.traffic'
 import { Route as DashboardSuccessRouteImport } from './routes/_dashboard.success'
 import { Route as DashboardSettingsRouteImport } from './routes/_dashboard.settings'
+import { Route as DashboardSalesRouteImport } from './routes/_dashboard.sales'
 import { Route as DashboardRetentionRouteImport } from './routes/_dashboard.retention'
 import { Route as DashboardOverviewRouteImport } from './routes/_dashboard.overview'
 import { Route as DashboardLogisticsRouteImport } from './routes/_dashboard.logistics'
@@ -40,6 +46,7 @@ import { Route as DashboardChannelsRouteImport } from './routes/_dashboard.chann
 import { Route as DashboardCatalogRouteImport } from './routes/_dashboard.catalog'
 import { Route as DashboardBillingRouteImport } from './routes/_dashboard.billing'
 import { Route as DashboardAnalyticsRouteImport } from './routes/_dashboard.analytics'
+import { Route as DiagnosticoResultadoTokenRouteImport } from './routes/diagnostico.resultado.$token'
 import { Route as ApiWebhooksWhatsappRouteImport } from './routes/api/webhooks/whatsapp'
 import { Route as ApiWebhooksTiktokRouteImport } from './routes/api/webhooks/tiktok'
 import { Route as ApiWebhooksShopifyRouteImport } from './routes/api/webhooks/shopify'
@@ -54,6 +61,9 @@ import { Route as ApiWebhooksInstagramRouteImport } from './routes/api/webhooks/
 import { Route as ApiWebhooksEvolutionRouteImport } from './routes/api/webhooks/evolution'
 import { Route as ApiWebhooksAmazonRouteImport } from './routes/api/webhooks/amazon'
 import { Route as ApiCronRunRouteImport } from './routes/api/cron/run'
+import { Route as DashboardSalesPartnersRouteImport } from './routes/_dashboard.sales.partners'
+import { Route as DashboardSalesMetricsRouteImport } from './routes/_dashboard.sales.metrics'
+import { Route as DashboardSalesProspectIdRouteImport } from './routes/_dashboard.sales.$prospectId'
 import { Route as DashboardLogisticsWarehouseRouteImport } from './routes/_dashboard.logistics.warehouse'
 import { Route as DashboardLogisticsTrackingRouteImport } from './routes/_dashboard.logistics.tracking'
 import { Route as DashboardLogisticsSlaRouteImport } from './routes/_dashboard.logistics.sla'
@@ -107,6 +117,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DiagnosticoRoute = DiagnosticoRouteImport.update({
+  id: '/diagnostico',
+  path: '/diagnostico',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/_dashboard',
   getParentRoute: () => rootRouteImport,
@@ -120,6 +135,11 @@ const OpsIndexRoute = OpsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => OpsRoute,
+} as any)
+const PropostaTokenRoute = PropostaTokenRouteImport.update({
+  id: '/proposta/$token',
+  path: '/proposta/$token',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const PortalTrafficRoute = PortalTrafficRouteImport.update({
   id: '/traffic',
@@ -161,6 +181,11 @@ const PortalAnalyticsRoute = PortalAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => PortalRoute,
 } as any)
+const ParceirosCadastroRoute = ParceirosCadastroRouteImport.update({
+  id: '/parceiros/cadastro',
+  path: '/parceiros/cadastro',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OpsReceivingRoute = OpsReceivingRouteImport.update({
   id: '/receiving',
   path: '/receiving',
@@ -186,6 +211,16 @@ const MinhaContaTokenRoute = MinhaContaTokenRouteImport.update({
   path: '/minha-conta/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DiagnosticoSegmentRoute = DiagnosticoSegmentRouteImport.update({
+  id: '/$segment',
+  path: '/$segment',
+  getParentRoute: () => DiagnosticoRoute,
+} as any)
+const ContratoTokenRoute = ContratoTokenRouteImport.update({
+  id: '/contrato/$token',
+  path: '/contrato/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardTrafficRoute = DashboardTrafficRouteImport.update({
   id: '/traffic',
   path: '/traffic',
@@ -199,6 +234,11 @@ const DashboardSuccessRoute = DashboardSuccessRouteImport.update({
 const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardSalesRoute = DashboardSalesRouteImport.update({
+  id: '/sales',
+  path: '/sales',
   getParentRoute: () => DashboardRoute,
 } as any)
 const DashboardRetentionRoute = DashboardRetentionRouteImport.update({
@@ -246,6 +286,12 @@ const DashboardAnalyticsRoute = DashboardAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DiagnosticoResultadoTokenRoute =
+  DiagnosticoResultadoTokenRouteImport.update({
+    id: '/resultado/$token',
+    path: '/resultado/$token',
+    getParentRoute: () => DiagnosticoRoute,
+  } as any)
 const ApiWebhooksWhatsappRoute = ApiWebhooksWhatsappRouteImport.update({
   id: '/api/webhooks/whatsapp',
   path: '/api/webhooks/whatsapp',
@@ -316,6 +362,22 @@ const ApiCronRunRoute = ApiCronRunRouteImport.update({
   path: '/api/cron/run',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardSalesPartnersRoute = DashboardSalesPartnersRouteImport.update({
+  id: '/partners',
+  path: '/partners',
+  getParentRoute: () => DashboardSalesRoute,
+} as any)
+const DashboardSalesMetricsRoute = DashboardSalesMetricsRouteImport.update({
+  id: '/metrics',
+  path: '/metrics',
+  getParentRoute: () => DashboardSalesRoute,
+} as any)
+const DashboardSalesProspectIdRoute =
+  DashboardSalesProspectIdRouteImport.update({
+    id: '/$prospectId',
+    path: '/$prospectId',
+    getParentRoute: () => DashboardSalesRoute,
+  } as any)
 const DashboardLogisticsWarehouseRoute =
   DashboardLogisticsWarehouseRouteImport.update({
     id: '/warehouse',
@@ -526,6 +588,7 @@ const ApiOauthAmazonCallbackRoute = ApiOauthAmazonCallbackRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/diagnostico': typeof DiagnosticoRouteWithChildren
   '/login': typeof LoginRoute
   '/ops': typeof OpsRouteWithChildren
   '/portal': typeof PortalRouteWithChildren
@@ -538,14 +601,18 @@ export interface FileRoutesByFullPath {
   '/logistics': typeof DashboardLogisticsRouteWithChildren
   '/overview': typeof DashboardOverviewRoute
   '/retention': typeof DashboardRetentionRoute
+  '/sales': typeof DashboardSalesRouteWithChildren
   '/settings': typeof DashboardSettingsRoute
   '/success': typeof DashboardSuccessRoute
   '/traffic': typeof DashboardTrafficRoute
+  '/contrato/$token': typeof ContratoTokenRoute
+  '/diagnostico/$segment': typeof DiagnosticoSegmentRoute
   '/minha-conta/$token': typeof MinhaContaTokenRoute
   '/ops/dispatch': typeof OpsDispatchRoute
   '/ops/packing': typeof OpsPackingRoute
   '/ops/picking': typeof OpsPickingRoute
   '/ops/receiving': typeof OpsReceivingRoute
+  '/parceiros/cadastro': typeof ParceirosCadastroRoute
   '/portal/analytics': typeof PortalAnalyticsRoute
   '/portal/catalog': typeof PortalCatalogRoute
   '/portal/logistics': typeof PortalLogisticsRoute
@@ -554,6 +621,7 @@ export interface FileRoutesByFullPath {
   '/portal/retention': typeof PortalRetentionRoute
   '/portal/settings': typeof PortalSettingsRoute
   '/portal/traffic': typeof PortalTrafficRoute
+  '/proposta/$token': typeof PropostaTokenRoute
   '/ops/': typeof OpsIndexRoute
   '/catalog/fiscal': typeof DashboardCatalogFiscalRoute
   '/channels/amazon': typeof DashboardChannelsAmazonRoute
@@ -581,6 +649,9 @@ export interface FileRoutesByFullPath {
   '/logistics/sla': typeof DashboardLogisticsSlaRoute
   '/logistics/tracking': typeof DashboardLogisticsTrackingRoute
   '/logistics/warehouse': typeof DashboardLogisticsWarehouseRoute
+  '/sales/$prospectId': typeof DashboardSalesProspectIdRoute
+  '/sales/metrics': typeof DashboardSalesMetricsRoute
+  '/sales/partners': typeof DashboardSalesPartnersRoute
   '/api/cron/run': typeof ApiCronRunRoute
   '/api/webhooks/amazon': typeof ApiWebhooksAmazonRoute
   '/api/webhooks/evolution': typeof ApiWebhooksEvolutionRoute
@@ -595,6 +666,7 @@ export interface FileRoutesByFullPath {
   '/api/webhooks/shopify': typeof ApiWebhooksShopifyRoute
   '/api/webhooks/tiktok': typeof ApiWebhooksTiktokRoute
   '/api/webhooks/whatsapp': typeof ApiWebhooksWhatsappRoute
+  '/diagnostico/resultado/$token': typeof DiagnosticoResultadoTokenRoute
   '/api/oauth/amazon/callback': typeof ApiOauthAmazonCallbackRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
   '/api/oauth/instagram/callback': typeof ApiOauthInstagramCallbackRoute
@@ -609,6 +681,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/diagnostico': typeof DiagnosticoRouteWithChildren
   '/login': typeof LoginRoute
   '/portal': typeof PortalRouteWithChildren
   '/analytics': typeof DashboardAnalyticsRoute
@@ -620,14 +693,18 @@ export interface FileRoutesByTo {
   '/logistics': typeof DashboardLogisticsRouteWithChildren
   '/overview': typeof DashboardOverviewRoute
   '/retention': typeof DashboardRetentionRoute
+  '/sales': typeof DashboardSalesRouteWithChildren
   '/settings': typeof DashboardSettingsRoute
   '/success': typeof DashboardSuccessRoute
   '/traffic': typeof DashboardTrafficRoute
+  '/contrato/$token': typeof ContratoTokenRoute
+  '/diagnostico/$segment': typeof DiagnosticoSegmentRoute
   '/minha-conta/$token': typeof MinhaContaTokenRoute
   '/ops/dispatch': typeof OpsDispatchRoute
   '/ops/packing': typeof OpsPackingRoute
   '/ops/picking': typeof OpsPickingRoute
   '/ops/receiving': typeof OpsReceivingRoute
+  '/parceiros/cadastro': typeof ParceirosCadastroRoute
   '/portal/analytics': typeof PortalAnalyticsRoute
   '/portal/catalog': typeof PortalCatalogRoute
   '/portal/logistics': typeof PortalLogisticsRoute
@@ -636,6 +713,7 @@ export interface FileRoutesByTo {
   '/portal/retention': typeof PortalRetentionRoute
   '/portal/settings': typeof PortalSettingsRoute
   '/portal/traffic': typeof PortalTrafficRoute
+  '/proposta/$token': typeof PropostaTokenRoute
   '/ops': typeof OpsIndexRoute
   '/catalog/fiscal': typeof DashboardCatalogFiscalRoute
   '/channels/amazon': typeof DashboardChannelsAmazonRoute
@@ -663,6 +741,9 @@ export interface FileRoutesByTo {
   '/logistics/sla': typeof DashboardLogisticsSlaRoute
   '/logistics/tracking': typeof DashboardLogisticsTrackingRoute
   '/logistics/warehouse': typeof DashboardLogisticsWarehouseRoute
+  '/sales/$prospectId': typeof DashboardSalesProspectIdRoute
+  '/sales/metrics': typeof DashboardSalesMetricsRoute
+  '/sales/partners': typeof DashboardSalesPartnersRoute
   '/api/cron/run': typeof ApiCronRunRoute
   '/api/webhooks/amazon': typeof ApiWebhooksAmazonRoute
   '/api/webhooks/evolution': typeof ApiWebhooksEvolutionRoute
@@ -677,6 +758,7 @@ export interface FileRoutesByTo {
   '/api/webhooks/shopify': typeof ApiWebhooksShopifyRoute
   '/api/webhooks/tiktok': typeof ApiWebhooksTiktokRoute
   '/api/webhooks/whatsapp': typeof ApiWebhooksWhatsappRoute
+  '/diagnostico/resultado/$token': typeof DiagnosticoResultadoTokenRoute
   '/api/oauth/amazon/callback': typeof ApiOauthAmazonCallbackRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
   '/api/oauth/instagram/callback': typeof ApiOauthInstagramCallbackRoute
@@ -693,6 +775,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_dashboard': typeof DashboardRouteWithChildren
+  '/diagnostico': typeof DiagnosticoRouteWithChildren
   '/login': typeof LoginRoute
   '/ops': typeof OpsRouteWithChildren
   '/portal': typeof PortalRouteWithChildren
@@ -705,14 +788,18 @@ export interface FileRoutesById {
   '/_dashboard/logistics': typeof DashboardLogisticsRouteWithChildren
   '/_dashboard/overview': typeof DashboardOverviewRoute
   '/_dashboard/retention': typeof DashboardRetentionRoute
+  '/_dashboard/sales': typeof DashboardSalesRouteWithChildren
   '/_dashboard/settings': typeof DashboardSettingsRoute
   '/_dashboard/success': typeof DashboardSuccessRoute
   '/_dashboard/traffic': typeof DashboardTrafficRoute
+  '/contrato/$token': typeof ContratoTokenRoute
+  '/diagnostico/$segment': typeof DiagnosticoSegmentRoute
   '/minha-conta/$token': typeof MinhaContaTokenRoute
   '/ops/dispatch': typeof OpsDispatchRoute
   '/ops/packing': typeof OpsPackingRoute
   '/ops/picking': typeof OpsPickingRoute
   '/ops/receiving': typeof OpsReceivingRoute
+  '/parceiros/cadastro': typeof ParceirosCadastroRoute
   '/portal/analytics': typeof PortalAnalyticsRoute
   '/portal/catalog': typeof PortalCatalogRoute
   '/portal/logistics': typeof PortalLogisticsRoute
@@ -721,6 +808,7 @@ export interface FileRoutesById {
   '/portal/retention': typeof PortalRetentionRoute
   '/portal/settings': typeof PortalSettingsRoute
   '/portal/traffic': typeof PortalTrafficRoute
+  '/proposta/$token': typeof PropostaTokenRoute
   '/ops/': typeof OpsIndexRoute
   '/_dashboard/catalog/fiscal': typeof DashboardCatalogFiscalRoute
   '/_dashboard/channels/amazon': typeof DashboardChannelsAmazonRoute
@@ -748,6 +836,9 @@ export interface FileRoutesById {
   '/_dashboard/logistics/sla': typeof DashboardLogisticsSlaRoute
   '/_dashboard/logistics/tracking': typeof DashboardLogisticsTrackingRoute
   '/_dashboard/logistics/warehouse': typeof DashboardLogisticsWarehouseRoute
+  '/_dashboard/sales/$prospectId': typeof DashboardSalesProspectIdRoute
+  '/_dashboard/sales/metrics': typeof DashboardSalesMetricsRoute
+  '/_dashboard/sales/partners': typeof DashboardSalesPartnersRoute
   '/api/cron/run': typeof ApiCronRunRoute
   '/api/webhooks/amazon': typeof ApiWebhooksAmazonRoute
   '/api/webhooks/evolution': typeof ApiWebhooksEvolutionRoute
@@ -762,6 +853,7 @@ export interface FileRoutesById {
   '/api/webhooks/shopify': typeof ApiWebhooksShopifyRoute
   '/api/webhooks/tiktok': typeof ApiWebhooksTiktokRoute
   '/api/webhooks/whatsapp': typeof ApiWebhooksWhatsappRoute
+  '/diagnostico/resultado/$token': typeof DiagnosticoResultadoTokenRoute
   '/api/oauth/amazon/callback': typeof ApiOauthAmazonCallbackRoute
   '/api/oauth/google/callback': typeof ApiOauthGoogleCallbackRoute
   '/api/oauth/instagram/callback': typeof ApiOauthInstagramCallbackRoute
@@ -778,6 +870,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/diagnostico'
     | '/login'
     | '/ops'
     | '/portal'
@@ -790,14 +883,18 @@ export interface FileRouteTypes {
     | '/logistics'
     | '/overview'
     | '/retention'
+    | '/sales'
     | '/settings'
     | '/success'
     | '/traffic'
+    | '/contrato/$token'
+    | '/diagnostico/$segment'
     | '/minha-conta/$token'
     | '/ops/dispatch'
     | '/ops/packing'
     | '/ops/picking'
     | '/ops/receiving'
+    | '/parceiros/cadastro'
     | '/portal/analytics'
     | '/portal/catalog'
     | '/portal/logistics'
@@ -806,6 +903,7 @@ export interface FileRouteTypes {
     | '/portal/retention'
     | '/portal/settings'
     | '/portal/traffic'
+    | '/proposta/$token'
     | '/ops/'
     | '/catalog/fiscal'
     | '/channels/amazon'
@@ -833,6 +931,9 @@ export interface FileRouteTypes {
     | '/logistics/sla'
     | '/logistics/tracking'
     | '/logistics/warehouse'
+    | '/sales/$prospectId'
+    | '/sales/metrics'
+    | '/sales/partners'
     | '/api/cron/run'
     | '/api/webhooks/amazon'
     | '/api/webhooks/evolution'
@@ -847,6 +948,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/shopify'
     | '/api/webhooks/tiktok'
     | '/api/webhooks/whatsapp'
+    | '/diagnostico/resultado/$token'
     | '/api/oauth/amazon/callback'
     | '/api/oauth/google/callback'
     | '/api/oauth/instagram/callback'
@@ -861,6 +963,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/diagnostico'
     | '/login'
     | '/portal'
     | '/analytics'
@@ -872,14 +975,18 @@ export interface FileRouteTypes {
     | '/logistics'
     | '/overview'
     | '/retention'
+    | '/sales'
     | '/settings'
     | '/success'
     | '/traffic'
+    | '/contrato/$token'
+    | '/diagnostico/$segment'
     | '/minha-conta/$token'
     | '/ops/dispatch'
     | '/ops/packing'
     | '/ops/picking'
     | '/ops/receiving'
+    | '/parceiros/cadastro'
     | '/portal/analytics'
     | '/portal/catalog'
     | '/portal/logistics'
@@ -888,6 +995,7 @@ export interface FileRouteTypes {
     | '/portal/retention'
     | '/portal/settings'
     | '/portal/traffic'
+    | '/proposta/$token'
     | '/ops'
     | '/catalog/fiscal'
     | '/channels/amazon'
@@ -915,6 +1023,9 @@ export interface FileRouteTypes {
     | '/logistics/sla'
     | '/logistics/tracking'
     | '/logistics/warehouse'
+    | '/sales/$prospectId'
+    | '/sales/metrics'
+    | '/sales/partners'
     | '/api/cron/run'
     | '/api/webhooks/amazon'
     | '/api/webhooks/evolution'
@@ -929,6 +1040,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/shopify'
     | '/api/webhooks/tiktok'
     | '/api/webhooks/whatsapp'
+    | '/diagnostico/resultado/$token'
     | '/api/oauth/amazon/callback'
     | '/api/oauth/google/callback'
     | '/api/oauth/instagram/callback'
@@ -944,6 +1056,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_dashboard'
+    | '/diagnostico'
     | '/login'
     | '/ops'
     | '/portal'
@@ -956,14 +1069,18 @@ export interface FileRouteTypes {
     | '/_dashboard/logistics'
     | '/_dashboard/overview'
     | '/_dashboard/retention'
+    | '/_dashboard/sales'
     | '/_dashboard/settings'
     | '/_dashboard/success'
     | '/_dashboard/traffic'
+    | '/contrato/$token'
+    | '/diagnostico/$segment'
     | '/minha-conta/$token'
     | '/ops/dispatch'
     | '/ops/packing'
     | '/ops/picking'
     | '/ops/receiving'
+    | '/parceiros/cadastro'
     | '/portal/analytics'
     | '/portal/catalog'
     | '/portal/logistics'
@@ -972,6 +1089,7 @@ export interface FileRouteTypes {
     | '/portal/retention'
     | '/portal/settings'
     | '/portal/traffic'
+    | '/proposta/$token'
     | '/ops/'
     | '/_dashboard/catalog/fiscal'
     | '/_dashboard/channels/amazon'
@@ -999,6 +1117,9 @@ export interface FileRouteTypes {
     | '/_dashboard/logistics/sla'
     | '/_dashboard/logistics/tracking'
     | '/_dashboard/logistics/warehouse'
+    | '/_dashboard/sales/$prospectId'
+    | '/_dashboard/sales/metrics'
+    | '/_dashboard/sales/partners'
     | '/api/cron/run'
     | '/api/webhooks/amazon'
     | '/api/webhooks/evolution'
@@ -1013,6 +1134,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/shopify'
     | '/api/webhooks/tiktok'
     | '/api/webhooks/whatsapp'
+    | '/diagnostico/resultado/$token'
     | '/api/oauth/amazon/callback'
     | '/api/oauth/google/callback'
     | '/api/oauth/instagram/callback'
@@ -1029,10 +1151,14 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRouteWithChildren
+  DiagnosticoRoute: typeof DiagnosticoRouteWithChildren
   LoginRoute: typeof LoginRoute
   OpsRoute: typeof OpsRouteWithChildren
   PortalRoute: typeof PortalRouteWithChildren
+  ContratoTokenRoute: typeof ContratoTokenRoute
   MinhaContaTokenRoute: typeof MinhaContaTokenRoute
+  ParceirosCadastroRoute: typeof ParceirosCadastroRoute
+  PropostaTokenRoute: typeof PropostaTokenRoute
   ApiCronRunRoute: typeof ApiCronRunRoute
   ApiWebhooksAmazonRoute: typeof ApiWebhooksAmazonRoute
   ApiWebhooksEvolutionRoute: typeof ApiWebhooksEvolutionRoute
@@ -1083,6 +1209,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/diagnostico': {
+      id: '/diagnostico'
+      path: '/diagnostico'
+      fullPath: '/diagnostico'
+      preLoaderRoute: typeof DiagnosticoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_dashboard': {
       id: '/_dashboard'
       path: ''
@@ -1103,6 +1236,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/ops/'
       preLoaderRoute: typeof OpsIndexRouteImport
       parentRoute: typeof OpsRoute
+    }
+    '/proposta/$token': {
+      id: '/proposta/$token'
+      path: '/proposta/$token'
+      fullPath: '/proposta/$token'
+      preLoaderRoute: typeof PropostaTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/portal/traffic': {
       id: '/portal/traffic'
@@ -1160,6 +1300,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PortalAnalyticsRouteImport
       parentRoute: typeof PortalRoute
     }
+    '/parceiros/cadastro': {
+      id: '/parceiros/cadastro'
+      path: '/parceiros/cadastro'
+      fullPath: '/parceiros/cadastro'
+      preLoaderRoute: typeof ParceirosCadastroRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/ops/receiving': {
       id: '/ops/receiving'
       path: '/receiving'
@@ -1195,6 +1342,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MinhaContaTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/diagnostico/$segment': {
+      id: '/diagnostico/$segment'
+      path: '/$segment'
+      fullPath: '/diagnostico/$segment'
+      preLoaderRoute: typeof DiagnosticoSegmentRouteImport
+      parentRoute: typeof DiagnosticoRoute
+    }
+    '/contrato/$token': {
+      id: '/contrato/$token'
+      path: '/contrato/$token'
+      fullPath: '/contrato/$token'
+      preLoaderRoute: typeof ContratoTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_dashboard/traffic': {
       id: '/_dashboard/traffic'
       path: '/traffic'
@@ -1214,6 +1375,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof DashboardSettingsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/sales': {
+      id: '/_dashboard/sales'
+      path: '/sales'
+      fullPath: '/sales'
+      preLoaderRoute: typeof DashboardSalesRouteImport
       parentRoute: typeof DashboardRoute
     }
     '/_dashboard/retention': {
@@ -1278,6 +1446,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/analytics'
       preLoaderRoute: typeof DashboardAnalyticsRouteImport
       parentRoute: typeof DashboardRoute
+    }
+    '/diagnostico/resultado/$token': {
+      id: '/diagnostico/resultado/$token'
+      path: '/resultado/$token'
+      fullPath: '/diagnostico/resultado/$token'
+      preLoaderRoute: typeof DiagnosticoResultadoTokenRouteImport
+      parentRoute: typeof DiagnosticoRoute
     }
     '/api/webhooks/whatsapp': {
       id: '/api/webhooks/whatsapp'
@@ -1376,6 +1551,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/cron/run'
       preLoaderRoute: typeof ApiCronRunRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_dashboard/sales/partners': {
+      id: '/_dashboard/sales/partners'
+      path: '/partners'
+      fullPath: '/sales/partners'
+      preLoaderRoute: typeof DashboardSalesPartnersRouteImport
+      parentRoute: typeof DashboardSalesRoute
+    }
+    '/_dashboard/sales/metrics': {
+      id: '/_dashboard/sales/metrics'
+      path: '/metrics'
+      fullPath: '/sales/metrics'
+      preLoaderRoute: typeof DashboardSalesMetricsRouteImport
+      parentRoute: typeof DashboardSalesRoute
+    }
+    '/_dashboard/sales/$prospectId': {
+      id: '/_dashboard/sales/$prospectId'
+      path: '/$prospectId'
+      fullPath: '/sales/$prospectId'
+      preLoaderRoute: typeof DashboardSalesProspectIdRouteImport
+      parentRoute: typeof DashboardSalesRoute
     }
     '/_dashboard/logistics/warehouse': {
       id: '/_dashboard/logistics/warehouse'
@@ -1737,6 +1933,22 @@ const DashboardLogisticsRouteChildren: DashboardLogisticsRouteChildren = {
 const DashboardLogisticsRouteWithChildren =
   DashboardLogisticsRoute._addFileChildren(DashboardLogisticsRouteChildren)
 
+interface DashboardSalesRouteChildren {
+  DashboardSalesProspectIdRoute: typeof DashboardSalesProspectIdRoute
+  DashboardSalesMetricsRoute: typeof DashboardSalesMetricsRoute
+  DashboardSalesPartnersRoute: typeof DashboardSalesPartnersRoute
+}
+
+const DashboardSalesRouteChildren: DashboardSalesRouteChildren = {
+  DashboardSalesProspectIdRoute: DashboardSalesProspectIdRoute,
+  DashboardSalesMetricsRoute: DashboardSalesMetricsRoute,
+  DashboardSalesPartnersRoute: DashboardSalesPartnersRoute,
+}
+
+const DashboardSalesRouteWithChildren = DashboardSalesRoute._addFileChildren(
+  DashboardSalesRouteChildren,
+)
+
 interface DashboardRouteChildren {
   DashboardAnalyticsRoute: typeof DashboardAnalyticsRoute
   DashboardBillingRoute: typeof DashboardBillingRoute
@@ -1747,6 +1959,7 @@ interface DashboardRouteChildren {
   DashboardLogisticsRoute: typeof DashboardLogisticsRouteWithChildren
   DashboardOverviewRoute: typeof DashboardOverviewRoute
   DashboardRetentionRoute: typeof DashboardRetentionRoute
+  DashboardSalesRoute: typeof DashboardSalesRouteWithChildren
   DashboardSettingsRoute: typeof DashboardSettingsRoute
   DashboardSuccessRoute: typeof DashboardSuccessRoute
   DashboardTrafficRoute: typeof DashboardTrafficRoute
@@ -1762,6 +1975,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardLogisticsRoute: DashboardLogisticsRouteWithChildren,
   DashboardOverviewRoute: DashboardOverviewRoute,
   DashboardRetentionRoute: DashboardRetentionRoute,
+  DashboardSalesRoute: DashboardSalesRouteWithChildren,
   DashboardSettingsRoute: DashboardSettingsRoute,
   DashboardSuccessRoute: DashboardSuccessRoute,
   DashboardTrafficRoute: DashboardTrafficRoute,
@@ -1769,6 +1983,20 @@ const DashboardRouteChildren: DashboardRouteChildren = {
 
 const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
   DashboardRouteChildren,
+)
+
+interface DiagnosticoRouteChildren {
+  DiagnosticoSegmentRoute: typeof DiagnosticoSegmentRoute
+  DiagnosticoResultadoTokenRoute: typeof DiagnosticoResultadoTokenRoute
+}
+
+const DiagnosticoRouteChildren: DiagnosticoRouteChildren = {
+  DiagnosticoSegmentRoute: DiagnosticoSegmentRoute,
+  DiagnosticoResultadoTokenRoute: DiagnosticoResultadoTokenRoute,
+}
+
+const DiagnosticoRouteWithChildren = DiagnosticoRoute._addFileChildren(
+  DiagnosticoRouteChildren,
 )
 
 interface OpsRouteChildren {
@@ -1817,10 +2045,14 @@ const PortalRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRouteWithChildren,
+  DiagnosticoRoute: DiagnosticoRouteWithChildren,
   LoginRoute: LoginRoute,
   OpsRoute: OpsRouteWithChildren,
   PortalRoute: PortalRouteWithChildren,
+  ContratoTokenRoute: ContratoTokenRoute,
   MinhaContaTokenRoute: MinhaContaTokenRoute,
+  ParceirosCadastroRoute: ParceirosCadastroRoute,
+  PropostaTokenRoute: PropostaTokenRoute,
   ApiCronRunRoute: ApiCronRunRoute,
   ApiWebhooksAmazonRoute: ApiWebhooksAmazonRoute,
   ApiWebhooksEvolutionRoute: ApiWebhooksEvolutionRoute,

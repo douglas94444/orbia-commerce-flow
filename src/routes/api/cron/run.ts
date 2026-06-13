@@ -31,6 +31,8 @@ const VALID_JOBS = new Set<CronJobName>([
   "integration-health",
   "retry-fiscal-nfe",
   "marketplace-advanced-sync",
+  "sales-nurture",
+  "sales-upsell-scan",
   "all",
 ]);
 

@@ -33,6 +33,7 @@ function authHeader(token: string): string {
 
 export function mapTaxRegimeToFocus(regime: string): number {
   if (regime === "simples") return 1;
+  if (regime === "lucro_presumido") return 2;
   return 3;
 }
 

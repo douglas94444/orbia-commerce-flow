@@ -1,5 +1,6 @@
 import type { FocusNfePayload } from "@/integrations/focus-nfe";
-import type { NormalizedOrderItem } from "@/modules/logistics/order-ingestion.server";
+import { resolveIbgeByCep } from "./nfe-cep-ibge.server";
+import { validateCnpj, validateCpf } from "./tax-engine.server";
 
 export interface OrderShippingMeta {
   name?: string;
@@ -11,6 +12,10 @@ export interface OrderShippingMeta {
   city?: string;
   state?: string;
   postalCode?: string;
+  email?: string;
+  phone?: string;
+  stateRegistration?: string;
+  municipalityCode?: string;
 }
 
 export function extractShippingFromMetadata(
@@ -27,6 +32,10 @@ export function extractShippingFromMetadata(
     city: shipping.city,
     state: shipping.state,
     postalCode: shipping.postalCode ?? (metadata.postal_code as string | undefined),
+    email: shipping.email ?? (metadata.customer_email as string | undefined),
+    phone: shipping.phone ?? (metadata.customer_phone as string | undefined),
+    stateRegistration: shipping.stateRegistration,
+    municipalityCode: shipping.municipalityCode,
   };
 }
 
@@ -66,77 +75,91 @@ export function parseCustomerDocumentFromSources(
   return {};
 }
 
-export function applyDestinatarioToPayload(
+export interface DestinatarioValidationResult {
+  ok: boolean;
+  errors: string[];
+}
+
+export function validateDestinatarioForProduction(
+  shipping: OrderShippingMeta,
+  focusEnv: string,
+): DestinatarioValidationResult {
+  if (focusEnv !== "producao") return { ok: true, errors: [] };
+
+  const errors: string[] = [];
+  const cpf = shipping.cpf ? onlyDigits(shipping.cpf) : "";
+  const cnpj = shipping.cnpj ? onlyDigits(shipping.cnpj) : "";
+
+  if (!cpf && !cnpj) errors.push("CPF ou CNPJ do destinatário obrigatório");
+  if (cpf && !validateCpf(cpf)) errors.push("CPF do destinatário inválido");
+  if (cnpj && !validateCnpj(cnpj)) errors.push("CNPJ do destinatário inválido");
+  if (!shipping.name?.trim()) errors.push("Nome do destinatário obrigatório");
+  if (!shipping.street?.trim()) errors.push("Logradouro obrigatório");
+  if (!shipping.city?.trim()) errors.push("Município obrigatório");
+  if (!shipping.state?.trim() || shipping.state.length < 2) errors.push("UF obrigatória");
+  if (!onlyDigits(shipping.postalCode ?? "").slice(0, 8)) errors.push("CEP obrigatório");
+
+  return { ok: errors.length === 0, errors };
+}
+
+export async function enrichShippingWithIbge(
+  shipping: OrderShippingMeta,
+): Promise<OrderShippingMeta> {
+  if (shipping.municipalityCode) return shipping;
+  const cep = shipping.postalCode;
+  if (!cep) return shipping;
+  const ibge = await resolveIbgeByCep(cep);
+  return ibge ? { ...shipping, municipalityCode: ibge } : shipping;
+}
+
+export async function applyDestinatarioToPayload(
   payload: FocusNfePayload,
   shipping: OrderShippingMeta,
   focusEnv: string,
-): FocusNfePayload {
+): Promise<FocusNfePayload> {
   const isHomolog = focusEnv !== "producao";
+  const enriched = await enrichShippingWithIbge(shipping);
 
-  if (isHomolog && !shipping.cpf && !shipping.cnpj) {
-    return payload;
-  }
+  const cpf = enriched.cpf ? onlyDigits(enriched.cpf) : undefined;
+  const cnpj = enriched.cnpj ? onlyDigits(enriched.cnpj) : undefined;
 
-  const cpf = shipping.cpf ? onlyDigits(shipping.cpf) : undefined;
-  const cnpj = shipping.cnpj ? onlyDigits(shipping.cnpj) : undefined;
-
-  return {
+  const result: FocusNfePayload = {
     ...payload,
-    nome_destinatario: shipping.name?.slice(0, 60) ?? payload.nome_destinatario,
-    cpf_destinatario: cpf && cpf.length === 11 ? cpf : payload.cpf_destinatario,
-    cnpj_destinatario: cnpj && cnpj.length === 14 ? cnpj : undefined,
-    logradouro_destinatario: shipping.street?.slice(0, 60) ?? payload.logradouro_destinatario,
-    numero_destinatario: shipping.number?.slice(0, 10) ?? payload.numero_destinatario,
-    bairro_destinatario: shipping.neighborhood?.slice(0, 60) ?? payload.bairro_destinatario,
-    municipio_destinatario: shipping.city?.slice(0, 60) ?? payload.municipio_destinatario,
-    uf_destinatario: (shipping.state ?? payload.uf_destinatario).slice(0, 2).toUpperCase(),
-    cep_destinatario: onlyDigits(shipping.postalCode ?? payload.cep_destinatario).slice(0, 8),
+    nome_destinatario: (enriched.name ?? payload.nome_destinatario).slice(0, 60),
+    logradouro_destinatario: (enriched.street ?? payload.logradouro_destinatario).slice(0, 60),
+    numero_destinatario: (enriched.number ?? payload.numero_destinatario).slice(0, 10),
+    bairro_destinatario: (enriched.neighborhood ?? payload.bairro_destinatario).slice(0, 60),
+    municipio_destinatario: (enriched.city ?? payload.municipio_destinatario).slice(0, 60),
+    uf_destinatario: (enriched.state ?? payload.uf_destinatario).slice(0, 2).toUpperCase(),
+    cep_destinatario: onlyDigits(enriched.postalCode ?? payload.cep_destinatario).slice(0, 8),
   };
-}
 
-export function buildNfeItemsFromOrder(
-  order: { value_cents: number; metadata: { items?: NormalizedOrderItem[] } },
-  fiscal: { default_cfop: string | null; default_cst: string | null; default_ncm: string | null },
-): FocusNfePayload["items"] {
-  const items = order.metadata?.items ?? [];
-  const cfop = fiscal.default_cfop ?? "5102";
-  const ncm = fiscal.default_ncm ?? "61091000";
-  const cst = fiscal.default_cst ?? "102";
+  if (enriched.municipalityCode) {
+    result.codigo_municipio_destinatario = enriched.municipalityCode;
+  }
+  if (enriched.email) result.email_destinatario = enriched.email.slice(0, 60);
+  if (enriched.phone) result.telefone_destinatario = onlyDigits(enriched.phone).slice(0, 14);
 
-  if (items.length) {
-    return items.map((item, i) => {
-      const itemCfop = (item as NormalizedOrderItem & { cfop?: string }).cfop ?? cfop;
-      const itemCst = (item as NormalizedOrderItem & { cst?: string }).cst ?? cst;
-      const itemNcm = item.ncm ?? ncm;
-      return {
-        numero_item: String(i + 1),
-        codigo_produto: item.sku,
-        descricao: item.name.slice(0, 120),
-        cfop: itemCfop,
-        unidade_comercial: "UN",
-        quantidade_comercial: item.quantity,
-        valor_unitario_comercial: item.unitPriceCents / 100,
-        valor_bruto: (item.unitPriceCents * item.quantity) / 100,
-        codigo_ncm: itemNcm,
-        icms_situacao_tributaria: itemCst,
-        icms_origem: "0",
-      };
-    });
+  if (isHomolog && !cpf && !cnpj) {
+    result.cpf_destinatario = result.cpf_destinatario ?? "00000000191";
+    return result;
   }
 
-  return [
-    {
-      numero_item: "1",
-      codigo_produto: "PROD001",
-      descricao: "Venda de mercadoria",
-      cfop,
-      unidade_comercial: "UN",
-      quantidade_comercial: 1,
-      valor_unitario_comercial: order.value_cents / 100,
-      valor_bruto: order.value_cents / 100,
-      codigo_ncm: ncm,
-      icms_situacao_tributaria: cst,
-      icms_origem: "0",
-    },
-  ];
+  if (cpf && cpf.length === 11) {
+    result.cpf_destinatario = cpf;
+    result.indicador_inscricao_estadual_destinatario = "9";
+  }
+  if (cnpj && cnpj.length === 14) {
+    result.cnpj_destinatario = cnpj;
+    result.cpf_destinatario = undefined;
+    const ie = enriched.stateRegistration?.trim();
+    if (ie && ie.toUpperCase() !== "ISENTO") {
+      result.inscricao_estadual_destinatario = ie;
+      result.indicador_inscricao_estadual_destinatario = "1";
+    } else {
+      result.indicador_inscricao_estadual_destinatario = "9";
+    }
+  }
+
+  return result;
 }

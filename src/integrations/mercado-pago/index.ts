@@ -1,2 +1,8 @@
-export { createPreapproval, getPreapproval, cancelPreapproval, getPayment } from "./client";
+export {
+  createPreapproval,
+  getPreapproval,
+  cancelPreapproval,
+  getPayment,
+  createPreference,
+} from "./client";
 export { validateMercadoPagoSignature } from "./webhooks";

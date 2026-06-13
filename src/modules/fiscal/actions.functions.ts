@@ -577,3 +577,95 @@ export const getFiscalReadiness = createServerFn({ method: "GET" })
     const { validateFiscalReadiness } = await import("./fiscal-readiness.server");
     return validateFiscalReadiness(member.client_id);
   });
+
+// ─── emitNfeForOrderFn ────────────────────────────────────────
+
+export const emitNfeForOrderFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ orderId: z.string().uuid() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { emitNfeForOrder } = await import("./emit-order-nfe.server");
+    await emitNfeForOrder(data.orderId);
+    await logAudit({
+      user_id: context.userId,
+      action: "nfe_emit_manual",
+      resource: "order",
+      resource_id: data.orderId,
+    });
+    return { success: true };
+  });
+
+// ─── listOrdersAwaitingNf ─────────────────────────────────────
+
+export interface OrderAwaitingNfRow {
+  id: string;
+  externalId: string;
+  channel: string;
+  valueCents: number;
+  nfStatus: string;
+  status: string;
+  createdAt: string;
+  lastError: string | null;
+}
+
+export const listOrdersAwaitingNf = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<OrderAwaitingNfRow[]> => {
+    const { data, error } = await context.supabase
+      .from("orders")
+      .select("id, external_id, channel, value_cents, nf_status, status, created_at, metadata")
+      .in("nf_status", ["pendente", "rejeitada"])
+      .in("status", ["aguardando_nf", "separacao"])
+      .order("created_at", { ascending: false })
+      .limit(30);
+
+    if (error) throw new Error(error.message);
+
+    return (data ?? []).map((r) => {
+      const meta = (r.metadata ?? {}) as Record<string, unknown>;
+      return {
+        id: r.id,
+        externalId: r.external_id,
+        channel: r.channel,
+        valueCents: r.value_cents,
+        nfStatus: r.nf_status,
+        status: r.status,
+        createdAt: r.created_at,
+        lastError: (meta.last_nfe_error as string) ?? null,
+      };
+    });
+  });
+
+// ─── getNfeXmlDownloadUrl ─────────────────────────────────────
+
+export const getNfeXmlDownloadUrl = createServerFn({ method: "GET" })
+  .inputValidator(z.object({ emissionId: z.string().uuid() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { data: row, error } = await context.supabase
+      .from("nfe_emissions")
+      .select("xml_storage_path, xml_url")
+      .eq("id", data.emissionId)
+      .single();
+
+    if (error || !row) throw new Error("Emissão não encontrada");
+
+    const storagePath = row.xml_storage_path as string | null;
+    if (storagePath) {
+      const { createNfeXmlSignedUrl } = await import("./nfe-storage.server");
+      const signed = await createNfeXmlSignedUrl(storagePath);
+      return { url: signed };
+    }
+
+    return { url: row.xml_url as string | null };
+  });
+
+// ─── listNfeFiscalEventsFn ────────────────────────────────────
+
+export const listNfeFiscalEventsFn = createServerFn({ method: "GET" })
+  .inputValidator(z.object({ emissionId: z.string().uuid() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data }) => {
+    const { listNfeFiscalEvents } = await import("./nfe-fiscal-events.server");
+    return listNfeFiscalEvents(data.emissionId);
+  });

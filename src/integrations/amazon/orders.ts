@@ -78,19 +78,21 @@ export function normalizeAmazonOrder(payload: unknown): NormalizedOrder | null {
 
   const ship = (order.ShippingAddress ?? order.shipping_address ?? {}) as Record<string, unknown>;
   const buyer = (order.BuyerInfo ?? order.buyer_info ?? {}) as Record<string, unknown>;
-  const doc = parseCustomerDocumentFromSources([buyer, order]);
+  const doc = parseCustomerDocumentFromSources([buyer, order, buyer?.BuyerTaxInfo, buyer?.buyer_tax_info]);
   const fulfillmentChannel = String(order.FulfillmentChannel ?? order.fulfillment_channel ?? "MFN");
+  const itemsSubtotal = items.reduce((s, i) => s + i.unitPriceCents * i.quantity, 0);
 
   return {
     externalId: String(amazonOrderId),
     channel: "amazon",
-    valueCents: items.reduce((s, i) => s + i.unitPriceCents * i.quantity, 0),
+    valueCents: itemsSubtotal,
     city: ship.City ? String(ship.City) : ship.city ? String(ship.city) : null,
     paymentStatus: cancelled ? "cancelled" : paid ? "paid" : "pending",
     items: items.length
       ? items
       : [{ sku: "AMZ-ITEM", name: "Produto Amazon", quantity: 1, unitPriceCents: 0 }],
     customerEmail: order.BuyerEmail ? String(order.BuyerEmail) : undefined,
+    paymentMethod: "marketplace",
     shipping: {
       name: String(ship.Name ?? ship.name ?? "Cliente Amazon"),
       street: String(ship.AddressLine1 ?? ship.address_line1 ?? ""),

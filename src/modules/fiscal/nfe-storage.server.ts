@@ -1,5 +1,8 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
+const BUCKET = "nfe-xml";
+const SIGNED_URL_TTL_SEC = 3600;
+
 export async function uploadNfeXmlToStorage(
   clientId: string,
   ref: string,
@@ -13,7 +16,7 @@ export async function uploadNfeXmlToStorage(
     const xml = await res.text();
     const path = `${clientId}/${ref}.xml`;
 
-    const { error } = await supabaseAdmin.storage.from("nfe-xml").upload(path, xml, {
+    const { error } = await supabaseAdmin.storage.from(BUCKET).upload(path, xml, {
       contentType: "application/xml",
       upsert: true,
     });
@@ -23,10 +26,27 @@ export async function uploadNfeXmlToStorage(
       return null;
     }
 
-    const { data } = supabaseAdmin.storage.from("nfe-xml").getPublicUrl(path);
-    return data.publicUrl;
+    return path;
   } catch (err) {
     console.warn("[fiscal] nfe-xml fetch/upload error:", err);
     return null;
   }
+}
+
+export async function createNfeXmlSignedUrl(storagePath: string): Promise<string | null> {
+  if (!storagePath || storagePath.startsWith("http")) return storagePath;
+
+  const { data, error } = await supabaseAdmin.storage
+    .from(BUCKET)
+    .createSignedUrl(storagePath, SIGNED_URL_TTL_SEC);
+
+  if (error) {
+    console.warn("[fiscal] signed URL failed:", error.message);
+    return null;
+  }
+  return data.signedUrl;
+}
+
+export function isStoragePath(xmlUrl: string | null): boolean {
+  return Boolean(xmlUrl && !xmlUrl.startsWith("http"));
 }

@@ -14,6 +14,8 @@ import {
   useExportNfePeriodCsv,
   useEmitNfce,
   useEmitNfse,
+  useEmitNfeForOrder,
+  useOrdersAwaitingNf,
 } from '@/modules/fiscal/hooks/use-fiscal'
 import type { NfStatus } from '@/types/orbia'
 
@@ -36,6 +38,8 @@ function FiscalPage() {
   const exportCsv = useExportNfePeriodCsv()
   const emitNfce = useEmitNfce()
   const emitNfse = useEmitNfse()
+  const emitNfe = useEmitNfeForOrder()
+  const { data: awaitingOrders = [] } = useOrdersAwaitingNf()
   const [orderIdInput, setOrderIdInput] = useState('')
   const [nfseDescription, setNfseDescription] = useState('')
 
@@ -120,7 +124,7 @@ function FiscalPage() {
         />
       </div>
 
-      <Panel title="Emissão manual NFC-e / NFS-e" subtitle="Informe o UUID do pedido para emitir cupom fiscal ou nota de serviço">
+      <Panel title="Emissão manual NF-e / NFC-e / NFS-e" subtitle="Informe o UUID do pedido">
         <div className="flex flex-wrap items-end gap-3">
           <div>
             <label className="mb-1 block text-xs text-muted-foreground">ID do pedido (UUID)</label>
@@ -131,6 +135,13 @@ function FiscalPage() {
               onChange={(e) => setOrderIdInput(e.target.value)}
             />
           </div>
+          <Button
+            size="sm"
+            disabled={!orderIdInput || emitNfe.isPending}
+            onClick={() => emitNfe.mutate(orderIdInput)}
+          >
+            Emitir NF-e
+          </Button>
           <Button
             size="sm"
             variant="outline"
@@ -160,6 +171,47 @@ function FiscalPage() {
           </Button>
         </div>
       </Panel>
+
+      {awaitingOrders.length > 0 && (
+        <Panel title="Pedidos aguardando NF-e" subtitle={`${awaitingOrders.length} pedido(s) com NF pendente ou rejeitada`}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs uppercase text-muted-foreground">
+                  <th className="pb-2 pr-4">Pedido</th>
+                  <th className="pb-2 pr-4">Canal</th>
+                  <th className="pb-2 pr-4">Valor</th>
+                  <th className="pb-2 pr-4">NF status</th>
+                  <th className="pb-2">Ação</th>
+                </tr>
+              </thead>
+              <tbody>
+                {awaitingOrders.map((o) => (
+                  <tr key={o.id} className="border-b border-border/50">
+                    <td className="py-2 pr-4 font-mono text-xs">{o.externalId}</td>
+                    <td className="py-2 pr-4">{o.channel}</td>
+                    <td className="py-2 pr-4 font-mono">{formatBRL(o.valueCents / 100)}</td>
+                    <td className="py-2 pr-4">
+                      <StatusPill label={o.nfStatus} tone={NF_TONE[o.nfStatus as NfStatus] ?? 'warning'} dot />
+                    </td>
+                    <td className="py-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        disabled={emitNfe.isPending}
+                        onClick={() => emitNfe.mutate(o.id)}
+                      >
+                        Emitir NF-e
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Panel

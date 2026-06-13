@@ -127,6 +127,12 @@ function SalesNav() {
             Entrar
           </Link>
           <Link
+            to="/diagnostico"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-primary/40 px-4 text-sm font-semibold text-primary transition-all hover:bg-primary/10"
+          >
+            Diagnóstico gratuito
+          </Link>
+          <Link
             to="/login"
             className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary-gradient px-4 text-sm font-semibold text-primary-foreground shadow-primary-glow transition-all hover:brightness-110"
           >

@@ -5,6 +5,7 @@ import {
   Banknote,
   ChevronLeft,
   FileText,
+  Handshake,
   Package,
   LayoutDashboard,
   LifeBuoy,
@@ -38,6 +39,7 @@ const nav: NavItem[] = [
   { label: 'Billing',         to: '/billing',   icon: Banknote        },
   { label: 'Fiscal',          to: '/fiscal',    icon: FileText        },
   { label: 'Analytics',       to: '/analytics', icon: BarChart3       },
+  { label: 'Vendas',          to: '/sales',     icon: Handshake       },
   { label: 'Customer Success',to: '/success',   icon: LifeBuoy        },
   { label: 'Configurações',   to: '/settings',  icon: Settings        },
 ]

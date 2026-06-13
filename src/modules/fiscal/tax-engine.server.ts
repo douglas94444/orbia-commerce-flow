@@ -169,3 +169,59 @@ export function validateCfop(cfop: string, kind: "sale_intra" | "sale_inter" | "
       return false;
   }
 }
+
+export interface ItemTaxBreakdown {
+  pis_cst: string;
+  cofins_cst: string;
+  pis_aliquota: number;
+  cofins_aliquota: number;
+  icms_base: number;
+  icms_valor: number;
+  percentual_icms_interestadual?: number;
+}
+
+export function resolveItemTaxBreakdown(
+  taxRegime: string,
+  valorBruto: number,
+  icmsAliquota: number,
+  localDestino: LocalDestino,
+): ItemTaxBreakdown {
+  const icms_base = Math.round(valorBruto * 100) / 100;
+  const icms_valor = Math.round((icms_base * icmsAliquota) / 100 * 100) / 100;
+
+  if (taxRegime === "simples") {
+    return {
+      pis_cst: "07",
+      cofins_cst: "07",
+      pis_aliquota: 0,
+      cofins_aliquota: 0,
+      icms_base,
+      icms_valor,
+      percentual_icms_interestadual: localDestino === "2" ? icmsAliquota : undefined,
+    };
+  }
+
+  return {
+    pis_cst: "01",
+    cofins_cst: "01",
+    pis_aliquota: 1.65,
+    cofins_aliquota: 7.6,
+    icms_base,
+    icms_valor,
+    percentual_icms_interestadual: localDestino === "2" ? icmsAliquota : undefined,
+  };
+}
+
+export function validateCpf(cpf: string): boolean {
+  const digits = cpf.replace(/\D/g, "");
+  if (digits.length !== 11 || /^(\d)\1+$/.test(digits)) return false;
+  const calc = (base: string, factor: number) => {
+    let sum = 0;
+    for (let i = 0; i < base.length; i++) sum += Number(base[i]) * (factor - i);
+    const mod = (sum * 10) % 11;
+    return mod === 10 ? 0 : mod;
+  };
+  const d1 = calc(digits.slice(0, 9), 10);
+  const d2 = calc(digits.slice(0, 10), 11);
+  return digits.endsWith(`${d1}${d2}`);
+}

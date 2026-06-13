@@ -2003,6 +2003,7 @@ export type Database = {
           updated_at: string
           value_cents: number
           xml_url: string | null
+          xml_storage_path: string | null
         }
         Insert: {
           access_key?: string | null
@@ -2020,6 +2021,7 @@ export type Database = {
           updated_at?: string
           value_cents: number
           xml_url?: string | null
+          xml_storage_path?: string | null
         }
         Update: {
           access_key?: string | null
@@ -2037,6 +2039,7 @@ export type Database = {
           updated_at?: string
           value_cents?: number
           xml_url?: string | null
+          xml_storage_path?: string | null
         }
         Relationships: [
           {
@@ -2051,6 +2054,54 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nfe_fiscal_events: {
+        Row: {
+          id: string
+          client_id: string
+          nfe_emission_id: string | null
+          event_type: string
+          description: string | null
+          payload: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          nfe_emission_id?: string | null
+          event_type: string
+          description?: string | null
+          payload?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          nfe_emission_id?: string | null
+          event_type?: string
+          description?: string | null
+          payload?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nfe_fiscal_events_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nfe_fiscal_events_nfe_emission_id_fkey"
+            columns: ["nfe_emission_id"]
+            isOneToOne: false
+            referencedRelation: "nfe_emissions"
             referencedColumns: ["id"]
           },
         ]

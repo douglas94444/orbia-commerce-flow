@@ -64,6 +64,9 @@ export interface NormalizedOrder {
   customerEmail?: string;
   customerPhone?: string;
   shipping?: OrderShipping;
+  shippingCents?: number;
+  discountCents?: number;
+  paymentMethod?: string;
   raw: Record<string, unknown>;
 }
 
@@ -115,6 +118,13 @@ export function normalizeNuvemshopOrder(payload: unknown): NormalizedOrder | nul
     items,
     customerEmail: buyer?.email ? String(buyer.email) : undefined,
     customerPhone: buyer?.phone ? String(buyer.phone) : undefined,
+    shippingCents: Math.round(Number(order.shipping_cost_customer ?? order.shipping_cost ?? 0) * 100),
+    discountCents: Math.round(Number(order.discount ?? order.total_discount ?? 0) * 100),
+    paymentMethod: String(
+      (order.payment_details as { method?: string } | undefined)?.method ??
+        order.gateway ??
+        paymentStatus,
+    ),
     shipping: shipping
       ? {
           name: String(buyer?.name ?? shipping.name ?? "Cliente"),
@@ -173,6 +183,16 @@ export function normalizeShopifyOrder(payload: unknown): NormalizedOrder | null 
     items,
     customerEmail: order.email ? String(order.email) : undefined,
     customerPhone: order.phone ? String(order.phone) : undefined,
+    shippingCents: Math.round(
+      Number(
+        (order.total_shipping_price_set as { shop_money?: { amount?: string } } | undefined)
+          ?.shop_money?.amount ??
+          (order.shipping_lines as Array<{ price?: string }> | undefined)?.[0]?.price ??
+          0,
+      ) * 100,
+    ),
+    discountCents: Math.round(Number(order.total_discounts ?? 0) * 100),
+    paymentMethod: String((order.payment_gateway_names as string[] | undefined)?.[0] ?? financial),
     shipping: shipping
       ? {
           name: String(shipping.name ?? order.customer_name ?? "Cliente"),
@@ -214,17 +234,28 @@ export function normalizeMercadoLivreOrder(payload: unknown): NormalizedOrder | 
   const shipping = data.shipping as Record<string, unknown> | undefined;
   const receiver = shipping?.receiver_address as Record<string, unknown> | undefined;
   const buyer = data.buyer as Record<string, unknown> | undefined;
-  const doc = parseCustomerDocumentFromSources([buyer, data.billing, receiver]);
+  const doc = parseCustomerDocumentFromSources([
+    buyer,
+    data.billing,
+    receiver,
+    buyer?.billing_info,
+    buyer?.identification,
+  ]);
+  const itemsSubtotal = items.reduce((s, i) => s + i.unitPriceCents * i.quantity, 0);
+  const totalCents = Math.round(Number(data.total_amount ?? data.paid_amount ?? 0) * 100);
+  const shippingCents = Math.max(0, totalCents - itemsSubtotal);
 
   return {
     externalId: String(id),
     channel: "mercado_livre",
-    valueCents: Math.round(Number(data.total_amount ?? data.paid_amount ?? 0) * 100),
+    valueCents: totalCents,
     city: receiver?.city ? String((receiver.city as { name?: string })?.name ?? receiver.city) : null,
     paymentStatus: paid ? "paid" : status === "cancelled" ? "cancelled" : "pending",
     items: items.length ? items : [{ sku: "ML-ITEM", name: "Produto ML", quantity: 1, unitPriceCents: Math.round(Number(data.total_amount ?? 0) * 100) }],
     customerEmail: buyer?.email ? String(buyer.email) : undefined,
     customerPhone: buyer?.phone ? String((buyer.phone as { number?: string })?.number ?? buyer.phone) : undefined,
+    shippingCents,
+    paymentMethod: String((data.payments as Array<{ payment_type?: string }> | undefined)?.[0]?.payment_type ?? "marketplace"),
     shipping: receiver
       ? {
           name: String(receiver.receiver_name ?? buyer?.nickname ?? "Cliente"),
@@ -263,16 +294,20 @@ export function normalizeShopeeOrder(payload: unknown): NormalizedOrder | null {
   }));
 
   const recipient = data.recipient_address as Record<string, unknown> | undefined;
-  const doc = parseCustomerDocumentFromSources([data, recipient, data.buyer_cpf_id]);
+  const doc = parseCustomerDocumentFromSources([data, recipient, data.buyer_cpf_id, data.buyer_tax_id]);
+  const itemsSubtotal = items.reduce((s, i) => s + i.unitPriceCents * i.quantity, 0);
+  const totalCents = Math.round(Number(data.total_amount ?? data.escrow_amount ?? 0) * 100);
 
   return {
     externalId: String(id),
     channel: "shopee",
-    valueCents: Math.round(Number(data.total_amount ?? data.escrow_amount ?? 0) * 100),
+    valueCents: totalCents,
     city: recipient?.city ? String(recipient.city) : null,
     paymentStatus: paid ? "paid" : status === "CANCELLED" ? "cancelled" : "pending",
     items: items.length ? items : [{ sku: "SHOPEE-ITEM", name: "Produto Shopee", quantity: 1, unitPriceCents: Math.round(Number(data.total_amount ?? 0) * 100) }],
     customerPhone: recipient?.phone ? String(recipient.phone) : undefined,
+    shippingCents: Math.max(0, totalCents - itemsSubtotal),
+    paymentMethod: String(data.payment_method ?? "marketplace"),
     shipping: recipient
       ? {
           name: String(recipient.name ?? "Cliente"),
@@ -323,6 +358,9 @@ export async function upsertOrderFromWebhook(
     payment_status: order.paymentStatus,
     raw_id: order.externalId,
   };
+  if (order.shippingCents != null) metadata.shipping_cents = order.shippingCents;
+  if (order.discountCents != null) metadata.discount_cents = order.discountCents;
+  if (order.paymentMethod) metadata.payment_method = order.paymentMethod;
   if (order.customerEmail) metadata.customer_email = order.customerEmail;
   if (order.customerPhone) metadata.customer_phone = order.customerPhone;
   if (order.shipping) {
@@ -436,23 +474,35 @@ export async function upsertOrderFromWebhook(
 export async function triggerNfeForOrder(orderId: string): Promise<void> {
   const { data: order } = await supabaseAdmin
     .from("orders")
-    .select("client_id")
+    .select("client_id, nf_status")
     .eq("id", orderId)
     .single();
 
   if (!order) return;
+  if (order.nf_status === "autorizada") return;
 
   const { validateFiscalReadiness } = await import("@/modules/fiscal/fiscal-readiness.server");
-  const readiness = await validateFiscalReadiness(order.client_id);
+  const readiness = await validateFiscalReadiness(order.client_id, { attemptFocusSync: true });
   if (!readiness.ready) {
-    console.warn(
-      `[fiscal] NF-e não disparada para pedido ${orderId}: config incompleta`,
-      readiness.items.filter((i) => i.status === "error").map((i) => i.key),
-    );
+    const keys = readiness.items.filter((i) => i.status === "error").map((i) => i.key);
+    console.warn(`[fiscal] NF-e não disparada para pedido ${orderId}: config incompleta`, keys);
+    const { data: row } = await supabaseAdmin.from("orders").select("metadata").eq("id", orderId).single();
+    const meta = (row?.metadata ?? {}) as Record<string, unknown>;
+    await supabaseAdmin
+      .from("orders")
+      .update({
+        metadata: { ...meta, nfe_blocked_reason: keys.join(", ") },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", orderId);
     return;
   }
 
-  await emitNfeForOrder(orderId);
+  try {
+    await emitNfeForOrder(orderId);
+  } catch (err) {
+    console.error(`[fiscal] emitNfeForOrder failed for ${orderId}:`, (err as Error).message);
+  }
 }
 
 export async function ingestStoreWebhook(

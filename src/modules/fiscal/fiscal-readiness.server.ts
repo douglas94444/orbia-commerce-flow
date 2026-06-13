@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { validateCnpj } from "./tax-engine.server";
 import { syncFiscalConfigToFocus } from "./focus-empresa-sync.server";
+import { validateProductFiscalReadiness } from "./product-fiscal-readiness.server";
 
 export type ReadinessStatus = "ok" | "warning" | "error";
 
@@ -134,6 +135,16 @@ export async function validateFiscalReadiness(
       message: synced ? undefined : "Salve a config ou reenvie o certificado para sincronizar",
     });
   }
+
+  const productReadiness = await validateProductFiscalReadiness(clientId);
+  items.push({
+    key: "product_ncm",
+    label: "NCM por SKU ativo",
+    status: productReadiness.ready ? "ok" : productReadiness.incomplete > 0 ? "warning" : "ok",
+    message: productReadiness.ready
+      ? undefined
+      : `${productReadiness.incomplete} SKU(s) sem NCM (${productReadiness.coveragePct}% cobertura)`,
+  });
 
   const blocking = items.filter((i) => i.status === "error");
   return {

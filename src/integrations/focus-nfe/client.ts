@@ -15,7 +15,24 @@ export interface FocusNfeItem {
   icms_origem: string;
   cest?: string;
   icms_aliquota?: number;
+  icms_base_calculo?: number;
+  icms_valor?: number;
+  percentual_icms_interestadual?: number;
   icms_modalidade_base_calculo_st?: string;
+  pis_situacao_tributaria?: string;
+  pis_aliquota?: number;
+  pis_base_calculo?: number;
+  pis_valor?: number;
+  cofins_situacao_tributaria?: string;
+  cofins_aliquota?: number;
+  cofins_base_calculo?: number;
+  cofins_valor?: number;
+  ipi_situacao_tributaria?: string;
+  codigo_barras_comercial?: string;
+}
+
+export interface FocusNfeNotaReferenciada {
+  chave_nfe: string;
 }
 
 export interface FocusNfePayload {
@@ -38,6 +55,20 @@ export interface FocusNfePayload {
   municipio_destinatario: string;
   uf_destinatario: string;
   cep_destinatario: string;
+  codigo_municipio_destinatario?: string;
+  indicador_inscricao_estadual_destinatario?: string;
+  inscricao_estadual_destinatario?: string;
+  email_destinatario?: string;
+  telefone_destinatario?: string;
+  indicador_intermediador?: string;
+  cnpj_intermediador?: string;
+  modalidade_frete?: string;
+  valor_frete?: number;
+  valor_desconto?: number;
+  forma_pagamento?: string;
+  meio_pagamento?: string;
+  informacoes_adicionais_contribuinte?: string;
+  notas_referenciadas?: FocusNfeNotaReferenciada[];
   items: FocusNfeItem[];
 }
 

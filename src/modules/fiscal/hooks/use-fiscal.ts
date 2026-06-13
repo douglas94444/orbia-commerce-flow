@@ -15,6 +15,10 @@ import {
   inutilizarNumeracaoFn,
   emitNfceForOrderFn,
   emitNfseForOrderFn,
+  emitNfeForOrderFn,
+  listOrdersAwaitingNf,
+  getNfeXmlDownloadUrl,
+  listNfeFiscalEventsFn,
   type FiscalConfigInput,
 } from "../actions.functions";
 
@@ -22,6 +26,8 @@ export const NF_EMISSIONS_KEY = ["nf-emissions"] as const;
 export const NF_EMISSION_DETAIL_KEY = ["nf-emission-detail"] as const;
 export const FISCAL_STATS_KEY = ["fiscal-stats"] as const;
 export const FISCAL_CONFIG_KEY = ["fiscal-config"] as const;
+export const ORDERS_AWAITING_NF_KEY = ["orders-awaiting-nf"] as const;
+export const NFE_FISCAL_EVENTS_KEY = ["nfe-fiscal-events"] as const;
 
 export function useNfEmissions() {
   return useQuery({
@@ -184,6 +190,44 @@ export function useEmitNfse() {
       void queryClient.invalidateQueries({ queryKey: NF_EMISSIONS_KEY });
       void queryClient.invalidateQueries({ queryKey: FISCAL_STATS_KEY });
     },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useEmitNfeForOrder() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (orderId: string) => emitNfeForOrderFn({ data: { orderId } }),
+    onSuccess: () => {
+      toast.success("NF-e emitida com sucesso");
+      void queryClient.invalidateQueries({ queryKey: NF_EMISSIONS_KEY });
+      void queryClient.invalidateQueries({ queryKey: FISCAL_STATS_KEY });
+      void queryClient.invalidateQueries({ queryKey: ORDERS_AWAITING_NF_KEY });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useOrdersAwaitingNf() {
+  return useQuery({
+    queryKey: ORDERS_AWAITING_NF_KEY,
+    queryFn: () => listOrdersAwaitingNf(),
+    staleTime: 15_000,
+  });
+}
+
+export function useNfeFiscalEvents(emissionId: string) {
+  return useQuery({
+    queryKey: [...NFE_FISCAL_EVENTS_KEY, emissionId],
+    queryFn: () => listNfeFiscalEventsFn({ data: { emissionId } }),
+    enabled: Boolean(emissionId),
+    staleTime: 30_000,
+  });
+}
+
+export function useNfeXmlDownload() {
+  return useMutation({
+    mutationFn: (emissionId: string) => getNfeXmlDownloadUrl({ data: { emissionId } }),
     onError: (err: Error) => toast.error(err.message),
   });
 }

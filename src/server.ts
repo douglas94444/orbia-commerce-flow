@@ -1,5 +1,6 @@
 import "./lib/error-capture";
 import "@/shared/lib/domain-events.handlers.server";
+import "@/modules/sales/sales-events.handlers.server";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";

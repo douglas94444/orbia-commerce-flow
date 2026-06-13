@@ -11,6 +11,8 @@ import {
   useRetryNfeEmission,
   useCancelNfeEmission,
   useCartaCorrecaoNfe,
+  useNfeFiscalEvents,
+  useNfeXmlDownload,
 } from '@/modules/fiscal/hooks/use-fiscal'
 import type { NfStatus } from '@/types/orbia'
 
@@ -32,6 +34,7 @@ function NfeDetailPage() {
   const retryNfe = useRetryNfeEmission()
   const cancelNfe = useCancelNfeEmission()
   const cartaCorrecao = useCartaCorrecaoNfe()
+  const xmlDownload = useNfeXmlDownload()
   const [justificativa, setJustificativa] = useState('')
   const [correcao, setCorrecao] = useState('')
 
@@ -52,6 +55,7 @@ function NfeDetailPage() {
   }
 
   const canRetry = nf.status === 'rejeitada' && nf.retries < 3
+  const { data: events = [] } = useNfeFiscalEvents(nf.emissionId)
 
   return (
     <div className="space-y-6">
@@ -112,15 +116,20 @@ function NfeDetailPage() {
               <p className="text-sm text-muted-foreground">DANFE indisponível</p>
             )}
             {nf.xmlUrl ? (
-              <a
-                href={nf.xmlUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+              <Button
+                variant="link"
+                className="h-auto justify-start p-0 text-sm"
+                onClick={() =>
+                  xmlDownload.mutate(nf.emissionId, {
+                    onSuccess: ({ url }) => {
+                      if (url) window.open(url, '_blank')
+                    },
+                  })
+                }
               >
-                <Download className="size-4" />
-                Baixar XML
-              </a>
+                <Download className="mr-2 size-4" />
+                Baixar XML (signed URL)
+              </Button>
             ) : (
               <p className="text-sm text-muted-foreground">XML indisponível</p>
             )}
@@ -201,6 +210,26 @@ function NfeDetailPage() {
           </div>
         )}
       </Panel>
+
+      {events.length > 0 && (
+        <Panel title="Histórico fiscal">
+          <div className="space-y-2 text-sm">
+            {events.map((e) => (
+              <div key={e.id} className="border-b border-border/50 pb-2">
+                <div className="flex justify-between">
+                  <span className="font-medium">{e.eventType}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(e.createdAt).toLocaleString('pt-BR')}
+                  </span>
+                </div>
+                {e.description && (
+                  <p className="mt-1 text-xs text-muted-foreground">{e.description}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </Panel>
+      )}
     </div>
   )
 }

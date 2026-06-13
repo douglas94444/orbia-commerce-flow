@@ -7,13 +7,28 @@ import {
   applyDestinatarioToPayload,
   extractShippingFromMetadata,
 } from "./nfe-destinatario.server";
-import { uploadNfeXmlToStorage } from "./nfe-storage.server";
+import { createNfeXmlSignedUrl, uploadNfeXmlToStorage } from "./nfe-storage.server";
 import {
   enrichReturnItemFiscal,
   loadProductFiscalBySkus,
   type ProductFiscalConfigDefaults,
 } from "./product-fiscal.server";
 import { resolveLocalDestino } from "./tax-engine.server";
+
+async function findSaleAccessKey(orderId: string): Promise<string | null> {
+  const { data } = await supabaseAdmin
+    .from("nfe_emissions")
+    .select("access_key")
+    .eq("order_id", orderId)
+    .eq("type", "NF-e")
+    .eq("status", "autorizada")
+    .not("access_key", "is", null)
+    .order("authorized_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return (data?.access_key as string) ?? null;
+}
 
 export async function emitNfeForReturn(returnRequestId: string): Promise<void> {
   const { focusNfe } = getServerConfig();
@@ -38,6 +53,7 @@ export async function emitNfeForReturn(returnRequestId: string): Promise<void> {
     external_id: string;
   };
   const clientId = req.client_id as string;
+  const orderId = req.order_id as string;
 
   const { data: fiscal } = await supabaseAdmin
     .from("fiscal_configs")
@@ -48,6 +64,8 @@ export async function emitNfeForReturn(returnRequestId: string): Promise<void> {
     .maybeSingle();
 
   if (!fiscal) throw new Error("Fiscal config not found for client");
+
+  const saleAccessKey = await findSaleAccessKey(orderId);
 
   const items = (req.return_items ?? []) as Array<{ sku: string; qty: number }>;
   const shipping = extractShippingFromMetadata(order.metadata);
@@ -106,15 +124,16 @@ export async function emitNfeForReturn(returnRequestId: string): Promise<void> {
     uf_destinatario: destUf,
     cep_destinatario: (shipping.postalCode ?? "01310100").replace(/\D/g, "").slice(0, 8),
     items: nfeItems,
+    ...(saleAccessKey ? { notas_referenciadas: [{ chave_nfe: saleAccessKey }] } : {}),
   };
 
-  const finalPayload = applyDestinatarioToPayload(payload, shipping, focusNfe.env);
+  const finalPayload = await applyDestinatarioToPayload(payload, shipping, focusNfe.env);
 
   const { data: emission, error: insertError } = await supabaseAdmin
     .from("nfe_emissions")
     .insert({
       client_id: clientId,
-      order_id: req.order_id,
+      order_id: orderId,
       external_ref: ref,
       type: "NF-e",
       status: "pendente",
@@ -127,11 +146,10 @@ export async function emitNfeForReturn(returnRequestId: string): Promise<void> {
 
   try {
     const result = await emitNFeWithRetry(ref, finalPayload, focusNfe.token);
-    let xmlUrl = result.caminho_xml_nota_fiscal ?? null;
-    const storedXml = xmlUrl
-      ? await uploadNfeXmlToStorage(clientId, ref, xmlUrl)
+    const storagePath = result.caminho_xml_nota_fiscal
+      ? await uploadNfeXmlToStorage(clientId, ref, result.caminho_xml_nota_fiscal)
       : null;
-    if (storedXml) xmlUrl = storedXml;
+    const xmlSigned = storagePath ? await createNfeXmlSignedUrl(storagePath) : null;
 
     await supabaseAdmin
       .from("nfe_emissions")
@@ -139,7 +157,9 @@ export async function emitNfeForReturn(returnRequestId: string): Promise<void> {
         status: "autorizada",
         access_key: result.chave_nfe ?? null,
         danfe_url: result.caminho_danfe ?? null,
-        xml_url: xmlUrl,
+        xml_url: xmlSigned ?? result.caminho_xml_nota_fiscal ?? null,
+        xml_storage_path: storagePath,
+        authorized_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
       .eq("id", emission.id);
@@ -150,7 +170,7 @@ export async function emitNfeForReturn(returnRequestId: string): Promise<void> {
       action: "create",
       resource: "nfe_emission",
       resource_id: emission.id as string,
-      new_data: { type: "devolucao", return_request_id: returnRequestId },
+      new_data: { type: "devolucao", return_request_id: returnRequestId, sale_access_key: saleAccessKey },
     });
   } catch (err) {
     await supabaseAdmin

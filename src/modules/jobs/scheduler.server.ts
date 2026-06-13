@@ -53,6 +53,8 @@ export type CronJobName =
   | "integration-health"
   | "retry-fiscal-nfe"
   | "marketplace-advanced-sync"
+  | "sales-nurture"
+  | "sales-upsell-scan"
   | "all";
 
 export interface JobResult {
@@ -247,6 +249,18 @@ async function runJob(name: Exclude<CronJobName, "all">): Promise<JobResult> {
         metadata = await reprocessRejectedNfes();
         break;
       }
+      case "sales-nurture": {
+        const { processSalesNurtureBatch } = await import("@/modules/sales/nurture.server");
+        metadata = { sent: await processSalesNurtureBatch() };
+        break;
+      }
+      case "sales-upsell-scan": {
+        const { scanUpsellOpportunities } = await import(
+          "@/modules/sales/upsell/upsell-engine.server"
+        );
+        metadata = { created: await scanUpsellOpportunities() };
+        break;
+      }
       case "marketplace-advanced-sync": {
         const { runMarketplaceAdvancedSync } = await import("@/modules/marketplaces");
         metadata = await runMarketplaceAdvancedSync();
@@ -303,6 +317,8 @@ const JOB_SEQUENCE: Array<Exclude<CronJobName, "all">> = [
   "schedule-pickup",
   "charge-fulfillment-overage",
   "attribute-traffic-conversions",
+  "sales-nurture",
+  "sales-upsell-scan",
   "capture-benchmarks",
   "sla-monthly-report",
   "monthly-analytics-report",

@@ -83,3 +83,34 @@ export async function cancelPreapproval(id: string): Promise<void> {
 export async function getPayment(id: string): Promise<Record<string, unknown>> {
   return mpFetch<Record<string, unknown>>(`/v1/payments/${id}`);
 }
+
+export interface MpPreferenceResponse {
+  id: string;
+  init_point: string;
+}
+
+export async function createPreference(input: {
+  title: string;
+  amountCents: number;
+  payerEmail: string;
+  externalReference: string;
+  backUrl: string;
+}): Promise<MpPreferenceResponse> {
+  return mpFetch<MpPreferenceResponse>("/checkout/preferences", {
+    method: "POST",
+    body: JSON.stringify({
+      items: [
+        {
+          title: input.title,
+          quantity: 1,
+          unit_price: input.amountCents / 100,
+          currency_id: "BRL",
+        },
+      ],
+      payer: { email: input.payerEmail },
+      external_reference: input.externalReference,
+      back_urls: { success: input.backUrl, failure: input.backUrl, pending: input.backUrl },
+      auto_return: "approved",
+    }),
+  });
+}
