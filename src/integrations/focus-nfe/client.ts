@@ -172,3 +172,241 @@ export async function cancelNFe(
 
   return body;
 }
+
+export interface FocusNfcePayload extends FocusNfePayload {
+  indicador_intermediador?: string;
+}
+
+export interface FocusNfsePayload {
+  data_emissao: string;
+  natureza_operacao: string;
+  prestador: {
+    cnpj: string;
+    inscricao_municipal?: string;
+    codigo_municipio?: string;
+  };
+  tomador: {
+    razao_social: string;
+    cpf?: string;
+    cnpj?: string;
+    email?: string;
+    endereco?: {
+      logradouro: string;
+      numero: string;
+      bairro: string;
+      codigo_municipio?: string;
+      uf: string;
+      cep: string;
+    };
+  };
+  servico: {
+    valor_servicos: number;
+    item_lista_servico: string;
+    discriminacao: string;
+    codigo_municipio?: string;
+    aliquota?: number;
+  };
+}
+
+export interface FocusInutilizacaoPayload {
+  cnpj: string;
+  serie: string;
+  numero_inicial: number;
+  numero_final: number;
+  justificativa: string;
+}
+
+export async function emitNFCe(
+  ref: string,
+  payload: FocusNfcePayload,
+  token: string,
+): Promise<FocusNfeResponse> {
+  const end = startTimer();
+  const base = getFocusNfeBaseUrl();
+  const res = await fetch(`${base}/v2/nfce?ref=${encodeURIComponent(ref)}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: authHeader(token),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const body = (await res.json()) as FocusNfeResponse;
+  await logIntegration({
+    provider: "focus_nfe",
+    operation: "emitNFCe",
+    status: res.ok && body.status !== "erro_autorizacao" ? "success" : "error",
+    response_code: res.status,
+    duration_ms: end(),
+    error_message: body.mensagem_sefaz ?? body.erros?.[0]?.mensagem,
+    metadata: { ref, status: body.status },
+  });
+
+  if (!res.ok) {
+    throw new Error(
+      body.mensagem_sefaz ?? body.erros?.[0]?.mensagem ?? `Focus NFC-e HTTP ${res.status}`,
+    );
+  }
+
+  return body;
+}
+
+export async function emitNFSe(
+  ref: string,
+  payload: FocusNfsePayload,
+  token: string,
+): Promise<FocusNfeResponse> {
+  const end = startTimer();
+  const base = getFocusNfeBaseUrl();
+  const res = await fetch(`${base}/v2/nfse?ref=${encodeURIComponent(ref)}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: authHeader(token),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const body = (await res.json()) as FocusNfeResponse;
+  await logIntegration({
+    provider: "focus_nfe",
+    operation: "emitNFSe",
+    status: res.ok && body.status !== "erro_autorizacao" ? "success" : "error",
+    response_code: res.status,
+    duration_ms: end(),
+    error_message: body.mensagem_sefaz ?? body.erros?.[0]?.mensagem,
+    metadata: { ref, status: body.status },
+  });
+
+  if (!res.ok) {
+    throw new Error(
+      body.mensagem_sefaz ?? body.erros?.[0]?.mensagem ?? `Focus NFS-e HTTP ${res.status}`,
+    );
+  }
+
+  return body;
+}
+
+export async function emitNFCeWithRetry(
+  ref: string,
+  payload: FocusNfcePayload,
+  token: string,
+  maxAttempts = 3,
+): Promise<FocusNfeResponse> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      let result = await emitNFCe(ref, payload, token);
+      if (result.status === "processando_autorizacao") {
+        await new Promise((r) => setTimeout(r, 2000));
+        result = await getNFeStatus(ref, token);
+      }
+      if (result.status === "autorizado") return result;
+      lastError = new Error(result.mensagem_sefaz ?? result.erros?.[0]?.mensagem ?? "NFC-e rejeitada");
+    } catch (err) {
+      lastError = err as Error;
+    }
+    if (attempt < maxAttempts) {
+      await new Promise((r) => setTimeout(r, attempt * 5000));
+    }
+  }
+
+  throw lastError ?? new Error("Focus NFC-e emission failed");
+}
+
+export async function emitNFSeWithRetry(
+  ref: string,
+  payload: FocusNfsePayload,
+  token: string,
+  maxAttempts = 3,
+): Promise<FocusNfeResponse> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const result = await emitNFSe(ref, payload, token);
+      if (result.status === "autorizado") return result;
+      lastError = new Error(result.mensagem_sefaz ?? result.erros?.[0]?.mensagem ?? "NFS-e rejeitada");
+    } catch (err) {
+      lastError = err as Error;
+    }
+    if (attempt < maxAttempts) {
+      await new Promise((r) => setTimeout(r, attempt * 5000));
+    }
+  }
+
+  throw lastError ?? new Error("Focus NFS-e emission failed");
+}
+
+export async function cartaCorrecaoNFe(
+  ref: string,
+  correcao: string,
+  token: string,
+): Promise<FocusNfeResponse> {
+  const end = startTimer();
+  const base = getFocusNfeBaseUrl();
+  const res = await fetch(`${base}/v2/nfe/${encodeURIComponent(ref)}/carta_correcao`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: authHeader(token),
+    },
+    body: JSON.stringify({ correcao }),
+  });
+
+  const body = (await res.json()) as FocusNfeResponse;
+  await logIntegration({
+    provider: "focus_nfe",
+    operation: "cartaCorrecaoNFe",
+    status: res.ok ? "success" : "error",
+    response_code: res.status,
+    duration_ms: end(),
+    error_message: body.mensagem_sefaz ?? body.erros?.[0]?.mensagem,
+    metadata: { ref, status: body.status },
+  });
+
+  if (!res.ok) {
+    throw new Error(
+      body.mensagem_sefaz ?? body.erros?.[0]?.mensagem ?? `Focus CC-e HTTP ${res.status}`,
+    );
+  }
+
+  return body;
+}
+
+export async function inutilizarNumeracao(
+  payload: FocusInutilizacaoPayload,
+  token: string,
+): Promise<FocusNfeResponse> {
+  const end = startTimer();
+  const base = getFocusNfeBaseUrl();
+  const res = await fetch(`${base}/v2/nfe/inutilizacao`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: authHeader(token),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const body = (await res.json()) as FocusNfeResponse;
+  await logIntegration({
+    provider: "focus_nfe",
+    operation: "inutilizarNumeracao",
+    status: res.ok ? "success" : "error",
+    response_code: res.status,
+    duration_ms: end(),
+    error_message: body.mensagem_sefaz ?? body.erros?.[0]?.mensagem,
+    metadata: { serie: payload.serie, status: body.status },
+  });
+
+  if (!res.ok) {
+    throw new Error(
+      body.mensagem_sefaz ?? body.erros?.[0]?.mensagem ?? `Focus inutilização HTTP ${res.status}`,
+    );
+  }
+
+  return body;
+}

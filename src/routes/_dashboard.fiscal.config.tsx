@@ -8,7 +8,7 @@ import { PageIntro, Panel } from '@/components/dashboard/panel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useFiscalConfig, useUpsertFiscalConfig, useUploadFiscalCertificate } from '@/modules/fiscal/hooks/use-fiscal'
+import { useFiscalConfig, useUpsertFiscalConfig, useUploadFiscalCertificate, useInutilizarNumeracao } from '@/modules/fiscal/hooks/use-fiscal'
 
 export const Route = createFileRoute('/_dashboard/fiscal/config')({
   head: () => ({ meta: [{ title: 'Configuração Fiscal — Orbia' }] }),
@@ -19,6 +19,7 @@ const schema = z.object({
   cnpj:        z.string().regex(/^\d{14}$/, 'CNPJ deve ter 14 dígitos sem pontuação'),
   companyName: z.string().min(2, 'Nome da empresa é obrigatório').max(150),
   taxRegime:   z.enum(['simples', 'lucro_presumido', 'lucro_real']),
+  stateUf:     z.string().length(2, 'UF deve ter 2 letras'),
   defaultCfop: z.string().max(10).optional().nullable(),
   defaultCst:  z.string().max(10).optional().nullable(),
   defaultNcm:  z.string().max(10).optional().nullable(),
@@ -32,12 +33,22 @@ const TAX_REGIME_OPTIONS = [
   { value: 'lucro_real',        label: 'Lucro Real' },
 ]
 
+const UF_OPTIONS = [
+  'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG',
+  'PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO',
+]
+
 function FiscalConfigPage() {
   const { data: config, isLoading } = useFiscalConfig()
   const { mutate, isPending } = useUpsertFiscalConfig()
   const uploadCert = useUploadFiscalCertificate()
+  const inutilizar = useInutilizarNumeracao()
   const [certPassword, setCertPassword] = useState('')
   const [certExpiresAt, setCertExpiresAt] = useState('')
+  const [inutSerie, setInutSerie] = useState('1')
+  const [inutInicial, setInutInicial] = useState('')
+  const [inutFinal, setInutFinal] = useState('')
+  const [inutJustificativa, setInutJustificativa] = useState('')
 
   const {
     register,
@@ -50,6 +61,7 @@ function FiscalConfigPage() {
       cnpj:        '',
       companyName: '',
       taxRegime:   'simples',
+      stateUf:     'SP',
       defaultCfop: '',
       defaultCst:  '',
       defaultNcm:  '',
@@ -62,6 +74,7 @@ function FiscalConfigPage() {
         cnpj:        config.cnpj,
         companyName: config.companyName,
         taxRegime:   config.taxRegime as FormValues['taxRegime'],
+        stateUf:     config.stateUf ?? 'SP',
         defaultCfop: config.defaultCfop ?? '',
         defaultCst:  config.defaultCst ?? '',
         defaultNcm:  config.defaultNcm ?? '',
@@ -74,6 +87,7 @@ function FiscalConfigPage() {
       cnpj:        values.cnpj,
       companyName: values.companyName,
       taxRegime:   values.taxRegime,
+      stateUf:     values.stateUf,
       defaultCfop: values.defaultCfop || null,
       defaultCst:  values.defaultCst || null,
       defaultNcm:  values.defaultNcm || null,
@@ -137,6 +151,21 @@ function FiscalConfigPage() {
                   ))}
                 </select>
                 {errors.taxRegime && <p className="text-xs text-destructive">{errors.taxRegime.message}</p>}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="stateUf">UF do emitente</Label>
+                <select
+                  id="stateUf"
+                  className="h-9 w-full rounded-lg border border-input bg-muted/40 px-3 text-sm text-foreground focus:border-primary/50 focus:outline-none"
+                  {...register('stateUf')}
+                >
+                  {UF_OPTIONS.map((uf) => (
+                    <option key={uf} value={uf}>{uf}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">Define CFOP inter/intraestadual no motor tributário</p>
+                {errors.stateUf && <p className="text-xs text-destructive">{errors.stateUf.message}</p>}
               </div>
             </div>
           </Panel>
@@ -229,6 +258,54 @@ function FiscalConfigPage() {
                 />
               </div>
             </div>
+          </Panel>
+
+          <Panel title="Inutilização de numeração" subtitle="Comunica à SEFAZ faixas de numeração não utilizadas">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="inutSerie">Série</Label>
+                <Input id="inutSerie" value={inutSerie} onChange={(e) => setInutSerie(e.target.value)} maxLength={3} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="inutInicial">Número inicial</Label>
+                <Input id="inutInicial" type="number" value={inutInicial} onChange={(e) => setInutInicial(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="inutFinal">Número final</Label>
+                <Input id="inutFinal" type="number" value={inutFinal} onChange={(e) => setInutFinal(e.target.value)} />
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="inutJustificativa">Justificativa (mín. 15 caracteres)</Label>
+                <Input
+                  id="inutJustificativa"
+                  value={inutJustificativa}
+                  onChange={(e) => setInutJustificativa(e.target.value)}
+                  placeholder="Faixa de numeração não utilizada por erro de sistema"
+                />
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-4"
+              disabled={
+                inutilizar.isPending ||
+                inutJustificativa.trim().length < 15 ||
+                !inutInicial ||
+                !inutFinal
+              }
+              onClick={() =>
+                inutilizar.mutate({
+                  serie: inutSerie,
+                  numeroInicial: Number(inutInicial),
+                  numeroFinal: Number(inutFinal),
+                  justificativa: inutJustificativa.trim(),
+                })
+              }
+            >
+              Inutilizar numeração
+            </Button>
           </Panel>
 
           <div className="flex justify-end">

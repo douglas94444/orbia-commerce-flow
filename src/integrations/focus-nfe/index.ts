@@ -1,2 +1,20 @@
-export { emitNFe, getNFeStatus, emitNFeWithRetry, cancelNFe } from "./client";
-export type { FocusNfePayload, FocusNfeItem, FocusNfeResponse } from "./client";
+export {
+  emitNFe,
+  getNFeStatus,
+  emitNFeWithRetry,
+  cancelNFe,
+  emitNFCe,
+  emitNFSe,
+  emitNFCeWithRetry,
+  emitNFSeWithRetry,
+  cartaCorrecaoNFe,
+  inutilizarNumeracao,
+} from "./client";
+export type {
+  FocusNfePayload,
+  FocusNfeItem,
+  FocusNfeResponse,
+  FocusNfcePayload,
+  FocusNfsePayload,
+  FocusInutilizacaoPayload,
+} from "./client";

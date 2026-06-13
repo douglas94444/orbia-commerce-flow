@@ -14,7 +14,9 @@ import {
   useSyncAllCatalogs,
   useUpsertPricingRule,
   useUpsertStockBuffer,
+  useUpsertProductFiscal,
 } from '@/modules/catalog/hooks/use-catalog'
+import type { ProductRow } from '@/modules/catalog/actions.functions'
 import { formatBRL } from '@/lib/format'
 
 export const Route = createFileRoute('/_dashboard/catalog')({
@@ -23,6 +25,52 @@ export const Route = createFileRoute('/_dashboard/catalog')({
 })
 
 const CHANNELS = ['nuvemshop', 'shopify', 'mercado_livre', 'shopee', 'amazon', 'tiktok'] as const
+
+function ProductFiscalFields({ product }: { product: ProductRow }) {
+  const upsert = useUpsertProductFiscal()
+  const [ncm, setNcm] = useState(product.ncm ?? '')
+  const [cfop, setCfop] = useState(product.cfop ?? '')
+  const [cst, setCst] = useState(product.cst ?? '')
+
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      <Input
+        className="h-7 w-20 font-mono text-xs"
+        placeholder="NCM"
+        value={ncm}
+        onChange={(e) => setNcm(e.target.value)}
+      />
+      <Input
+        className="h-7 w-14 font-mono text-xs"
+        placeholder="CFOP"
+        value={cfop}
+        onChange={(e) => setCfop(e.target.value)}
+      />
+      <Input
+        className="h-7 w-12 font-mono text-xs"
+        placeholder="CST"
+        value={cst}
+        onChange={(e) => setCst(e.target.value)}
+      />
+      <Button
+        size="sm"
+        variant="ghost"
+        className="h-7 text-xs"
+        disabled={upsert.isPending}
+        onClick={() =>
+          upsert.mutate({
+            productId: product.id,
+            ncm: ncm || null,
+            cfop: cfop || null,
+            cst: cst || null,
+          })
+        }
+      >
+        Salvar
+      </Button>
+    </div>
+  )
+}
 
 function CatalogPage() {
   const { data: products = [], isLoading } = useProducts()
@@ -170,7 +218,7 @@ function CatalogPage() {
         </Panel>
       </div>
 
-      <Panel title="Produtos" action={<Package className="size-4 text-muted-foreground" />}>
+      <Panel title="Produtos" action={<Package className="size-4 text-muted-foreground" />} subtitle="NCM, CFOP e CST por SKU — usados na emissão de NF-e">
         {isLoading ? (
           <div className="h-32 animate-pulse rounded-xl bg-muted/40" />
         ) : products.length === 0 ? (
@@ -183,6 +231,7 @@ function CatalogPage() {
                   <th className="pb-2 pr-4">SKU</th>
                   <th className="pb-2 pr-4">Nome</th>
                   <th className="pb-2 pr-4">Preço base</th>
+                  <th className="pb-2 pr-4">Fiscal (NCM/CFOP/CST)</th>
                   <th className="pb-2">Ação</th>
                 </tr>
               </thead>
@@ -193,6 +242,9 @@ function CatalogPage() {
                     <td className="py-2 pr-4">{p.name}</td>
                     <td className="py-2 pr-4 font-mono">
                       {p.priceCents ? formatBRL(p.priceCents / 100) : '—'}
+                    </td>
+                    <td className="py-2 pr-4">
+                      <ProductFiscalFields product={p} />
                     </td>
                     <td className="py-2">
                       <Button

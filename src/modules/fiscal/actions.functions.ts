@@ -87,6 +87,7 @@ export interface FiscalConfig {
   cnpj: string;
   companyName: string;
   taxRegime: string;
+  stateUf: string;
   defaultCfop: string | null;
   defaultCst: string | null;
   defaultNcm: string | null;
@@ -111,7 +112,7 @@ export const getFiscalConfig = createServerFn({ method: "GET" })
     const { data, error } = await supabaseAdmin
       .from("fiscal_configs")
       .select(
-        "id, cnpj, company_name, tax_regime, default_cfop, default_cst, default_ncm, cert_expires_at, cert_path, cert_password",
+        "id, cnpj, company_name, tax_regime, state_uf, default_cfop, default_cst, default_ncm, cert_expires_at, cert_path, cert_password",
       )
       .eq("client_id", member.client_id)
       .maybeSingle();
@@ -129,6 +130,7 @@ export const getFiscalConfig = createServerFn({ method: "GET" })
       cnpj: data.cnpj,
       companyName: data.company_name,
       taxRegime: data.tax_regime,
+      stateUf: data.state_uf ?? "SP",
       defaultCfop: data.default_cfop,
       defaultCst: data.default_cst,
       defaultNcm: data.default_ncm,
@@ -145,6 +147,7 @@ const fiscalConfigSchema = z.object({
   cnpj: z.string().regex(/^\d{14}$/, "CNPJ deve ter 14 dígitos sem pontuação"),
   companyName: z.string().min(2).max(150),
   taxRegime: z.enum(["simples", "lucro_presumido", "lucro_real"]),
+  stateUf: z.string().length(2).optional(),
   defaultCfop: z.string().max(10).optional().nullable(),
   defaultCst: z.string().max(10).optional().nullable(),
   defaultNcm: z.string().max(10).optional().nullable(),
@@ -174,6 +177,7 @@ export const upsertFiscalConfig = createServerFn({ method: "POST" })
           cnpj: data.cnpj,
           company_name: data.companyName,
           tax_regime: data.taxRegime,
+          state_uf: data.stateUf?.toUpperCase() ?? "SP",
           default_cfop: data.defaultCfop ?? null,
           default_cst: data.defaultCst ?? null,
           default_ncm: data.defaultNcm ?? null,
@@ -401,4 +405,105 @@ export const exportNfePeriodCsv = createServerFn({ method: "GET" })
       csv: [header, ...lines].join("\n"),
       filename: `nfe-export-${days}d.csv`,
     };
+  });
+
+// ─── cartaCorrecaoNfeFn ───────────────────────────────────────
+
+export const cartaCorrecaoNfeFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      emissionId: z.string().uuid(),
+      correcao: z.string().min(15).max(1000),
+    }),
+  )
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { cartaCorrecaoNfeEmission } = await import("./fiscal-ops.server");
+    await cartaCorrecaoNfeEmission(data.emissionId, data.correcao);
+    await logAudit({
+      user_id: context.userId,
+      action: "nfe_cce",
+      resource: "nfe_emission",
+      resource_id: data.emissionId,
+    });
+    return { success: true };
+  });
+
+// ─── inutilizarNumeracaoFn ──────────────────────────────────────
+
+export const inutilizarNumeracaoFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      serie: z.string().min(1).max(3),
+      numeroInicial: z.number().int().positive(),
+      numeroFinal: z.number().int().positive(),
+      justificativa: z.string().min(15).max(255),
+    }),
+  )
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { data: member } = await context.supabase
+      .from("client_members")
+      .select("client_id")
+      .eq("user_id", context.userId)
+      .eq("status", "active")
+      .single();
+
+    if (!member) throw new Error("Nenhum cliente associado a este usuário.");
+
+    const { inutilizarNumeracaoFiscal } = await import("./fiscal-ops.server");
+    await inutilizarNumeracaoFiscal({
+      clientId: member.client_id,
+      serie: data.serie,
+      numeroInicial: data.numeroInicial,
+      numeroFinal: data.numeroFinal,
+      justificativa: data.justificativa,
+    });
+
+    await logAudit({
+      user_id: context.userId,
+      client_id: member.client_id,
+      action: "nfe_inutilizacao",
+      resource: "fiscal_config",
+      new_data: data,
+    });
+
+    return { success: true };
+  });
+
+// ─── emitNfceForOrderFn / emitNfseForOrderFn ───────────────────
+
+export const emitNfceForOrderFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ orderId: z.string().uuid() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { emitNfceForOrder } = await import("./emit-nfce-nfse.server");
+    const emissionId = await emitNfceForOrder(data.orderId);
+    await logAudit({
+      user_id: context.userId,
+      action: "nfce_emit",
+      resource: "nfe_emission",
+      resource_id: emissionId,
+    });
+    return { success: true, emissionId };
+  });
+
+export const emitNfseForOrderFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      orderId: z.string().uuid(),
+      serviceDescription: z.string().max(500).optional(),
+    }),
+  )
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { emitNfseForOrder } = await import("./emit-nfce-nfse.server");
+    const emissionId = await emitNfseForOrder(data.orderId, data.serviceDescription);
+    await logAudit({
+      user_id: context.userId,
+      action: "nfse_emit",
+      resource: "nfe_emission",
+      resource_id: emissionId,
+    });
+    return { success: true, emissionId };
   });

@@ -11,6 +11,8 @@ export interface ProductRow {
   sku: string;
   name: string;
   ncm: string | null;
+  cfop: string | null;
+  cst: string | null;
   priceCents: number | null;
   isActive: boolean;
 }
@@ -75,7 +77,7 @@ export const listProducts = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<ProductRow[]> => {
     const { data, error } = await context.supabase
       .from("products")
-      .select("id, sku, name, ncm, price_cents, is_active")
+      .select("id, sku, name, ncm, cfop, cst, price_cents, is_active")
       .order("sku");
 
     if (error) throw new Error(error.message);
@@ -85,6 +87,8 @@ export const listProducts = createServerFn({ method: "GET" })
       sku: r.sku,
       name: r.name,
       ncm: r.ncm,
+      cfop: r.cfop,
+      cst: r.cst,
       priceCents: r.price_cents,
       isActive: r.is_active,
     }));
@@ -227,6 +231,31 @@ export const upsertPricingRuleFn = createServerFn({ method: "POST" })
       },
       { onConflict: "client_id,channel,rule_type" },
     );
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+const productFiscalSchema = z.object({
+  productId: z.string().uuid(),
+  ncm: z.string().max(10).optional().nullable(),
+  cfop: z.string().max(10).optional().nullable(),
+  cst: z.string().max(10).optional().nullable(),
+});
+
+export const upsertProductFiscal = createServerFn({ method: "POST" })
+  .inputValidator(productFiscalSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("products")
+      .update({
+        ncm: data.ncm ?? null,
+        cfop: data.cfop ?? null,
+        cst: data.cst ?? null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", data.productId);
+
     if (error) throw new Error(error.message);
     return { ok: true };
   });

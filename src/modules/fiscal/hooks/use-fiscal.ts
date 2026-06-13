@@ -10,6 +10,10 @@ import {
   retryNfeEmissionFn,
   cancelNfeEmissionFn,
   exportNfePeriodCsv,
+  cartaCorrecaoNfeFn,
+  inutilizarNumeracaoFn,
+  emitNfceForOrderFn,
+  emitNfseForOrderFn,
   type FiscalConfigInput,
 } from "../actions.functions";
 
@@ -112,6 +116,59 @@ export function useCancelNfeEmission() {
 export function useExportNfePeriodCsv() {
   return useMutation({
     mutationFn: (days?: number) => exportNfePeriodCsv({ data: { days } }),
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useCartaCorrecaoNfe() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { emissionId: string; correcao: string }) =>
+      cartaCorrecaoNfeFn({ data: input }),
+    onSuccess: () => {
+      toast.success("Carta de Correção enviada");
+      void queryClient.invalidateQueries({ queryKey: NF_EMISSION_DETAIL_KEY });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useInutilizarNumeracao() {
+  return useMutation({
+    mutationFn: (input: {
+      serie: string;
+      numeroInicial: number;
+      numeroFinal: number;
+      justificativa: string;
+    }) => inutilizarNumeracaoFn({ data: input }),
+    onSuccess: () => toast.success("Numeração inutilizada com sucesso"),
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useEmitNfce() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (orderId: string) => emitNfceForOrderFn({ data: { orderId } }),
+    onSuccess: () => {
+      toast.success("NFC-e emitida com sucesso");
+      void queryClient.invalidateQueries({ queryKey: NF_EMISSIONS_KEY });
+      void queryClient.invalidateQueries({ queryKey: FISCAL_STATS_KEY });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useEmitNfse() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { orderId: string; serviceDescription?: string }) =>
+      emitNfseForOrderFn({ data: input }),
+    onSuccess: () => {
+      toast.success("NFS-e emitida com sucesso");
+      void queryClient.invalidateQueries({ queryKey: NF_EMISSIONS_KEY });
+      void queryClient.invalidateQueries({ queryKey: FISCAL_STATS_KEY });
+    },
     onError: (err: Error) => toast.error(err.message),
   });
 }

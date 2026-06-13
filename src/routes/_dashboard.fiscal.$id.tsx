@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useState } from 'react'
-import { ArrowLeft, Download, ExternalLink, RefreshCw, XCircle } from 'lucide-react'
+import { ArrowLeft, Download, ExternalLink, FileEdit, RefreshCw, XCircle } from 'lucide-react'
 import { PageIntro, Panel } from '@/components/dashboard/panel'
 import { StatusPill, type Tone } from '@/components/dashboard/status-pill'
 import { Button } from '@/components/ui/button'
@@ -10,6 +10,7 @@ import {
   useNfeEmissionDetail,
   useRetryNfeEmission,
   useCancelNfeEmission,
+  useCartaCorrecaoNfe,
 } from '@/modules/fiscal/hooks/use-fiscal'
 import type { NfStatus } from '@/types/orbia'
 
@@ -30,7 +31,9 @@ function NfeDetailPage() {
   const { data: nf, isLoading } = useNfeEmissionDetail(id)
   const retryNfe = useRetryNfeEmission()
   const cancelNfe = useCancelNfeEmission()
+  const cartaCorrecao = useCartaCorrecaoNfe()
   const [justificativa, setJustificativa] = useState('')
+  const [correcao, setCorrecao] = useState('')
 
   if (isLoading) {
     return <p className="text-sm text-muted-foreground">Carregando…</p>
@@ -173,6 +176,29 @@ function NfeDetailPage() {
             Prazo de cancelamento expirado. Para estornar a operação, emita NF de devolução via
             logística reversa.
           </p>
+        )}
+
+        {nf.status === 'autorizada' && nf.type === 'NF-e' && (
+          <div className="mt-6 space-y-3 border-t border-border pt-4">
+            <p className="text-sm font-medium">Carta de Correção (CC-e)</p>
+            <Textarea
+              placeholder="Texto da correção com mínimo de 15 caracteres"
+              value={correcao}
+              onChange={(e) => setCorrecao(e.target.value)}
+              rows={3}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={cartaCorrecao.isPending || correcao.trim().length < 15}
+              onClick={() =>
+                cartaCorrecao.mutate({ emissionId: nf.emissionId, correcao: correcao.trim() })
+              }
+            >
+              <FileEdit className="mr-2 size-4" />
+              Enviar CC-e
+            </Button>
+          </div>
         )}
       </Panel>
     </div>

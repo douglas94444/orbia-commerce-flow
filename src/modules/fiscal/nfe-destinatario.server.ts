@@ -104,19 +104,24 @@ export function buildNfeItemsFromOrder(
   const cst = fiscal.default_cst ?? "102";
 
   if (items.length) {
-    return items.map((item, i) => ({
-      numero_item: String(i + 1),
-      codigo_produto: item.sku,
-      descricao: item.name.slice(0, 120),
-      cfop,
-      unidade_comercial: "UN",
-      quantidade_comercial: item.quantity,
-      valor_unitario_comercial: item.unitPriceCents / 100,
-      valor_bruto: (item.unitPriceCents * item.quantity) / 100,
-      codigo_ncm: item.ncm ?? ncm,
-      icms_situacao_tributaria: cst,
-      icms_origem: "0",
-    }));
+    return items.map((item, i) => {
+      const itemCfop = (item as NormalizedOrderItem & { cfop?: string }).cfop ?? cfop;
+      const itemCst = (item as NormalizedOrderItem & { cst?: string }).cst ?? cst;
+      const itemNcm = item.ncm ?? ncm;
+      return {
+        numero_item: String(i + 1),
+        codigo_produto: item.sku,
+        descricao: item.name.slice(0, 120),
+        cfop: itemCfop,
+        unidade_comercial: "UN",
+        quantidade_comercial: item.quantity,
+        valor_unitario_comercial: item.unitPriceCents / 100,
+        valor_bruto: (item.unitPriceCents * item.quantity) / 100,
+        codigo_ncm: itemNcm,
+        icms_situacao_tributaria: itemCst,
+        icms_origem: "0",
+      };
+    });
   }
 
   return [

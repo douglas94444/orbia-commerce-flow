@@ -14,7 +14,7 @@ export async function resolveOrderItemsSkus(
 
     const { data: byVariant } = await supabaseAdmin
       .from("channel_listings")
-      .select("products(sku, name, ncm)")
+      .select("products(sku, name, ncm, cfop, cst)")
       .eq("client_id", clientId)
       .eq("channel", channel)
       .eq("external_variant_id", externalVariantId)
@@ -24,14 +24,20 @@ export async function resolveOrderItemsSkus(
       ? { data: null }
       : await supabaseAdmin
           .from("channel_listings")
-          .select("products(sku, name, ncm)")
+          .select("products(sku, name, ncm, cfop, cst)")
           .eq("client_id", clientId)
           .eq("channel", channel)
           .eq("external_product_id", externalProductId)
           .maybeSingle();
 
     const listing = byVariant ?? byProduct;
-    const product = listing?.products as { sku: string; name: string; ncm: string | null } | null;
+    const product = listing?.products as {
+      sku: string;
+      name: string;
+      ncm: string | null;
+      cfop: string | null;
+      cst: string | null;
+    } | null;
 
     if (product) {
       resolved.push({
@@ -39,6 +45,8 @@ export async function resolveOrderItemsSkus(
         sku: product.sku,
         name: product.name,
         ncm: product.ncm ?? item.ncm,
+        cfop: product.cfop ?? item.cfop,
+        cst: product.cst ?? item.cst,
       });
     } else {
       resolved.push(item);

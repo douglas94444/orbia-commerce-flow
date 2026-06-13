@@ -11,6 +11,7 @@ import {
   upsertPricingRuleFn,
   getStockBuffersFn,
   upsertStockBufferFn,
+  upsertProductFiscal,
 } from "../actions.functions";
 
 export const PRODUCTS_KEY = ["products"] as const;
@@ -112,6 +113,23 @@ export function useUpsertStockBuffer() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: STOCK_BUFFERS_KEY });
       toast.success("Buffer de estoque salvo.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useUpsertProductFiscal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      productId: string;
+      ncm?: string | null;
+      cfop?: string | null;
+      cst?: string | null;
+    }) => upsertProductFiscal({ data: input }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: PRODUCTS_KEY });
+      toast.success("Dados fiscais do produto salvos.");
     },
     onError: (e: Error) => toast.error(e.message),
   });

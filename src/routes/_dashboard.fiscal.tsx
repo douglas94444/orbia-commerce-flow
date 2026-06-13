@@ -1,15 +1,19 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
+import { useState } from 'react'
 import { Download, FileCheck2, FileWarning, RefreshCw, Settings, ShieldCheck } from 'lucide-react'
 import { PageIntro, Panel } from '@/components/dashboard/panel'
 import { KpiCard } from '@/components/dashboard/kpi-card'
 import { StatusPill, type Tone } from '@/components/dashboard/status-pill'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { formatBRL } from '@/lib/format'
 import {
   useNfEmissions,
   useFiscalStats,
   useRetryNfeEmission,
   useExportNfePeriodCsv,
+  useEmitNfce,
+  useEmitNfse,
 } from '@/modules/fiscal/hooks/use-fiscal'
 import type { NfStatus } from '@/types/orbia'
 
@@ -30,6 +34,10 @@ function FiscalPage() {
   const { data: stats, isLoading: loadingStats } = useFiscalStats()
   const retryNfe = useRetryNfeEmission()
   const exportCsv = useExportNfePeriodCsv()
+  const emitNfce = useEmitNfce()
+  const emitNfse = useEmitNfse()
+  const [orderIdInput, setOrderIdInput] = useState('')
+  const [nfseDescription, setNfseDescription] = useState('')
 
   const handleExport = () => {
     exportCsv.mutate(30, {
@@ -106,6 +114,47 @@ function FiscalPage() {
           accent="warning"
         />
       </div>
+
+      <Panel title="Emissão manual NFC-e / NFS-e" subtitle="Informe o UUID do pedido para emitir cupom fiscal ou nota de serviço">
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground">ID do pedido (UUID)</label>
+            <Input
+              className="w-72 font-mono text-xs"
+              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+              value={orderIdInput}
+              onChange={(e) => setOrderIdInput(e.target.value)}
+            />
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!orderIdInput || emitNfce.isPending}
+            onClick={() => emitNfce.mutate(orderIdInput)}
+          >
+            Emitir NFC-e
+          </Button>
+          <Input
+            className="w-48 text-sm"
+            placeholder="Descrição do serviço (NFS-e)"
+            value={nfseDescription}
+            onChange={(e) => setNfseDescription(e.target.value)}
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!orderIdInput || emitNfse.isPending}
+            onClick={() =>
+              emitNfse.mutate({
+                orderId: orderIdInput,
+                serviceDescription: nfseDescription || undefined,
+              })
+            }
+          >
+            Emitir NFS-e
+          </Button>
+        </div>
+      </Panel>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Panel

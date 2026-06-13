@@ -36,6 +36,8 @@ export interface NormalizedOrderItem {
   quantity: number;
   unitPriceCents: number;
   ncm?: string;
+  cfop?: string;
+  cst?: string;
   externalProductId?: string;
   externalVariantId?: string;
 }

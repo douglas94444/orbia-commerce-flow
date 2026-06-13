@@ -8,6 +8,7 @@ import {
   extractShippingFromMetadata,
 } from "./nfe-destinatario.server";
 import { uploadNfeXmlToStorage } from "./nfe-storage.server";
+import { resolveLocalDestino, resolveReturnCfop } from "./tax-engine.server";
 
 export async function emitNfeForReturn(returnRequestId: string): Promise<void> {
   const { focusNfe } = getServerConfig();
@@ -35,7 +36,7 @@ export async function emitNfeForReturn(returnRequestId: string): Promise<void> {
 
   const { data: fiscal } = await supabaseAdmin
     .from("fiscal_configs")
-    .select("cnpj, company_name, cert_path, default_cfop, default_cst, default_ncm")
+    .select("cnpj, company_name, cert_path, default_cfop, default_cst, default_ncm, state_uf")
     .eq("client_id", clientId)
     .maybeSingle();
 
@@ -44,19 +45,24 @@ export async function emitNfeForReturn(returnRequestId: string): Promise<void> {
   const items = (req.return_items ?? []) as Array<{ sku: string; qty: number }>;
   const shipping = extractShippingFromMetadata(order.metadata);
   const today = new Date().toISOString().slice(0, 10);
+  const destUf = (shipping.state ?? "SP").slice(0, 2).toUpperCase();
+  const localDestino = resolveLocalDestino(fiscal.state_uf ?? "SP", destUf);
+  const returnCfop = resolveReturnCfop(localDestino, fiscal.default_cfop);
 
   const ref = `orbia-dev-${clientId.slice(0, 8)}-${returnRequestId.slice(0, 8)}`.replace(
     /[^a-zA-Z0-9-]/g,
     "-",
   );
 
-  const unitCents = items.length ? Math.floor(order.value_cents / items.reduce((s, i) => s + i.qty, 0)) : order.value_cents;
+  const unitCents = items.length
+    ? Math.floor(order.value_cents / items.reduce((s, i) => s + i.qty, 0))
+    : order.value_cents;
 
   const payload: FocusNfePayload = {
     natureza_operacao: "Devolucao de mercadoria",
     data_emissao: today,
     tipo_documento: "1",
-    local_destino: "1",
+    local_destino: localDestino,
     finalidade_emissao: "4",
     consumidor_final: "1",
     presenca_comprador: "2",
@@ -66,19 +72,20 @@ export async function emitNfeForReturn(returnRequestId: string): Promise<void> {
     numero_destinatario: shipping.number ?? "100",
     bairro_destinatario: shipping.neighborhood ?? "Centro",
     municipio_destinatario: shipping.city ?? "Sao Paulo",
-    uf_destinatario: (shipping.state ?? "SP").slice(0, 2).toUpperCase(),
+    uf_destinatario: destUf,
     cep_destinatario: (shipping.postalCode ?? "01310100").replace(/\D/g, "").slice(0, 8),
     items: items.map((item, idx) => ({
       numero_item: String(idx + 1),
       codigo_produto: item.sku,
       descricao: `Devolucao ${item.sku}`,
-      cfop: fiscal.default_cfop ?? "1202",
+      cfop: returnCfop,
       unidade_comercial: "UN",
-      quantidade_comercial: String(item.qty),
-      valor_unitario_comercial: String((unitCents / 100).toFixed(2)),
-      valor_bruto: String(((unitCents * item.qty) / 100).toFixed(2)),
+      quantidade_comercial: item.qty,
+      valor_unitario_comercial: unitCents / 100,
+      valor_bruto: (unitCents * item.qty) / 100,
       codigo_ncm: fiscal.default_ncm ?? "00000000",
       icms_situacao_tributaria: fiscal.default_cst ?? "102",
+      icms_origem: "0",
     })),
   };
 
@@ -129,7 +136,12 @@ export async function emitNfeForReturn(returnRequestId: string): Promise<void> {
   } catch (err) {
     await supabaseAdmin
       .from("nfe_emissions")
-      .update({ status: "rejeitada", updated_at: new Date().toISOString() })
+      .update({
+        status: "rejeitada",
+        last_error: (err as Error).message,
+        retries: 1,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", emission.id);
     throw err;
   }
