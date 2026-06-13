@@ -42,3 +42,18 @@ export async function exchangeNuvemshopCode(code: string): Promise<NuvemshopToke
   if (!res.ok) throw new Error(body.error ?? `Nuvemshop token exchange failed: ${res.status}`);
   return body;
 }
+
+/** Nuvemshop tokens are long-lived; validate via store endpoint. */
+export async function refreshNuvemshopToken(
+  storeId: string,
+  accessToken: string,
+): Promise<{ access_token: string; expires_in: number }> {
+  const res = await fetch(`https://api.tiendanube.com/v1/${storeId}/store`, {
+    headers: {
+      Authorization: `bearer ${accessToken}`,
+      "User-Agent": "Orbia (orbia@performanc.com.br)",
+    },
+  });
+  if (!res.ok) throw new Error(`Nuvemshop token invalid: ${res.status}`);
+  return { access_token: accessToken, expires_in: 86400 * 30 };
+}

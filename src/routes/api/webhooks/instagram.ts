@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createHash } from "node:crypto";
-import { validateInstagramWebhook } from "@/integrations/instagram/webhooks";
 import { getServerConfig } from "@/lib/config.server";
 import { rateLimit } from "@/lib/rate-limit.server";
+import { hardenInstagramOrderWebhook } from "@/modules/marketplaces/instagram-commerce.server";
 import {
   saveWebhookEvent,
   processWebhookEventInternal,
@@ -32,16 +32,13 @@ export const Route = createFileRoute("/api/webhooks/instagram")({
         const rawBody = await request.text();
         const signature = request.headers.get("x-hub-signature-256");
 
-        if (!validateInstagramWebhook(rawBody, signature, meta.appSecret)) {
+        const { valid, parsed } = hardenInstagramOrderWebhook(rawBody, signature);
+        if (!valid || !parsed) {
           return new Response("Invalid signature", { status: 401 });
         }
 
-        let payload: unknown;
-        try {
-          payload = JSON.parse(rawBody);
-        } catch {
-          return new Response("Invalid JSON", { status: 400 });
-        }
+        const payload = parsed;
+        void meta;
 
         const body = payload as Record<string, unknown>;
         const entry = ((body.entry ?? []) as Array<Record<string, unknown>>)[0];

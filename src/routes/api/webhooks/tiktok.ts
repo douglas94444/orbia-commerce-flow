@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { validateTiktokWebhook } from "@/integrations/tiktok/webhooks";
 import { getServerConfig } from "@/lib/config.server";
 import { rateLimit } from "@/lib/rate-limit.server";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
   saveWebhookEvent,
   processWebhookEventInternal,
@@ -45,6 +46,24 @@ export const Route = createFileRoute("/api/webhooks/tiktok")({
         const eventType = String(data.type ?? body.type ?? data.order_status ?? "order_update");
 
         const clientId = shopId ? await resolveClientId("tiktok", shopId) : null;
+
+        if (clientId && orderId && String(eventType).includes("order")) {
+          const since = new Date(Date.now() - 5 * 60_000).toISOString();
+          const { count } = await supabaseAdmin
+            .from("webhook_events")
+            .select("id", { count: "exact", head: true })
+            .eq("provider", "tiktok")
+            .eq("client_id", clientId)
+            .gte("created_at", since);
+          if ((count ?? 0) >= 4) {
+            const { enqueueLiveOrderBurst } = await import(
+              "@/modules/marketplaces/tiktok-advanced.server"
+            );
+            await enqueueLiveOrderBurst(clientId, [
+              { orderId: String(orderId), valueCents: 0, origin: "live" },
+            ]).catch(() => undefined);
+          }
+        }
 
         const { id } = await saveWebhookEvent({
           provider: "tiktok",

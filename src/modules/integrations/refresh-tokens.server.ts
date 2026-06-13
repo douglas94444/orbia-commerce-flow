@@ -7,6 +7,8 @@ import { refreshShopeeToken } from "@/integrations/shopee/oauth";
 import { refreshAmazonToken } from "@/integrations/amazon/oauth";
 import { refreshTikTokToken } from "@/integrations/tiktok/oauth";
 import { refreshInstagramToken } from "@/integrations/instagram/oauth";
+import { refreshShopifyToken } from "@/integrations/shopify/oauth";
+import { refreshNuvemshopToken } from "@/integrations/nuvemshop/oauth";
 import { logIntegration } from "@/shared/lib/logger";
 
 type RefreshableProvider =
@@ -16,7 +18,9 @@ type RefreshableProvider =
   | "shopee"
   | "amazon"
   | "tiktok"
-  | "instagram";
+  | "instagram"
+  | "shopify"
+  | "nuvemshop";
 
 const REFRESHABLE: RefreshableProvider[] = [
   "mercado_livre",
@@ -27,6 +31,8 @@ const REFRESHABLE: RefreshableProvider[] = [
   "tiktok",
   "instagram",
 ];
+
+const LONG_LIVED: RefreshableProvider[] = ["shopify", "nuvemshop"];
 
 async function doRefresh(
   provider: RefreshableProvider,
@@ -74,7 +80,23 @@ async function doRefresh(
       const t = await refreshInstagramToken(refreshToken);
       return { accessToken: t.access_token, expiresIn: t.expires_in ?? 3600 };
     }
+    case "shopify":
+    case "nuvemshop":
+      throw new Error("Use refreshLongLivedProvider for shopify/nuvemshop");
   }
+}
+
+async function refreshLongLivedProvider(
+  provider: "shopify" | "nuvemshop",
+  accessToken: string,
+  externalAccount: string,
+): Promise<{ accessToken: string; expiresIn: number }> {
+  if (provider === "shopify") {
+    const t = await refreshShopifyToken(externalAccount, accessToken);
+    return { accessToken: t.access_token, expiresIn: t.expires_in };
+  }
+  const t = await refreshNuvemshopToken(externalAccount, accessToken);
+  return { accessToken: t.access_token, expiresIn: t.expires_in };
 }
 
 export async function refreshExpiredTokens(): Promise<{
@@ -118,6 +140,59 @@ export async function refreshExpiredTokens(): Promise<{
           refresh_token: result.newRefreshToken
             ? encryptToken(result.newRefreshToken)
             : rawRefreshToken,
+          token_expires_at: expiresAt,
+          last_refreshed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", conn.id);
+
+      await logIntegration({
+        client_id: conn.client_id,
+        provider,
+        operation: "token_refresh",
+        status: "success",
+      });
+
+      refreshed += 1;
+    } catch (err) {
+      console.error(`[refresh-tokens] ${provider} client ${conn.client_id} failed:`, err);
+      await logIntegration({
+        client_id: conn.client_id,
+        provider,
+        operation: "token_refresh",
+        status: "error",
+        error_message: (err as Error).message,
+      });
+      failed += 1;
+    }
+  }
+
+  const { data: longLived } = await supabaseAdmin
+    .from("oauth_connections")
+    .select("id, client_id, provider, external_account, access_token, token_expires_at")
+    .in("provider", LONG_LIVED)
+    .eq("is_active", true)
+    .or(`token_expires_at.is.null,token_expires_at.lt.${oneHourFromNow}`);
+
+  for (const conn of longLived ?? []) {
+    const rawAccess = conn.access_token as string;
+    if (!rawAccess) continue;
+
+    const provider = conn.provider as "shopify" | "nuvemshop";
+    const decryptedAccess = decryptToken(rawAccess);
+
+    try {
+      const result = await refreshLongLivedProvider(
+        provider,
+        decryptedAccess,
+        conn.external_account as string,
+      );
+      const expiresAt = new Date(Date.now() + result.expiresIn * 1000).toISOString();
+
+      await supabaseAdmin
+        .from("oauth_connections")
+        .update({
+          access_token: encryptToken(result.accessToken),
           token_expires_at: expiresAt,
           last_refreshed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),

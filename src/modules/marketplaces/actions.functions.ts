@@ -167,3 +167,39 @@ export const getIntegrationHealthDashboard = createServerFn({ method: "GET" })
     );
     return getIntegrationHealthForClient(clientId);
   });
+
+export const exportChannelsCsv = createServerFn({ method: "GET" })
+  .inputValidator(z.object({ days: z.number().optional() }).optional())
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await resolveClientId(context.supabase);
+    const days = data?.days ?? 30;
+    const { getOrdersByChannel } = await import(
+      "@/modules/logistics/analytics/orders-by-channel.server"
+    );
+    const { getChannelProfitability } = await import("./channel-profitability.server");
+
+    const [channels, profitability] = await Promise.all([
+      getOrdersByChannel(clientId, days),
+      getChannelProfitability(clientId, days),
+    ]);
+
+    const profitByChannel = new Map(profitability.map((p) => [p.channel, p]));
+    const header = "canal,pedidos,gmv_cents,ticket_cents,cancel_rate_pct,sla_pct,gmv_delta_pct,margin_pct,fee_cents";
+    const lines = channels.map((row) => {
+      const profit = profitByChannel.get(row.channel);
+      return [
+        row.channel,
+        row.orderCount,
+        row.gmvCents,
+        row.averageTicketCents,
+        row.cancelRatePercent,
+        row.slaCompliancePercent,
+        row.gmvDeltaPercent,
+        profit?.marginPercent ?? "",
+        profit?.feeCents ?? "",
+      ].join(",");
+    });
+
+    return { csv: [header, ...lines].join("\n"), filename: `canais-${days}d.csv` };
+  });

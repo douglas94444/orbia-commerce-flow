@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { ExternalLink, Loader2, Lock, PackageCheck, PackageX, Tag, Truck } from 'lucide-react'
+import { ExternalLink, Loader2, Lock, PackageCheck, PackageX, Tag, Truck, Clock } from 'lucide-react'
 import { buildTrackingUrl } from '@/modules/logistics/shipping/tracking-link'
 import { PageIntro, Panel } from '@/components/dashboard/panel'
 import { KpiCard } from '@/components/dashboard/kpi-card'
@@ -7,7 +8,7 @@ import { StatusPill, type Tone } from '@/components/dashboard/status-pill'
 import { Button } from '@/components/ui/button'
 import { formatBRL } from '@/lib/format'
 import { Link } from '@tanstack/react-router'
-import { useOrders, useInventory, useLogisticsStats, useDispatchOrder } from '@/modules/logistics/hooks/use-logistics'
+import { useOrders, useInventory, useLogisticsStats, useDispatchOrder, useUnifiedOrderQueue } from '@/modules/logistics/hooks/use-logistics'
 import { useSlaDashboard, useStockAlerts } from '@/modules/logistics/hooks/use-fulfillly'
 import type { NfStatus, OrderStatus } from '@/types/orbia'
 
@@ -37,12 +38,18 @@ const NF_STATUS: Record<NfStatus, { label: string; tone: Tone }> = {
 const INV_TONE: Record<string, Tone> = { ok: 'success', atencao: 'warning', critico: 'danger' }
 
 function LogisticsPage() {
+  const [queueChannel, setQueueChannel] = useState('')
+  const [queueFulfillment, setQueueFulfillment] = useState('')
   const { data: orders = [],    isLoading: loadingOrders    } = useOrders()
   const { data: inventory = [], isLoading: loadingInventory } = useInventory()
   const { data: stats,          isLoading: loadingStats     } = useLogisticsStats()
   const dispatch = useDispatchOrder()
   const { data: sla } = useSlaDashboard()
   const { data: stockAlerts = [] } = useStockAlerts()
+  const { data: unifiedQueue, isLoading: loadingQueue } = useUnifiedOrderQueue({
+    channel: queueChannel || undefined,
+    fulfillmentType: queueFulfillment || undefined,
+  })
 
   const awaitingNf   = stats?.awaitingNf   ?? orders.filter((o) => o.status === 'aguardando_nf').length
   const todayCount   = stats?.todayCount   ?? 0
@@ -94,6 +101,80 @@ function LogisticsPage() {
           </div>
         </Panel>
       )}
+
+      <Panel
+        title="Fila unificada cross-channel"
+        subtitle="Priorizada por SLA — pedidos em risco primeiro"
+        action={<Clock className="size-4 text-muted-foreground" />}
+      >
+        <div className="mb-4 flex flex-wrap gap-2">
+          <select
+            className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+            value={queueChannel}
+            onChange={(e) => setQueueChannel(e.target.value)}
+          >
+            <option value="">Todos os canais</option>
+            {['mercado_livre', 'shopee', 'amazon', 'tiktok', 'nuvemshop', 'shopify', 'instagram'].map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <select
+            className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+            value={queueFulfillment}
+            onChange={(e) => setQueueFulfillment(e.target.value)}
+          >
+            <option value="">Todas modalidades</option>
+            <option value="FBA">FBA</option>
+            <option value="Full">Full</option>
+            <option value="MFN">MFN</option>
+          </select>
+        </div>
+        {loadingQueue ? (
+          <RowSkeleton rows={4} />
+        ) : !unifiedQueue?.rows.length ? (
+          <EmptyState message="Nenhum pedido pendente na fila." />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-[10px] uppercase text-muted-foreground">
+                  <th className="pb-2 pr-4">Pedido</th>
+                  <th className="pb-2 pr-4">Canal</th>
+                  <th className="pb-2 pr-4">Status</th>
+                  <th className="pb-2 pr-4">Modalidade</th>
+                  <th className="pb-2 pr-4">SLA</th>
+                  <th className="pb-2 text-right">Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {unifiedQueue.rows.map((row) => {
+                  const slaMs = row.slaDeadlineAt ? new Date(row.slaDeadlineAt).getTime() - Date.now() : null
+                  const slaRisk = slaMs != null && slaMs < 4 * 60 * 60_000
+                  const st = ORDER_STATUS[row.status] ?? { label: row.status, tone: 'neutral' as Tone }
+                  return (
+                    <tr key={row.id} className="border-b border-border/50">
+                      <td className="py-2 pr-4 font-mono text-xs">{row.externalId}</td>
+                      <td className="py-2 pr-4">{row.channel}</td>
+                      <td className="py-2 pr-4"><StatusPill label={st.label} tone={st.tone} dot /></td>
+                      <td className="py-2 pr-4 font-mono text-xs">{row.fulfillmentType ?? '—'}</td>
+                      <td className="py-2 pr-4">
+                        {row.slaDeadlineAt ? (
+                          <StatusPill
+                            label={new Date(row.slaDeadlineAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                            tone={slaRisk ? 'danger' : 'neutral'}
+                            dot
+                          />
+                        ) : '—'}
+                      </td>
+                      <td className="py-2 text-right font-mono">{formatBRL(row.valueCents / 100)}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
 
       <Panel
         title="Pedidos omnichannel"

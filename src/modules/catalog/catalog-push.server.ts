@@ -6,7 +6,29 @@ import { pushShopeeStock } from "@/integrations/shopee/catalog";
 import { pushShopifyStock } from "@/integrations/shopify/catalog";
 import { pushAmazonStock } from "@/integrations/amazon/catalog";
 import { pushTikTokStock } from "@/integrations/tiktok/catalog";
+import { getBufferedStockForChannel, getChannelStockBuffer } from "./stock-buffer.server";
 import type { CatalogChannel } from "./sync-catalog.server";
+
+async function pauseListingIfBlackout(
+  clientId: string,
+  channel: CatalogChannel,
+  productId: string,
+  effectiveQty: number,
+): Promise<void> {
+  const buffer = await getChannelStockBuffer(clientId, channel);
+  if (effectiveQty > 0 || !buffer.blackoutWhenZero) return;
+
+  await supabaseAdmin
+    .from("channel_listings")
+    .update({
+      listing_status: "paused",
+      metadata: { blackout: true, paused_at: new Date().toISOString() },
+      updated_at: new Date().toISOString(),
+    })
+    .eq("client_id", clientId)
+    .eq("channel", channel)
+    .eq("product_id", productId);
+}
 
 export async function pushStockToChannel(
   clientId: string,
@@ -33,7 +55,10 @@ export async function pushStockToChannel(
 
   if (!listing) return;
 
-  const conn = await supabaseAdmin
+  const effectiveQty = await getBufferedStockForChannel(clientId, channel, qty);
+  await pauseListingIfBlackout(clientId, channel, product.id, effectiveQty);
+
+  const { data: conn } = await supabaseAdmin
     .from("oauth_connections")
     .select("access_token, external_account, metadata")
     .eq("client_id", clientId)
@@ -41,42 +66,42 @@ export async function pushStockToChannel(
     .eq("is_active", true)
     .maybeSingle();
 
-  if (!conn?.data?.access_token) return;
+  if (!conn?.access_token) return;
 
-  const accessToken = decryptToken(conn.data.access_token);
+  const accessToken = decryptToken(conn.access_token);
   const meta = (listing.metadata ?? {}) as Record<string, unknown>;
-  const connMeta = (conn.data.metadata ?? {}) as Record<string, unknown>;
+  const connMeta = (conn.metadata ?? {}) as Record<string, unknown>;
 
   try {
     switch (channel) {
       case "nuvemshop":
         await pushNuvemshopStock(
-          conn.data.external_account ?? "",
+          conn.external_account ?? "",
           accessToken,
           listing.external_product_id,
           listing.external_variant_id ?? listing.external_product_id,
-          qty,
+          effectiveQty,
         );
         break;
       case "shopify": {
-        const shop = String(connMeta.shop ?? conn.data.external_account);
+        const shop = String(connMeta.shop ?? conn.external_account);
         const locationId = String(meta.location_id ?? connMeta.location_id ?? "");
         const inventoryItemId = String(meta.inventory_item_id ?? listing.external_variant_id ?? "");
         if (locationId && inventoryItemId) {
-          await pushShopifyStock(shop, accessToken, inventoryItemId, locationId, qty);
+          await pushShopifyStock(shop, accessToken, inventoryItemId, locationId, effectiveQty);
         }
         break;
       }
       case "mercado_livre":
-        await pushMercadoLivreStock(listing.external_product_id, accessToken, qty);
+        await pushMercadoLivreStock(listing.external_product_id, accessToken, effectiveQty);
         break;
       case "shopee":
         await pushShopeeStock(
-          conn.data.external_account ?? "",
+          conn.external_account ?? "",
           accessToken,
           listing.external_product_id,
           listing.external_variant_id ?? listing.external_product_id,
-          qty,
+          effectiveQty,
         );
         break;
       case "amazon":
@@ -84,7 +109,7 @@ export async function pushStockToChannel(
           clientId,
           listing.external_product_id,
           sku,
-          qty,
+          effectiveQty,
           accessToken,
         );
         break;
@@ -93,9 +118,9 @@ export async function pushStockToChannel(
           clientId,
           listing.external_product_id,
           listing.external_variant_id ?? listing.external_product_id,
-          qty,
+          effectiveQty,
           accessToken,
-          conn.data.external_account ?? "",
+          conn.external_account ?? "",
         );
         break;
     }

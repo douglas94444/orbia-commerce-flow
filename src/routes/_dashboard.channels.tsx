@@ -1,13 +1,15 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { BarChart3, Store } from 'lucide-react'
+import { BarChart3, Download, Store } from 'lucide-react'
 import { PageIntro, Panel } from '@/components/dashboard/panel'
 import { StatusPill } from '@/components/dashboard/status-pill'
+import { Button } from '@/components/ui/button'
 import { formatBRL, formatNumber } from '@/lib/format'
 import {
   useChannelAnalytics,
   useIntegrationHealth,
   useMarketplaceProfitability,
 } from '@/modules/marketplaces/hooks/use-marketplaces'
+import { exportChannelsCsv } from '@/modules/marketplaces/actions.functions'
 
 export const Route = createFileRoute('/_dashboard/channels')({
   head: () => ({ meta: [{ title: 'Canais — Orbia' }] }),
@@ -29,6 +31,17 @@ function ChannelsDashboardPage() {
   const totalGmv = channels.reduce((s, c) => s + c.gmvCents, 0)
   const totalOrders = channels.reduce((s, c) => s + c.orderCount, 0)
 
+  const handleExportCsv = async () => {
+    const { csv, filename } = await exportChannelsCsv({ data: { days: 30 } })
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="space-y-6">
       <PageIntro
@@ -36,12 +49,15 @@ function ChannelsDashboardPage() {
         title="Performance por canal"
         description="GMV, ticket médio, SLA e saúde das integrações em uma visão unificada."
         action={
-          <Link
-            to="/catalog"
-            className="text-sm text-primary hover:underline"
-          >
-            Gerenciar catálogo →
-          </Link>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => void handleExportCsv()}>
+              <Download className="mr-2 size-4" />
+              Exportar CSV
+            </Button>
+            <Link to="/catalog" className="text-sm text-primary hover:underline">
+              Gerenciar catálogo →
+            </Link>
+          </div>
         }
       />
 

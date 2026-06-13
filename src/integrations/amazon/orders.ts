@@ -4,6 +4,7 @@ import type {
   NormalizedOrder,
   NormalizedOrderItem,
 } from "@/modules/logistics/order-ingestion.server";
+import { parseCustomerDocumentFromSources } from "@/modules/fiscal/nfe-destinatario.server";
 
 export async function fetchAmazonOrder(
   clientId: string,
@@ -76,6 +77,9 @@ export function normalizeAmazonOrder(payload: unknown): NormalizedOrder | null {
   }));
 
   const ship = (order.ShippingAddress ?? order.shipping_address ?? {}) as Record<string, unknown>;
+  const buyer = (order.BuyerInfo ?? order.buyer_info ?? {}) as Record<string, unknown>;
+  const doc = parseCustomerDocumentFromSources([buyer, order]);
+  const fulfillmentChannel = String(order.FulfillmentChannel ?? order.fulfillment_channel ?? "MFN");
 
   return {
     externalId: String(amazonOrderId),
@@ -95,8 +99,10 @@ export function normalizeAmazonOrder(payload: unknown): NormalizedOrder | null {
       city: String(ship.City ?? ship.city ?? ""),
       state: String(ship.StateOrRegion ?? ship.state ?? ""),
       postalCode: String(ship.PostalCode ?? ship.postal_code ?? ""),
+      cpf: doc.cpf,
+      cnpj: doc.cnpj,
     },
-    raw: order,
+    raw: { ...order, fulfillment_type: fulfillmentChannel.includes("AFN") ? "FBA" : "MFN" },
   };
 }
 

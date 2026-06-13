@@ -123,6 +123,7 @@ export async function completeNuvemshopOAuth(code: string, state: string): Promi
     provider: "nuvemshop",
     externalAccount: storeId,
     accessToken: token.access_token,
+    tokenExpiresAt: new Date(Date.now() + 30 * 86400 * 1000).toISOString(),
     scopes: token.scope?.split(",") ?? [],
     metadata: {
       shop_name: store.name?.pt ?? store.name?.es ?? store.original_domain,
@@ -170,6 +171,7 @@ export async function completeShopifyOAuth(
     provider: "shopify",
     externalAccount: shopDomain,
     accessToken: token.access_token,
+    tokenExpiresAt: new Date(Date.now() + 365 * 86400 * 1000).toISOString(),
     scopes: token.scope?.split(",") ?? [],
     metadata: { shop: shopDomain },
     userId: oauthState.user_id,

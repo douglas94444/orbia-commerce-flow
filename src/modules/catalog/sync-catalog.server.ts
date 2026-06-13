@@ -141,7 +141,10 @@ export async function pullProductsFromChannel(
   return upsertCatalogRows(clientId, channel, rows);
 }
 
-export async function syncAllClientCatalog(clientId: string): Promise<Record<string, { products: number; listings: number }>> {
+export async function syncAllClientCatalog(
+  clientId: string,
+  options?: { publishAfterSync?: boolean },
+): Promise<Record<string, { products: number; listings: number }>> {
   const result: Record<string, { products: number; listings: number }> = {};
 
   for (const channel of CHANNELS) {
@@ -150,6 +153,19 @@ export async function syncAllClientCatalog(clientId: string): Promise<Record<str
     } catch (err) {
       console.warn(`[catalog] pull ${channel} failed:`, err);
       result[channel] = { products: 0, listings: 0 };
+    }
+  }
+
+  if (options?.publishAfterSync !== false) {
+    const { data: products } = await supabaseAdmin
+      .from("products")
+      .select("sku")
+      .eq("client_id", clientId);
+    const { publishSkuToAllChannels } = await import("./catalog-publish.server");
+    for (const p of products ?? []) {
+      await publishSkuToAllChannels(clientId, p.sku as string).catch((err) =>
+        console.warn(`[catalog] publish ${p.sku}:`, err),
+      );
     }
   }
 

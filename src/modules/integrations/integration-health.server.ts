@@ -60,6 +60,7 @@ export async function refreshIntegrationHealth(clientId?: string): Promise<{ upd
     const { data: lastWebhook } = await supabaseAdmin
       .from("webhook_events")
       .select("created_at")
+      .eq("client_id", cid)
       .eq("provider", provider)
       .order("created_at", { ascending: false })
       .limit(1)

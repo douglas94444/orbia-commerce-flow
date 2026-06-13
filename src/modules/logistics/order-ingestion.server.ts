@@ -17,6 +17,7 @@ import { recordFulfillmentUsage } from "./forecast/volume-forecast.server";
 import { normalizeAmazonOrder } from "@/integrations/amazon/orders";
 import { normalizeTiktokOrder } from "@/integrations/tiktok/orders";
 import { normalizeInstagramOrder } from "@/integrations/instagram/orders";
+import { parseCustomerDocumentFromSources } from "@/modules/fiscal/nfe-destinatario.server";
 
 export { enrichMercadoLivrePayload } from "./order-enrichment.server";
 
@@ -101,6 +102,7 @@ export function normalizeNuvemshopOrder(payload: unknown): NormalizedOrder | nul
 
   const shipping = order.shipping_address as Record<string, unknown> | undefined;
   const buyer = order.customer as Record<string, unknown> | undefined;
+  const doc = parseCustomerDocumentFromSources([buyer, order.billing_address, shipping]);
 
   return {
     externalId: String(id),
@@ -120,6 +122,8 @@ export function normalizeNuvemshopOrder(payload: unknown): NormalizedOrder | nul
           city: String(shipping.city ?? ""),
           state: String(shipping.province ?? shipping.state ?? ""),
           postalCode: String(shipping.zipcode ?? shipping.postal_code ?? ""),
+          cpf: doc.cpf,
+          cnpj: doc.cnpj,
         }
       : undefined,
     raw: order as Record<string, unknown>,
@@ -145,6 +149,12 @@ export function normalizeShopifyOrder(payload: unknown): NormalizedOrder | null 
   }));
 
   const shipping = order.shipping_address as Record<string, unknown> | undefined;
+  const doc = parseCustomerDocumentFromSources([
+    order.billing_address,
+    order.customer,
+    shipping,
+    (order.note_attributes as unknown[]) ?? [],
+  ]);
 
   return {
     externalId: String(id),
@@ -170,6 +180,8 @@ export function normalizeShopifyOrder(payload: unknown): NormalizedOrder | null 
           city: String(shipping.city ?? ""),
           state: String(shipping.province_code ?? shipping.province ?? ""),
           postalCode: String(shipping.zip ?? ""),
+          cpf: doc.cpf,
+          cnpj: doc.cnpj,
         }
       : undefined,
     raw: order as Record<string, unknown>,
@@ -200,6 +212,7 @@ export function normalizeMercadoLivreOrder(payload: unknown): NormalizedOrder | 
   const shipping = data.shipping as Record<string, unknown> | undefined;
   const receiver = shipping?.receiver_address as Record<string, unknown> | undefined;
   const buyer = data.buyer as Record<string, unknown> | undefined;
+  const doc = parseCustomerDocumentFromSources([buyer, data.billing, receiver]);
 
   return {
     externalId: String(id),
@@ -219,6 +232,8 @@ export function normalizeMercadoLivreOrder(payload: unknown): NormalizedOrder | 
           city: String((receiver.city as { name?: string })?.name ?? receiver.city ?? ""),
           state: String((receiver.state as { name?: string })?.name ?? receiver.state ?? ""),
           postalCode: String(receiver.zip_code ?? ""),
+          cpf: doc.cpf,
+          cnpj: doc.cnpj,
         }
       : undefined,
     raw: data as Record<string, unknown>,
@@ -246,6 +261,7 @@ export function normalizeShopeeOrder(payload: unknown): NormalizedOrder | null {
   }));
 
   const recipient = data.recipient_address as Record<string, unknown> | undefined;
+  const doc = parseCustomerDocumentFromSources([data, recipient, data.buyer_cpf_id]);
 
   return {
     externalId: String(id),
@@ -264,6 +280,8 @@ export function normalizeShopeeOrder(payload: unknown): NormalizedOrder | null {
           city: String(recipient.city ?? ""),
           state: String(recipient.state ?? ""),
           postalCode: String(recipient.zipcode ?? ""),
+          cpf: doc.cpf,
+          cnpj: doc.cnpj,
         }
       : undefined,
     raw: data as Record<string, unknown>,
@@ -308,7 +326,12 @@ export async function upsertOrderFromWebhook(
   if (order.shipping) {
     metadata.shipping = order.shipping;
     if (order.shipping.postalCode) metadata.postal_code = order.shipping.postalCode;
+    if (order.shipping.cpf) metadata.customer_document = order.shipping.cpf;
+    else if (order.shipping.cnpj) metadata.customer_document = order.shipping.cnpj;
   }
+
+  if (order.raw.tiktok_origin) metadata.tiktok_origin = order.raw.tiktok_origin;
+  if (order.raw.fulfillment_type) metadata.fulfillment_type = order.raw.fulfillment_type;
 
   const { extractAttributionSignals, buildAttributionMeta } = await import(
     "@/modules/traffic/order-attribution.server"
@@ -492,6 +515,20 @@ export async function ingestStoreWebhook(
   const orderId = await upsertOrderFromWebhook(resolvedClientId, normalized);
 
   if (normalized.paymentStatus === "paid") {
+    const { syncCustomerFromOrderMetadata } = await import("@/modules/retention/customer-sync.server");
+    await syncCustomerFromOrderMetadata(orderId).catch((err) =>
+      console.error("[ingest] customer sync:", err),
+    );
+
+    const { snapshotOrderFees } = await import("@/modules/marketplaces/channel-profitability.server");
+    await snapshotOrderFees(
+      resolvedClientId,
+      orderId,
+      provider,
+      normalized.valueCents,
+      normalized.raw,
+    ).catch((err) => console.error("[ingest] fee snapshot:", err));
+
     await reserveStock(resolvedClientId, stockItems);
     await emitDomainEvent("order.paid", {
       orderId,
@@ -500,5 +537,12 @@ export async function ingestStoreWebhook(
     });
     await triggerNfeForOrder(orderId);
     await recalculateClientMetrics(resolvedClientId);
+
+    if (provider === "instagram") {
+      const { linkMetaAdsAttribution } = await import("@/modules/marketplaces/instagram-commerce.server");
+      await linkMetaAdsAttribution(resolvedClientId, orderId).catch((err) =>
+        console.error("[ingest/instagram] meta ads attribution:", err),
+      );
+    }
   }
 }

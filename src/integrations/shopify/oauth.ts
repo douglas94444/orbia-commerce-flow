@@ -48,3 +48,16 @@ export async function exchangeShopifyCode(
   if (!res.ok) throw new Error(body.error ?? `Shopify token exchange failed: ${res.status}`);
   return body;
 }
+
+/** Shopify offline tokens are long-lived; validate and extend expiry. */
+export async function refreshShopifyToken(
+  shop: string,
+  accessToken: string,
+): Promise<{ access_token: string; expires_in: number }> {
+  const host = shop.includes(".myshopify.com") ? shop : `${shop}.myshopify.com`;
+  const res = await fetch(`https://${host}/admin/api/2024-01/shop.json`, {
+    headers: { "X-Shopify-Access-Token": accessToken },
+  });
+  if (!res.ok) throw new Error(`Shopify token invalid: ${res.status}`);
+  return { access_token: accessToken, expires_in: 86400 * 365 };
+}

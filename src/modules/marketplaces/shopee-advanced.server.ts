@@ -323,14 +323,41 @@ export async function checkShopeeHealth(clientId: string): Promise<{
 export async function syncShopeeAdvanced(clientId: string): Promise<{
   promotions: number;
   penaltyPoints: number;
+  negativeReviews: number;
 }> {
-  const [promotions, health] = await Promise.all([
+  const [promotions, health, negativeReviews] = await Promise.all([
     fetchShopeePromotions(clientId),
     checkShopeeHealth(clientId),
+    processShopeeNegativeReviews(clientId),
   ]);
 
   return {
     promotions: promotions.length,
     penaltyPoints: health.penalties?.penaltyPoints ?? 0,
+    negativeReviews,
   };
+}
+
+async function processShopeeNegativeReviews(clientId: string): Promise<number> {
+  const since = new Date(Date.now() - 7 * 86400_000).toISOString();
+  const { data: orders } = await supabaseAdmin
+    .from("orders")
+    .select("external_id, metadata")
+    .eq("client_id", clientId)
+    .eq("channel", "shopee")
+    .gte("created_at", since);
+
+  let triggered = 0;
+  for (const o of orders ?? []) {
+    const meta = (o.metadata ?? {}) as Record<string, unknown>;
+    const rating = Number(meta.review_rating ?? meta.buyer_rating ?? 5);
+    if (rating > 2) continue;
+    const result = await triggerNegativeReviewRetention(clientId, {
+      orderSn: o.external_id as string,
+      rating,
+      comment: String(meta.review_comment ?? ""),
+    });
+    if (result.enrolled) triggered += 1;
+  }
+  return triggered;
 }

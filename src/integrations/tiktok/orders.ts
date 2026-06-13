@@ -4,6 +4,7 @@ import type {
   NormalizedOrder,
   NormalizedOrderItem,
 } from "@/modules/logistics/order-ingestion.server";
+import { parseCustomerDocumentFromSources } from "@/modules/fiscal/nfe-destinatario.server";
 
 export async function fetchTiktokOrder(
   clientId: string,
@@ -66,6 +67,14 @@ export function normalizeTiktokOrder(payload: unknown): NormalizedOrder | null {
   }));
 
   const addr = (data.recipient_address ?? data.shipping_info ?? {}) as Record<string, unknown>;
+  const doc = parseCustomerDocumentFromSources([data, addr, data.buyer_tax_info]);
+  const originRaw = data.order_type ?? data.commerce_platform ?? data.sales_source ?? data.create_time_type;
+  const tiktokOrigin =
+    String(originRaw ?? "").toLowerCase().includes("live")
+      ? "live"
+      : String(originRaw ?? "").toLowerCase().includes("video")
+        ? "video"
+        : "storefront";
 
   return {
     externalId: String(orderId),
@@ -85,8 +94,10 @@ export function normalizeTiktokOrder(payload: unknown): NormalizedOrder | null {
       city: String(addr.city ?? ""),
       state: String(addr.state ?? ""),
       postalCode: String(addr.zipcode ?? addr.postal_code ?? ""),
+      cpf: doc.cpf,
+      cnpj: doc.cnpj,
     },
-    raw: data,
+    raw: { ...data, tiktok_origin: tiktokOrigin },
   };
 }
 
@@ -101,4 +112,26 @@ export async function updateTiktokShipmentStatus(
     body: JSON.stringify({ order_id: orderId, shipping_status: status }),
   });
   if (!res.ok) throw new Error(`TikTok shipment update failed: ${res.status}`);
+}
+
+export async function acknowledgeTiktokCancellation(
+  orderId: string,
+  token: string,
+  shopId: string,
+): Promise<void> {
+  const res = await fetch(
+    "https://open-api.tiktokglobalshop.com/order/202309/orders/cancel",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "x-tts-access-token": token,
+      },
+      body: JSON.stringify({ shop_id: shopId, order_id: orderId, cancel_reason: "buyer_request" }),
+    },
+  );
+  if (!res.ok) {
+    console.warn(`[tiktok] cancel ack failed for ${orderId}: ${res.status}`);
+  }
 }

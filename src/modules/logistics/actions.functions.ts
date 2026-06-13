@@ -207,3 +207,37 @@ export const dispatchOrder = createServerFn({ method: "POST" })
     await requireStaffLogistics(context.userId, context.supabase);
     return dispatchOrderInternal(data.orderId, context.userId);
   });
+
+async function resolveClientId(
+  supabase: { rpc: (fn: string) => Promise<{ data: string | null; error: unknown }>; from: (t: string) => unknown },
+): Promise<string> {
+  const { data: clientId } = await supabase.rpc("current_client_id");
+  if (clientId) return clientId;
+  const q = supabase.from("clients") as {
+    select: (c: string) => { limit: (n: number) => Promise<{ data: Array<{ id: string }> | null }> };
+  };
+  const { data: clients } = await q.select("id").limit(1);
+  if (!clients?.[0]?.id) throw new Error("Cliente não identificado");
+  return clients[0].id;
+}
+
+const unifiedQueueSchema = z.object({
+  channel: z.string().optional(),
+  status: z.string().optional(),
+  fulfillmentType: z.string().optional(),
+  limit: z.number().optional(),
+}).optional();
+
+export const getUnifiedOrderQueueFn = createServerFn({ method: "GET" })
+  .inputValidator(unifiedQueueSchema)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const clientId = await resolveClientId(context.supabase);
+    const { getUnifiedOrderQueue } = await import("./analytics/unified-orders.server");
+    return getUnifiedOrderQueue(clientId, {
+      channel: data?.channel,
+      status: data?.status,
+      fulfillmentType: data?.fulfillmentType,
+      limit: data?.limit ?? 50,
+    });
+  });

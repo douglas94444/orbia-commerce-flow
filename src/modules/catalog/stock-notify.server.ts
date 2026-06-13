@@ -36,4 +36,6 @@ export async function upsertInventoryWithBackInStockNotify(
       productName,
     });
   }
+
+  await emitDomainEvent("inventory.updated", { clientId, sku, units: newUnits });
 }

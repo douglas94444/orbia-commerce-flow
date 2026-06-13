@@ -80,6 +80,23 @@ onDomainEvent("nfe.authorized", async (payload) => {
   await onNfeAuthorized(orderId, danfeUrl);
 });
 
+onDomainEvent("inventory.updated", async (payload) => {
+  const clientId = String(payload.clientId ?? "");
+  const sku = String(payload.sku ?? "");
+  if (!clientId || !sku) return;
+  try {
+    const { publishSkuToAllChannels } = await import("@/modules/catalog/catalog-publish.server");
+    await publishSkuToAllChannels(clientId, sku);
+  } catch (err) {
+    console.error("[catalog] inventory.updated publish:", err);
+  }
+  try {
+    await enqueueStockSync(clientId, sku, `inventory:${sku}:${Date.now()}`);
+  } catch (err) {
+    console.error("[catalog] inventory.updated stock sync:", err);
+  }
+});
+
 onDomainEvent("cart.abandoned", async (payload) => {
   const { recordAbandonedCart } = await import("@/modules/retention/trigger-crons.server");
   await recordAbandonedCart({

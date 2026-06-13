@@ -9,11 +9,13 @@ export interface UnifiedOrderRow {
   customerId: string | null;
   createdAt: string;
   slaDeadlineAt: string | null;
+  fulfillmentType: string | null;
 }
 
 export interface UnifiedOrderQueueFilters {
   channel?: string;
   status?: string;
+  fulfillmentType?: string;
   since?: string;
   limit?: number;
   offset?: number;
@@ -29,11 +31,12 @@ export async function getUnifiedOrderQueue(
   let query = supabaseAdmin
     .from("orders")
     .select(
-      "id, external_id, channel, status, value_cents, customer_id, created_at, sla_deadline_at",
+      "id, external_id, channel, status, value_cents, customer_id, created_at, sla_deadline_at, metadata",
       { count: "exact" },
     )
     .eq("client_id", clientId)
-    .order("created_at", { ascending: false })
+    .not("status", "in", '("entregue","cancelado")')
+    .order("sla_deadline_at", { ascending: true, nullsFirst: false })
     .range(offset, offset + limit - 1);
 
   if (filters.channel) query = query.eq("channel", filters.channel);
@@ -43,16 +46,24 @@ export async function getUnifiedOrderQueue(
   const { data, count, error } = await query;
   if (error) throw new Error(`Unified order queue failed: ${error.message}`);
 
-  const rows: UnifiedOrderRow[] = (data ?? []).map((o) => ({
-    id: o.id as string,
-    externalId: o.external_id as string,
-    channel: o.channel as string,
-    status: o.status as string,
-    valueCents: o.value_cents as number,
-    customerId: (o.customer_id as string | null) ?? null,
-    createdAt: o.created_at as string,
-    slaDeadlineAt: (o.sla_deadline_at as string | null) ?? null,
-  }));
+  let rows: UnifiedOrderRow[] = (data ?? []).map((o) => {
+    const meta = (o.metadata ?? {}) as Record<string, unknown>;
+    return {
+      id: o.id as string,
+      externalId: o.external_id as string,
+      channel: o.channel as string,
+      status: o.status as string,
+      valueCents: o.value_cents as number,
+      customerId: (o.customer_id as string | null) ?? null,
+      createdAt: o.created_at as string,
+      slaDeadlineAt: (o.sla_deadline_at as string | null) ?? null,
+      fulfillmentType: (meta.fulfillment_type as string) ?? null,
+    };
+  });
+
+  if (filters.fulfillmentType) {
+    rows = rows.filter((r) => r.fulfillmentType === filters.fulfillmentType);
+  }
 
   return { rows, total: count ?? rows.length };
 }

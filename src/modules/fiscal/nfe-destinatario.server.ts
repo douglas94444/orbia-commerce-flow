@@ -34,6 +34,38 @@ function onlyDigits(value: string): string {
   return value.replace(/\D/g, "");
 }
 
+export function parseCustomerDocument(value: unknown): { cpf?: string; cnpj?: string } {
+  if (value == null) return {};
+  if (typeof value === "string") {
+    const digits = onlyDigits(value);
+    if (digits.length === 11) return { cpf: digits };
+    if (digits.length === 14) return { cnpj: digits };
+    return {};
+  }
+  if (typeof value === "object") {
+    const o = value as Record<string, unknown>;
+    const cpf = o.cpf ?? o.CPF ?? o.cpf_cnpj;
+    const cnpj = o.cnpj ?? o.CNPJ;
+    if (cpf) return parseCustomerDocument(String(cpf));
+    if (cnpj) return parseCustomerDocument(String(cnpj));
+    const doc = o.doc_number ?? o.document ?? o.tax_id ?? o.identification ?? o.buyer_cpf_id;
+    if (doc) return parseCustomerDocument(String(doc));
+    const billing = o.billing_info as Record<string, unknown> | undefined;
+    if (billing?.doc_number) return parseCustomerDocument(String(billing.doc_number));
+  }
+  return {};
+}
+
+export function parseCustomerDocumentFromSources(
+  sources: unknown[],
+): { cpf?: string; cnpj?: string } {
+  for (const src of sources) {
+    const doc = parseCustomerDocument(src);
+    if (doc.cpf || doc.cnpj) return doc;
+  }
+  return {};
+}
+
 export function applyDestinatarioToPayload(
   payload: FocusNfePayload,
   shipping: OrderShippingMeta,

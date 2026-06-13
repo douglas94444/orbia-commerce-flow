@@ -67,6 +67,17 @@ export async function handleChannelCancellation(input: {
         });
         break;
       }
+      case "amazon":
+        break;
+      case "tiktok": {
+        const { acknowledgeTiktokCancellation } = await import("@/integrations/tiktok/orders");
+        await acknowledgeTiktokCancellation(
+          input.externalOrderId,
+          token,
+          conn.external_account ?? "",
+        );
+        break;
+      }
       default:
         break;
     }
