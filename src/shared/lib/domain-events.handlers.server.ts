@@ -75,9 +75,22 @@ onDomainEvent("order.delivered", async (payload) => {
 
 onDomainEvent("nfe.authorized", async (payload) => {
   const orderId = String(payload.orderId ?? "");
-  const danfeUrl = payload.danfeUrl ? String(payload.danfeUrl) : null;
+  let danfeUrl = payload.danfeUrl ? String(payload.danfeUrl) : null;
+  const xmlUrl = payload.xmlUrl ? String(payload.xmlUrl) : null;
   if (!orderId) return;
+
+  if (!danfeUrl && xmlUrl?.startsWith("http")) {
+    danfeUrl = xmlUrl;
+  }
+
   await onNfeAuthorized(orderId, danfeUrl);
+
+  try {
+    const { sendBuyerNfeEmail } = await import("@/modules/fiscal/fiscal-buyer-email.server");
+    await sendBuyerNfeEmail(orderId, danfeUrl);
+  } catch (err) {
+    console.warn("[fiscal] buyer email failed:", (err as Error).message);
+  }
 });
 
 onDomainEvent("inventory.updated", async (payload) => {

@@ -107,7 +107,10 @@ export async function ensureDefaultSequences(clientId: string): Promise<void> {
     {
       name: "NF emitida",
       trigger: "nfe_autorizada",
-      steps: [{ channel: "whatsapp", delay: 0, key: "nfe_confirmacao" }],
+      steps: [
+        { channel: "whatsapp", delay: 0, key: "nfe_confirmacao" },
+        { channel: "email", delay: 0, key: "nfe_confirmacao" },
+      ],
     },
     {
       name: "Pedido despachado",

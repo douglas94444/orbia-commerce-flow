@@ -29,6 +29,11 @@ export interface FocusNfeItem {
   cofins_valor?: number;
   ipi_situacao_tributaria?: string;
   codigo_barras_comercial?: string;
+  percentual_fcp?: number;
+  valor_fcp?: number;
+  icms_base_calculo_st?: number;
+  icms_valor_st?: number;
+  icms_aliquota_st?: number;
 }
 
 export interface FocusNfeNotaReferenciada {
@@ -70,6 +75,9 @@ export interface FocusNfePayload {
   informacoes_adicionais_contribuinte?: string;
   notas_referenciadas?: FocusNfeNotaReferenciada[];
   items: FocusNfeItem[];
+  peso_bruto?: number;
+  peso_liquido?: number;
+  volumes?: Array<{ quantidade: number; especie: string; peso_bruto?: number; peso_liquido?: number }>;
 }
 
 export interface FocusNfeResponse {
@@ -210,6 +218,8 @@ export async function cancelNFe(
 
 export interface FocusNfcePayload extends FocusNfePayload {
   indicador_intermediador?: string;
+  serie?: string;
+  numero?: string;
 }
 
 export interface FocusNfsePayload {

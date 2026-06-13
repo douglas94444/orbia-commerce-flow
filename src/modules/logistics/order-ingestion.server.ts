@@ -2,6 +2,8 @@
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { emitNfeForOrder } from "@/modules/fiscal/emit-order-nfe.server";
+import { shouldEmitNfce, emitNfceForOrder } from "@/modules/fiscal/emit-nfce.server";
+import { shouldEmitNfse, emitNfseForOrder } from "@/modules/fiscal/emit-nfse.server";
 import { recalculateClientMetrics } from "@/modules/analytics/health-score.server";
 import { resolveOrderItemsSkus } from "@/modules/catalog/sku-resolution.server";
 import { emitDomainEvent } from "@/shared/lib/domain-events.server";
@@ -474,24 +476,33 @@ export async function upsertOrderFromWebhook(
 export async function triggerNfeForOrder(orderId: string): Promise<void> {
   const { data: order } = await supabaseAdmin
     .from("orders")
-    .select("client_id, nf_status")
+    .select("client_id, nf_status, channel, metadata")
     .eq("id", orderId)
     .single();
 
   if (!order) return;
   if (order.nf_status === "autorizada") return;
 
+  const metadata = (order.metadata ?? {}) as Record<string, unknown>;
+
   const { validateFiscalReadiness } = await import("@/modules/fiscal/fiscal-readiness.server");
-  const readiness = await validateFiscalReadiness(order.client_id, { attemptFocusSync: true });
+  const docType = shouldEmitNfse(metadata)
+    ? "nfse"
+    : shouldEmitNfce(order.channel, metadata)
+      ? "nfce"
+      : "nfe";
+
+  const readiness = await validateFiscalReadiness(order.client_id, {
+    attemptFocusSync: true,
+    docType,
+  });
   if (!readiness.ready) {
     const keys = readiness.items.filter((i) => i.status === "error").map((i) => i.key);
-    console.warn(`[fiscal] NF-e não disparada para pedido ${orderId}: config incompleta`, keys);
-    const { data: row } = await supabaseAdmin.from("orders").select("metadata").eq("id", orderId).single();
-    const meta = (row?.metadata ?? {}) as Record<string, unknown>;
+    console.warn(`[fiscal] NF não disparada para pedido ${orderId}: config incompleta`, keys);
     await supabaseAdmin
       .from("orders")
       .update({
-        metadata: { ...meta, nfe_blocked_reason: keys.join(", ") },
+        metadata: { ...metadata, nfe_blocked_reason: keys.join(", ") },
         updated_at: new Date().toISOString(),
       })
       .eq("id", orderId);
@@ -499,9 +510,15 @@ export async function triggerNfeForOrder(orderId: string): Promise<void> {
   }
 
   try {
-    await emitNfeForOrder(orderId);
+    if (shouldEmitNfse(metadata)) {
+      await emitNfseForOrder(orderId);
+    } else if (shouldEmitNfce(order.channel, metadata)) {
+      await emitNfceForOrder(orderId);
+    } else {
+      await emitNfeForOrder(orderId);
+    }
   } catch (err) {
-    console.error(`[fiscal] emitNfeForOrder failed for ${orderId}:`, (err as Error).message);
+    console.error(`[fiscal] emission failed for ${orderId}:`, (err as Error).message);
   }
 }
 

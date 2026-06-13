@@ -12,6 +12,7 @@ import {
   useReturnReasonsReport,
   useReturnRateKpi,
 } from "@/modules/logistics/hooks/use-fulfillly";
+import { useReturnFiscalStatus } from "@/modules/fiscal/hooks/use-fiscal";
 import { buildTrackingUrl } from "@/modules/logistics/shipping/tracking-link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +35,7 @@ const STATUS_TONE: Record<string, "warning" | "primary" | "success" | "danger" |
 
 type ReturnRow = {
   id: string;
+  order_id?: string;
   reason: string;
   status: string;
   tracking_code: string | null;
@@ -168,6 +170,7 @@ function ReturnsPage() {
                       </Link>
                     </p>
                   )}
+                  <ReturnFiscalPanel returnRequestId={r.id} />
                   <div className="mt-3 flex flex-wrap gap-2">
                     {r.status === "pending" && (
                       <>
@@ -304,6 +307,68 @@ function ReturnsPage() {
           </div>
         )}
       </Panel>
+    </div>
+  );
+}
+
+function ReturnFiscalPanel({ returnRequestId }: { returnRequestId: string }) {
+  const { data, isLoading } = useReturnFiscalStatus(returnRequestId);
+
+  if (isLoading) {
+    return <p className="mt-2 text-xs text-muted-foreground">Carregando status fiscal…</p>;
+  }
+  if (!data?.saleNfe && !data?.returnNfe) {
+    return (
+      <p className="mt-2 text-xs text-muted-foreground">
+        NF-e de venda ainda não autorizada para este pedido.
+      </p>
+    );
+  }
+
+  return (
+    <div className="mt-3 rounded-lg border border-border/60 bg-muted/10 p-3 text-xs">
+      <p className="mb-2 font-medium text-foreground">Documentos fiscais</p>
+      {data.saleNfe && (
+        <div className="mb-2">
+          <span className="text-muted-foreground">NF venda: </span>
+          <StatusPill label={data.saleNfe.status} tone="success" />
+          {data.saleNfe.accessKey && (
+            <p className="mt-1 font-mono text-[10px] text-muted-foreground break-all">
+              Chave: {data.saleNfe.accessKey}
+            </p>
+          )}
+          <Link
+            to="/fiscal/$id"
+            params={{ id: data.saleNfe.id }}
+            className="mt-1 inline-block text-primary hover:underline"
+          >
+            Ver NF venda
+          </Link>
+        </div>
+      )}
+      {data.returnNfe ? (
+        <div>
+          <span className="text-muted-foreground">NF devolução (entrada): </span>
+          <StatusPill
+            label={data.returnNfe.status}
+            tone={data.returnNfe.status === "autorizada" ? "success" : "warning"}
+          />
+          {data.returnNfe.accessKey && (
+            <p className="mt-1 font-mono text-[10px] text-muted-foreground break-all">
+              Chave referenciada: {data.returnNfe.accessKey}
+            </p>
+          )}
+          <Link
+            to="/fiscal/$id"
+            params={{ id: data.returnNfe.id }}
+            className="mt-1 inline-block text-primary hover:underline"
+          >
+            Ver NF devolução
+          </Link>
+        </div>
+      ) : (
+        <p className="text-muted-foreground">NF de devolução ainda não emitida.</p>
+      )}
     </div>
   );
 }

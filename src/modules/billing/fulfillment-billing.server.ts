@@ -131,6 +131,20 @@ export async function chargeFulfillmentOverage(clientId: string): Promise<string
     new_data: { type: "fulfillment_overage", ...summary },
   });
 
+  try {
+    const { emitNfseForFulfillmentBilling } = await import(
+      "@/modules/fiscal/emit-nfse.server"
+    );
+    await emitNfseForFulfillmentBilling(
+      clientId,
+      summary.overageCents,
+      summary.periodMonth,
+      tx.id as string,
+    );
+  } catch (err) {
+    console.warn("[billing/fulfillment] NFS-e automática falhou:", (err as Error).message);
+  }
+
   return tx.id as string;
 }
 

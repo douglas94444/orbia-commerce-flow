@@ -1,6 +1,16 @@
 export type LocalDestino = "1" | "2" | "3";
 export type TaxRegime = "simples" | "lucro_presumido" | "lucro_real";
 
+export interface FiscalTaxRule {
+  uf_destino: string;
+  ncm_prefix: string;
+  icms_aliquota: number | null;
+  fcp_aliquota: number;
+  difal_enabled: boolean;
+  ipi_cst: string | null;
+  mva_st: number | null;
+}
+
 /** 1=interna, 2=interestadual, 3=exterior */
 export function resolveLocalDestino(emitterUf: string, destUf: string): LocalDestino {
   const e = emitterUf.trim().toUpperCase().slice(0, 2);
@@ -95,15 +105,56 @@ export function resolveReturnCfop(
   return "1202";
 }
 
-/** Alíquota ICMS % — override por UF destino ou tabela interestadual simplificada. */
+/** Alíquota ICMS % — override por UF destino, fiscal_tax_rules ou tabela simplificada. */
 const DEFAULT_INTER_RATE = 12;
 const DEFAULT_INTRA_RATE = 18;
+
+export async function loadFiscalTaxRule(
+  clientId: string,
+  ufDestino: string,
+  ncm: string,
+): Promise<FiscalTaxRule | null> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const dest = ufDestino.trim().toUpperCase().slice(0, 2);
+  const ncmDigits = ncm.replace(/\D/g, "");
+
+  const prefixes = ["", ...Array.from({ length: Math.min(8, ncmDigits.length) }, (_, i) =>
+    ncmDigits.slice(0, ncmDigits.length - i),
+  )].filter((p, idx, arr) => arr.indexOf(p) === idx);
+
+  for (const prefix of prefixes) {
+    const { data } = await supabaseAdmin
+      .from("fiscal_tax_rules")
+      .select("uf_destino, ncm_prefix, icms_aliquota, fcp_aliquota, difal_enabled, ipi_cst, mva_st")
+      .eq("client_id", clientId)
+      .eq("uf_destino", dest)
+      .eq("ncm_prefix", prefix)
+      .maybeSingle();
+
+    if (data) {
+      return {
+        uf_destino: data.uf_destino,
+        ncm_prefix: data.ncm_prefix,
+        icms_aliquota: data.icms_aliquota != null ? Number(data.icms_aliquota) : null,
+        fcp_aliquota: Number(data.fcp_aliquota ?? 0),
+        difal_enabled: Boolean(data.difal_enabled),
+        ipi_cst: data.ipi_cst,
+        mva_st: data.mva_st != null ? Number(data.mva_st) : null,
+      };
+    }
+  }
+
+  return null;
+}
 
 export function resolveIcmsAliquota(
   emitterUf: string,
   destUf: string,
   productRates: Record<string, number>,
+  taxRule?: FiscalTaxRule | null,
 ): number {
+  if (taxRule?.icms_aliquota != null) return taxRule.icms_aliquota;
+
   const dest = destUf.trim().toUpperCase().slice(0, 2);
   if (dest && productRates[dest] != null) return productRates[dest];
 
@@ -113,6 +164,51 @@ export function resolveIcmsAliquota(
     return productRates[emitterUf.trim().toUpperCase().slice(0, 2)];
   }
   return DEFAULT_INTRA_RATE;
+}
+
+export function resolveIpiCst(taxRule: FiscalTaxRule | null | undefined, defaultCst = "53"): string {
+  return taxRule?.ipi_cst?.trim() || defaultCst;
+}
+
+export function resolveFcpAliquota(taxRule: FiscalTaxRule | null | undefined): number {
+  return taxRule?.fcp_aliquota ?? 0;
+}
+
+export function resolveIcmsStMva(taxRule: FiscalTaxRule | null | undefined): number | null {
+  return taxRule?.mva_st ?? null;
+}
+
+export function findTaxRuleFromList(
+  rules: FiscalTaxRule[],
+  ufDestino: string,
+  ncm: string,
+): FiscalTaxRule | null {
+  const dest = ufDestino.trim().toUpperCase().slice(0, 2);
+  const ncmDigits = ncm.replace(/\D/g, "");
+  const prefixes = Array.from({ length: ncmDigits.length + 1 }, (_, i) => ncmDigits.slice(0, ncmDigits.length - i));
+
+  for (const prefix of prefixes) {
+    const match = rules.find((r) => r.uf_destino === dest && r.ncm_prefix === prefix);
+    if (match) return match;
+  }
+  return null;
+}
+
+export async function loadClientTaxRules(clientId: string): Promise<FiscalTaxRule[]> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin
+    .from("fiscal_tax_rules")
+    .select("uf_destino, ncm_prefix, icms_aliquota, fcp_aliquota, difal_enabled, ipi_cst, mva_st")
+    .eq("client_id", clientId);
+  return (data ?? []).map((r) => ({
+    uf_destino: r.uf_destino,
+    ncm_prefix: r.ncm_prefix,
+    icms_aliquota: r.icms_aliquota != null ? Number(r.icms_aliquota) : null,
+    fcp_aliquota: Number(r.fcp_aliquota ?? 0),
+    difal_enabled: Boolean(r.difal_enabled),
+    ipi_cst: r.ipi_cst,
+    mva_st: r.mva_st != null ? Number(r.mva_st) : null,
+  }));
 }
 
 /** Simples → CSOSN 102; LP/LR → CST 00 (tributada integralmente). */

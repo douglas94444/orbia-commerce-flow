@@ -72,6 +72,17 @@ function NfeDetailPage() {
 
       <div className="flex flex-wrap items-center gap-3">
         <StatusPill label={nf.status} tone={NF_TONE[nf.status]} dot />
+        {nf.status === 'pendente' && (
+          <StatusPill label="Aguardando SEFAZ" tone="warning" dot />
+        )}
+        {nf.webhookReceivedAt && nf.status === 'autorizada' && (
+          <StatusPill label="Autorizada via webhook" tone="success" />
+        )}
+        {nf.series && nf.number != null && (
+          <span className="font-mono text-xs text-muted-foreground">
+            Série {nf.series} · Nº {nf.number}
+          </span>
+        )}
         <span className="font-mono text-lg font-semibold">{formatBRL(nf.value)}</span>
         <span className="text-xs text-muted-foreground">Tentativas: {nf.retries}/3</span>
       </div>
@@ -102,6 +113,17 @@ function NfeDetailPage() {
 
         <Panel title="Documentos">
           <div className="flex flex-col gap-2">
+            {nf.qrCodeUrl && nf.type === 'NFC-e' && (
+              <a
+                href={nf.qrCodeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+              >
+                <ExternalLink className="size-4" />
+                Abrir QR Code NFC-e
+              </a>
+            )}
             {nf.danfeUrl ? (
               <a
                 href={nf.danfeUrl}

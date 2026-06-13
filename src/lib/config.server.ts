@@ -53,6 +53,8 @@ export function getServerConfig() {
     focusNfe: {
       token: process.env.FOCUS_NFE_TOKEN,
       env: (process.env.FOCUS_NFE_ENV ?? "homologacao") as "homologacao" | "producao",
+      webhookSecret: process.env.FOCUS_NFE_WEBHOOK_SECRET,
+      asyncEmission: process.env.FOCUS_NFE_ASYNC === "1",
     },
     cloudflare: {
       apiToken: process.env.CLOUDFLARE_API_TOKEN,

@@ -6,9 +6,10 @@ import {
 } from "../tickets/ticket-factory.server";
 
 const TRACKING_INTENTS = ["onde está", "onde esta", "rastreio", "rastrear", "tracking", "meu pedido"];
-const NF_INTENTS = ["nota fiscal", "nf-e", "nfe", "segunda via"];
+const NF_INTENTS = ["nota fiscal", "nf-e", "nfe", "nfse", "nfs-e", "segunda via"];
 const RETURN_INTENTS = ["devolução", "devolucao", "troca", "trocar", "devolver"];
 const HUMAN_INTENTS = ["atendente", "humano", "falar com", "falar_atendimento"];
+const HOURS_INTENTS = ["horário", "horario", "funcionamento", "atendimento"];
 const STOCK_INTENTS = ["estoque", "disponível", "disponivel", "tem em estoque"];
 
 export interface ChatbotInput {
@@ -68,19 +69,55 @@ async function getTrackingReply(orderId: string): Promise<string> {
   }
 }
 
-async function getNfReply(clientId: string, orderId: string): Promise<string> {
-  const { data: nfe } = await supabaseAdmin
+async function getNfReply(
+  clientId: string,
+  orderId: string,
+  fromPhone?: string,
+): Promise<string> {
+  const { data: emissions } = await supabaseAdmin
     .from("nfe_emissions")
-    .select("id, status, xml_storage_path")
+    .select("id, type, status, danfe_url, xml_storage_path, xml_url")
     .eq("client_id", clientId)
     .eq("order_id", orderId)
     .eq("status", "autorizada")
     .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(2);
 
-  if (!nfe) return "Ainda não encontramos NF-e autorizada para este pedido. Nossa equipe verificará.";
-  return "Sua NF-e foi localizada! Enviaremos o PDF por WhatsApp ou email em instantes.";
+  const nfe = emissions?.find((e) => e.type === "NF-e" || e.type === "NFC-e");
+  const nfse = emissions?.find((e) => e.type === "NFS-e");
+
+  if (!nfe && !nfse) {
+    return "Ainda não encontramos nota fiscal autorizada para este pedido. Nossa equipe verificará.";
+  }
+
+  const doc = nfe ?? nfse;
+  const label = doc?.type === "NFS-e" ? "NFS-e" : doc?.type === "NFC-e" ? "NFC-e" : "NF-e";
+
+  let downloadUrl = doc?.danfe_url as string | null;
+  if (doc?.xml_storage_path) {
+    const { createNfeXmlSignedUrl } = await import("@/modules/fiscal/nfe-storage.server");
+    downloadUrl = (await createNfeXmlSignedUrl(doc.xml_storage_path as string)) ?? downloadUrl;
+  } else if (doc?.xml_url) {
+    downloadUrl = doc.xml_url as string;
+  }
+
+  if (fromPhone && downloadUrl) {
+    const { sendWhatsAppMessage } = await import("@/integrations/whatsapp");
+    const { getWhatsAppCredentials } = await import("@/integrations/whatsapp/provider");
+    const creds = await getWhatsAppCredentials(clientId);
+    if (creds?.provider === "meta") {
+      await sendWhatsAppMessage({
+        phoneNumberId: creds.phoneNumberId,
+        accessToken: creds.accessToken,
+        to: fromPhone,
+        body: `Segunda via da sua ${label}. Link: ${downloadUrl}`,
+        clientId,
+        documentUrl: downloadUrl,
+      }).catch(() => undefined);
+    }
+  }
+
+  return `Sua ${label} foi localizada! ${downloadUrl ? "Enviamos o documento por WhatsApp." : "Nossa equipe enviará o PDF em instantes."}`;
 }
 
 async function ensureTicketContext(input: ChatbotInput): Promise<{
@@ -182,7 +219,7 @@ export async function processSacChatbot(input: ChatbotInput): Promise<ChatbotRes
 
   if (matchesIntent(text, NF_INTENTS) && order) {
     const ctx = await ensureTicketContext(input);
-    const reply = await getNfReply(input.clientId, order.id);
+    const reply = await getNfReply(input.clientId, order.id, input.fromPhone);
     await replyBot(ctx, reply, input.fromPhone, input.clientId);
     return { handled: true, handoff: false, reply, ...ctx };
   }

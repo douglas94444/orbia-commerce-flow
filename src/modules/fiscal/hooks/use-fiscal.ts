@@ -19,6 +19,20 @@ import {
   listOrdersAwaitingNf,
   getNfeXmlDownloadUrl,
   listNfeFiscalEventsFn,
+  listFiscalSeriesFn,
+  upsertFiscalSeriesFn,
+  updateFiscalAutoEmitFn,
+  listFiscalServicesFn,
+  upsertFiscalServiceFn,
+  deleteFiscalServiceFn,
+  getFiscalMetricsFn,
+  importTaxRulesFn,
+  sendNfSecondCopyFn,
+  searchNfEmissionsFn,
+  exportNfePeriodZipFn,
+  getFiscalOnboardingChecklistFn,
+  getReturnFiscalStatusFn,
+  getFiscalAccountantExportFn,
   type FiscalConfigInput,
 } from "../actions.functions";
 
@@ -228,6 +242,177 @@ export function useNfeFiscalEvents(emissionId: string) {
 export function useNfeXmlDownload() {
   return useMutation({
     mutationFn: (emissionId: string) => getNfeXmlDownloadUrl({ data: { emissionId } }),
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export const FISCAL_SERIES_KEY = ["fiscal-series"] as const;
+export const FISCAL_SERVICES_KEY = ["fiscal-services"] as const;
+export const FISCAL_METRICS_KEY = ["fiscal-metrics"] as const;
+
+export function useFiscalSeries() {
+  return useQuery({
+    queryKey: FISCAL_SERIES_KEY,
+    queryFn: () => listFiscalSeriesFn(),
+    staleTime: 30_000,
+  });
+}
+
+export function useUpsertFiscalSeries() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      docType: "nfe" | "nfce" | "nfse";
+      serie: string;
+      lastNumber: number;
+      environment: string;
+    }) => upsertFiscalSeriesFn({ data: input }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: FISCAL_SERIES_KEY });
+      toast.success("Série atualizada");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useUpdateFiscalAutoEmit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      autoEmitNfe?: boolean;
+      autoEmitNfce?: boolean;
+      autoEmitNfse?: boolean;
+      nfceCscId?: string | null;
+      nfceCscToken?: string | null;
+      issRetido?: boolean;
+      naturezaOperacaoNfse?: string | null;
+      focusEnvironment?: "homologacao" | "producao";
+    }) => updateFiscalAutoEmitFn({ data: input }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: FISCAL_CONFIG_KEY });
+      qc.invalidateQueries({ queryKey: FISCAL_READINESS_KEY });
+      toast.success("Preferências fiscais salvas");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useFiscalServices() {
+  return useQuery({
+    queryKey: FISCAL_SERVICES_KEY,
+    queryFn: () => listFiscalServicesFn(),
+    staleTime: 30_000,
+  });
+}
+
+export function useUpsertFiscalService() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      id?: string;
+      itemListaServico: string;
+      codigoTributacaoMunicipio?: string | null;
+      aliquotaIss: number;
+      descricao: string;
+      municipalityCode?: string | null;
+      isDefault?: boolean;
+    }) => upsertFiscalServiceFn({ data: input }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: FISCAL_SERVICES_KEY });
+      toast.success("Serviço salvo");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useDeleteFiscalService() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteFiscalServiceFn({ data: { id } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: FISCAL_SERVICES_KEY });
+      toast.success("Serviço removido");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useFiscalMetrics(days = 30) {
+  return useQuery({
+    queryKey: [...FISCAL_METRICS_KEY, days],
+    queryFn: () => getFiscalMetricsFn({ data: { days } }),
+    staleTime: 60_000,
+  });
+}
+
+export function useImportTaxRules() {
+  return useMutation({
+    mutationFn: (csv: string) => importTaxRulesFn({ data: { csv } }),
+    onSuccess: (r) => toast.success(`${r.imported} regra(s) importada(s)`),
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useSendNfSecondCopy() {
+  return useMutation({
+    mutationFn: (input: { emissionId: string; phone?: string; email?: string }) =>
+      sendNfSecondCopyFn({ data: input }),
+    onSuccess: () => toast.success("Segunda via enviada"),
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useSearchNfEmissions(filters: {
+  accessKey?: string;
+  orderId?: string;
+  cpfCnpj?: string;
+  type?: 'NF-e' | 'NFC-e' | 'NFS-e';
+  enabled?: boolean;
+}) {
+  return useQuery({
+    queryKey: ['nf-search', filters],
+    queryFn: () =>
+      searchNfEmissionsFn({
+        data: {
+          accessKey: filters.accessKey,
+          orderId: filters.orderId,
+          cpfCnpj: filters.cpfCnpj,
+          type: filters.type,
+        },
+      }),
+    enabled: filters.enabled ?? false,
+    staleTime: 10_000,
+  });
+}
+
+export function useExportNfePeriodZip() {
+  return useMutation({
+    mutationFn: (days?: number) => exportNfePeriodZipFn({ data: { days } }),
+    onSuccess: (r) => toast.success(`${r.count} XML(s) no período`),
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useFiscalOnboardingChecklist() {
+  return useQuery({
+    queryKey: ['fiscal-onboarding'],
+    queryFn: () => getFiscalOnboardingChecklistFn(),
+    staleTime: 60_000,
+  });
+}
+
+export function useReturnFiscalStatus(returnRequestId: string | null) {
+  return useQuery({
+    queryKey: ['return-fiscal', returnRequestId],
+    queryFn: () => getReturnFiscalStatusFn({ data: { returnRequestId: returnRequestId! } }),
+    enabled: Boolean(returnRequestId),
+    staleTime: 15_000,
+  });
+}
+
+export function useFiscalAccountantExport() {
+  return useMutation({
+    mutationFn: (days?: number) => getFiscalAccountantExportFn({ data: { days } }),
     onError: (err: Error) => toast.error(err.message),
   });
 }

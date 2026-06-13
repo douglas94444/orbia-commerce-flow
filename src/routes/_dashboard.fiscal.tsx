@@ -42,6 +42,10 @@ function FiscalPage() {
   const { data: awaitingOrders = [] } = useOrdersAwaitingNf()
   const [orderIdInput, setOrderIdInput] = useState('')
   const [nfseDescription, setNfseDescription] = useState('')
+  const [typeFilter, setTypeFilter] = useState<'all' | 'NF-e' | 'NFC-e' | 'NFS-e'>('all')
+
+  const filteredEmissions =
+    typeFilter === 'all' ? emissions : emissions.filter((e) => e.type === typeFilter)
 
   const handleExport = () => {
     exportCsv.mutate(30, {
@@ -69,6 +73,18 @@ function FiscalPage() {
               <Download className="mr-2 size-4" />
               Exportar período
             </Button>
+            <Link to="/fiscal/search">
+              <Button size="sm" variant="outline">Consulta</Button>
+            </Link>
+            <Link to="/fiscal/portal">
+              <Button size="sm" variant="outline">Portal contador</Button>
+            </Link>
+            <Link to="/fiscal/metrics">
+              <Button size="sm" variant="outline">Métricas</Button>
+            </Link>
+            <Link to="/fiscal/services">
+              <Button size="sm" variant="outline">Serviços ISS</Button>
+            </Link>
             <Link to="/fiscal/config">
               <Button size="sm" variant="outline">
                 <Settings className="mr-2 size-4" />
@@ -95,12 +111,28 @@ function FiscalPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
         <KpiCard
           label="NF emitidas (30d)"
           value={loadingStats ? '—' : stats ? String(stats.emitted30d) : '—'}
           icon={FileCheck2}
           accent="success"
+        />
+        <KpiCard
+          label="NFC-e (30d)"
+          value={loadingStats ? '—' : stats ? String(stats.nfceCount30d ?? 0) : '—'}
+          icon={FileCheck2}
+        />
+        <KpiCard
+          label="NFS-e (30d)"
+          value={loadingStats ? '—' : stats ? String(stats.nfseCount30d ?? 0) : '—'}
+          icon={FileCheck2}
+        />
+        <KpiCard
+          label="NFS-e pendentes"
+          value={loadingStats ? '—' : stats ? String(stats.nfsePending ?? 0) : '—'}
+          icon={FileWarning}
+          accent={stats?.nfsePending ? 'warning' : undefined}
         />
         <KpiCard
           label="Taxa de sucesso"
@@ -218,6 +250,18 @@ function FiscalPage() {
           title="Fila de emissão"
           subtitle="Clique no documento para ver detalhes"
           className="lg:col-span-2"
+          action={
+            <select
+              className="h-8 rounded-lg border border-input bg-muted/40 px-2 text-xs"
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}
+            >
+              <option value="all">Todos</option>
+              <option value="NF-e">NF-e</option>
+              <option value="NFC-e">NFC-e</option>
+              <option value="NFS-e">NFS-e</option>
+            </select>
+          }
         >
           {loadingEmissions ? (
             <div className="space-y-3 py-2">
@@ -225,7 +269,7 @@ function FiscalPage() {
                 <div key={i} className="h-12 animate-pulse rounded-lg bg-muted/40" />
               ))}
             </div>
-          ) : emissions.length === 0 ? (
+          ) : filteredEmissions.length === 0 ? (
             <div className="py-12 text-center text-sm text-muted-foreground">
               Nenhuma NF emitida ainda. As NFs são geradas automaticamente após a aprovação do pedido.
             </div>
@@ -244,7 +288,7 @@ function FiscalPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {emissions.map((nf) => (
+                  {filteredEmissions.map((nf) => (
                     <tr key={nf.emissionId} className="hover:bg-muted/30">
                       <td className="py-2 pr-3">
                         <Link

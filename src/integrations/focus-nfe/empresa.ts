@@ -14,6 +14,7 @@ export interface FocusEmpresaPayload {
   arquivo_certificado_base64?: string;
   senha_certificado?: string;
   certificado_especifico?: boolean;
+  url_notificacao?: string;
   habilita_nfe?: boolean;
   habilita_nfce?: boolean;
   habilita_nfse?: boolean;

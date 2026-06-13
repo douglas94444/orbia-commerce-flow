@@ -120,6 +120,10 @@ export interface NfEmission {
   externalRef: string | null
   authorizedAt: string | null
   canCancel: boolean
+  series?: string | null
+  number?: number | null
+  webhookReceivedAt?: string | null
+  qrCodeUrl?: string | null
 }
 
 export type SacChannel =

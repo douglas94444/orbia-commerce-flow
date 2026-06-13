@@ -52,6 +52,8 @@ export type CronJobName =
   | "attribute-traffic-conversions"
   | "integration-health"
   | "retry-fiscal-nfe"
+  | "fiscal-webhook-reconcile"
+  | "fiscal-xml-archive"
   | "marketplace-advanced-sync"
   | "sales-nurture"
   | "sales-upsell-scan"
@@ -253,6 +255,20 @@ async function runJob(name: Exclude<CronJobName, "all">): Promise<JobResult> {
         metadata = await reprocessRejectedNfes();
         break;
       }
+      case "fiscal-webhook-reconcile": {
+        const { reconcilePendingWebhookEmissions } = await import(
+          "@/modules/fiscal/focus-webhook.server"
+        );
+        metadata = { reconciled: await reconcilePendingWebhookEmissions() };
+        break;
+      }
+      case "fiscal-xml-archive": {
+        const { runFiscalXmlArchiveJob } = await import(
+          "@/modules/fiscal/fiscal-xml-archive.server"
+        );
+        metadata = await runFiscalXmlArchiveJob();
+        break;
+      }
       case "sales-nurture": {
         const { processSalesNurtureBatch } = await import("@/modules/sales/nurture.server");
         metadata = { sent: await processSalesNurtureBatch() };
@@ -325,6 +341,8 @@ const JOB_SEQUENCE: Array<Exclude<CronJobName, "all">> = [
   "health-recalc",
   "check-alerts",
   "retry-fiscal-nfe",
+  "fiscal-webhook-reconcile",
+  "fiscal-xml-archive",
   "check-sla",
   "check-marketplace-penalties",
   "marketplace-advanced-sync",

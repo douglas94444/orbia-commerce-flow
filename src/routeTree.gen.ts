@@ -61,6 +61,7 @@ import { Route as ApiWebhooksMercadoPagoRouteImport } from './routes/api/webhook
 import { Route as ApiWebhooksMercadoLivreRouteImport } from './routes/api/webhooks/mercado-livre'
 import { Route as ApiWebhooksMelhorEnvioRouteImport } from './routes/api/webhooks/melhor-envio'
 import { Route as ApiWebhooksInstagramRouteImport } from './routes/api/webhooks/instagram'
+import { Route as ApiWebhooksFocusNfeRouteImport } from './routes/api/webhooks/focus-nfe'
 import { Route as ApiWebhooksEvolutionRouteImport } from './routes/api/webhooks/evolution'
 import { Route as ApiWebhooksAmazonRouteImport } from './routes/api/webhooks/amazon'
 import { Route as ApiCronRunRouteImport } from './routes/api/cron/run'
@@ -86,6 +87,10 @@ import { Route as DashboardLogisticsIncidentsRouteImport } from './routes/_dashb
 import { Route as DashboardLogisticsDispatchRouteImport } from './routes/_dashboard.logistics.dispatch'
 import { Route as DashboardLogisticsCarriersRouteImport } from './routes/_dashboard.logistics.carriers'
 import { Route as DashboardLogisticsAnalyticsRouteImport } from './routes/_dashboard.logistics.analytics'
+import { Route as DashboardFiscalServicesRouteImport } from './routes/_dashboard.fiscal.services'
+import { Route as DashboardFiscalSearchRouteImport } from './routes/_dashboard.fiscal.search'
+import { Route as DashboardFiscalPortalRouteImport } from './routes/_dashboard.fiscal.portal'
+import { Route as DashboardFiscalMetricsRouteImport } from './routes/_dashboard.fiscal.metrics'
 import { Route as DashboardFiscalConfigRouteImport } from './routes/_dashboard.fiscal.config'
 import { Route as DashboardFiscalIdRouteImport } from './routes/_dashboard.fiscal.$id'
 import { Route as DashboardClientsIdRouteImport } from './routes/_dashboard.clients.$id'
@@ -368,6 +373,11 @@ const ApiWebhooksInstagramRoute = ApiWebhooksInstagramRouteImport.update({
   path: '/api/webhooks/instagram',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiWebhooksFocusNfeRoute = ApiWebhooksFocusNfeRouteImport.update({
+  id: '/api/webhooks/focus-nfe',
+  path: '/api/webhooks/focus-nfe',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiWebhooksEvolutionRoute = ApiWebhooksEvolutionRouteImport.update({
   id: '/api/webhooks/evolution',
   path: '/api/webhooks/evolution',
@@ -509,6 +519,26 @@ const DashboardLogisticsAnalyticsRoute =
     path: '/analytics',
     getParentRoute: () => DashboardLogisticsRoute,
   } as any)
+const DashboardFiscalServicesRoute = DashboardFiscalServicesRouteImport.update({
+  id: '/services',
+  path: '/services',
+  getParentRoute: () => DashboardFiscalRoute,
+} as any)
+const DashboardFiscalSearchRoute = DashboardFiscalSearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => DashboardFiscalRoute,
+} as any)
+const DashboardFiscalPortalRoute = DashboardFiscalPortalRouteImport.update({
+  id: '/portal',
+  path: '/portal',
+  getParentRoute: () => DashboardFiscalRoute,
+} as any)
+const DashboardFiscalMetricsRoute = DashboardFiscalMetricsRouteImport.update({
+  id: '/metrics',
+  path: '/metrics',
+  getParentRoute: () => DashboardFiscalRoute,
+} as any)
 const DashboardFiscalConfigRoute = DashboardFiscalConfigRouteImport.update({
   id: '/config',
   path: '/config',
@@ -672,6 +702,10 @@ export interface FileRoutesByFullPath {
   '/clients/$id': typeof DashboardClientsIdRoute
   '/fiscal/$id': typeof DashboardFiscalIdRoute
   '/fiscal/config': typeof DashboardFiscalConfigRoute
+  '/fiscal/metrics': typeof DashboardFiscalMetricsRoute
+  '/fiscal/portal': typeof DashboardFiscalPortalRoute
+  '/fiscal/search': typeof DashboardFiscalSearchRoute
+  '/fiscal/services': typeof DashboardFiscalServicesRoute
   '/logistics/analytics': typeof DashboardLogisticsAnalyticsRoute
   '/logistics/carriers': typeof DashboardLogisticsCarriersRoute
   '/logistics/dispatch': typeof DashboardLogisticsDispatchRoute
@@ -697,6 +731,7 @@ export interface FileRoutesByFullPath {
   '/api/cron/run': typeof ApiCronRunRoute
   '/api/webhooks/amazon': typeof ApiWebhooksAmazonRoute
   '/api/webhooks/evolution': typeof ApiWebhooksEvolutionRoute
+  '/api/webhooks/focus-nfe': typeof ApiWebhooksFocusNfeRoute
   '/api/webhooks/instagram': typeof ApiWebhooksInstagramRoute
   '/api/webhooks/melhor-envio': typeof ApiWebhooksMelhorEnvioRoute
   '/api/webhooks/mercado-livre': typeof ApiWebhooksMercadoLivreRoute
@@ -770,6 +805,10 @@ export interface FileRoutesByTo {
   '/clients/$id': typeof DashboardClientsIdRoute
   '/fiscal/$id': typeof DashboardFiscalIdRoute
   '/fiscal/config': typeof DashboardFiscalConfigRoute
+  '/fiscal/metrics': typeof DashboardFiscalMetricsRoute
+  '/fiscal/portal': typeof DashboardFiscalPortalRoute
+  '/fiscal/search': typeof DashboardFiscalSearchRoute
+  '/fiscal/services': typeof DashboardFiscalServicesRoute
   '/logistics/analytics': typeof DashboardLogisticsAnalyticsRoute
   '/logistics/carriers': typeof DashboardLogisticsCarriersRoute
   '/logistics/dispatch': typeof DashboardLogisticsDispatchRoute
@@ -795,6 +834,7 @@ export interface FileRoutesByTo {
   '/api/cron/run': typeof ApiCronRunRoute
   '/api/webhooks/amazon': typeof ApiWebhooksAmazonRoute
   '/api/webhooks/evolution': typeof ApiWebhooksEvolutionRoute
+  '/api/webhooks/focus-nfe': typeof ApiWebhooksFocusNfeRoute
   '/api/webhooks/instagram': typeof ApiWebhooksInstagramRoute
   '/api/webhooks/melhor-envio': typeof ApiWebhooksMelhorEnvioRoute
   '/api/webhooks/mercado-livre': typeof ApiWebhooksMercadoLivreRoute
@@ -871,6 +911,10 @@ export interface FileRoutesById {
   '/_dashboard/clients/$id': typeof DashboardClientsIdRoute
   '/_dashboard/fiscal/$id': typeof DashboardFiscalIdRoute
   '/_dashboard/fiscal/config': typeof DashboardFiscalConfigRoute
+  '/_dashboard/fiscal/metrics': typeof DashboardFiscalMetricsRoute
+  '/_dashboard/fiscal/portal': typeof DashboardFiscalPortalRoute
+  '/_dashboard/fiscal/search': typeof DashboardFiscalSearchRoute
+  '/_dashboard/fiscal/services': typeof DashboardFiscalServicesRoute
   '/_dashboard/logistics/analytics': typeof DashboardLogisticsAnalyticsRoute
   '/_dashboard/logistics/carriers': typeof DashboardLogisticsCarriersRoute
   '/_dashboard/logistics/dispatch': typeof DashboardLogisticsDispatchRoute
@@ -896,6 +940,7 @@ export interface FileRoutesById {
   '/api/cron/run': typeof ApiCronRunRoute
   '/api/webhooks/amazon': typeof ApiWebhooksAmazonRoute
   '/api/webhooks/evolution': typeof ApiWebhooksEvolutionRoute
+  '/api/webhooks/focus-nfe': typeof ApiWebhooksFocusNfeRoute
   '/api/webhooks/instagram': typeof ApiWebhooksInstagramRoute
   '/api/webhooks/melhor-envio': typeof ApiWebhooksMelhorEnvioRoute
   '/api/webhooks/mercado-livre': typeof ApiWebhooksMercadoLivreRoute
@@ -972,6 +1017,10 @@ export interface FileRouteTypes {
     | '/clients/$id'
     | '/fiscal/$id'
     | '/fiscal/config'
+    | '/fiscal/metrics'
+    | '/fiscal/portal'
+    | '/fiscal/search'
+    | '/fiscal/services'
     | '/logistics/analytics'
     | '/logistics/carriers'
     | '/logistics/dispatch'
@@ -997,6 +1046,7 @@ export interface FileRouteTypes {
     | '/api/cron/run'
     | '/api/webhooks/amazon'
     | '/api/webhooks/evolution'
+    | '/api/webhooks/focus-nfe'
     | '/api/webhooks/instagram'
     | '/api/webhooks/melhor-envio'
     | '/api/webhooks/mercado-livre'
@@ -1070,6 +1120,10 @@ export interface FileRouteTypes {
     | '/clients/$id'
     | '/fiscal/$id'
     | '/fiscal/config'
+    | '/fiscal/metrics'
+    | '/fiscal/portal'
+    | '/fiscal/search'
+    | '/fiscal/services'
     | '/logistics/analytics'
     | '/logistics/carriers'
     | '/logistics/dispatch'
@@ -1095,6 +1149,7 @@ export interface FileRouteTypes {
     | '/api/cron/run'
     | '/api/webhooks/amazon'
     | '/api/webhooks/evolution'
+    | '/api/webhooks/focus-nfe'
     | '/api/webhooks/instagram'
     | '/api/webhooks/melhor-envio'
     | '/api/webhooks/mercado-livre'
@@ -1170,6 +1225,10 @@ export interface FileRouteTypes {
     | '/_dashboard/clients/$id'
     | '/_dashboard/fiscal/$id'
     | '/_dashboard/fiscal/config'
+    | '/_dashboard/fiscal/metrics'
+    | '/_dashboard/fiscal/portal'
+    | '/_dashboard/fiscal/search'
+    | '/_dashboard/fiscal/services'
     | '/_dashboard/logistics/analytics'
     | '/_dashboard/logistics/carriers'
     | '/_dashboard/logistics/dispatch'
@@ -1195,6 +1254,7 @@ export interface FileRouteTypes {
     | '/api/cron/run'
     | '/api/webhooks/amazon'
     | '/api/webhooks/evolution'
+    | '/api/webhooks/focus-nfe'
     | '/api/webhooks/instagram'
     | '/api/webhooks/melhor-envio'
     | '/api/webhooks/mercado-livre'
@@ -1235,6 +1295,7 @@ export interface RootRouteChildren {
   ApiCronRunRoute: typeof ApiCronRunRoute
   ApiWebhooksAmazonRoute: typeof ApiWebhooksAmazonRoute
   ApiWebhooksEvolutionRoute: typeof ApiWebhooksEvolutionRoute
+  ApiWebhooksFocusNfeRoute: typeof ApiWebhooksFocusNfeRoute
   ApiWebhooksInstagramRoute: typeof ApiWebhooksInstagramRoute
   ApiWebhooksMelhorEnvioRoute: typeof ApiWebhooksMelhorEnvioRoute
   ApiWebhooksMercadoLivreRoute: typeof ApiWebhooksMercadoLivreRoute
@@ -1625,6 +1686,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiWebhooksInstagramRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/webhooks/focus-nfe': {
+      id: '/api/webhooks/focus-nfe'
+      path: '/api/webhooks/focus-nfe'
+      fullPath: '/api/webhooks/focus-nfe'
+      preLoaderRoute: typeof ApiWebhooksFocusNfeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/webhooks/evolution': {
       id: '/api/webhooks/evolution'
       path: '/api/webhooks/evolution'
@@ -1799,6 +1867,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/logistics/analytics'
       preLoaderRoute: typeof DashboardLogisticsAnalyticsRouteImport
       parentRoute: typeof DashboardLogisticsRoute
+    }
+    '/_dashboard/fiscal/services': {
+      id: '/_dashboard/fiscal/services'
+      path: '/services'
+      fullPath: '/fiscal/services'
+      preLoaderRoute: typeof DashboardFiscalServicesRouteImport
+      parentRoute: typeof DashboardFiscalRoute
+    }
+    '/_dashboard/fiscal/search': {
+      id: '/_dashboard/fiscal/search'
+      path: '/search'
+      fullPath: '/fiscal/search'
+      preLoaderRoute: typeof DashboardFiscalSearchRouteImport
+      parentRoute: typeof DashboardFiscalRoute
+    }
+    '/_dashboard/fiscal/portal': {
+      id: '/_dashboard/fiscal/portal'
+      path: '/portal'
+      fullPath: '/fiscal/portal'
+      preLoaderRoute: typeof DashboardFiscalPortalRouteImport
+      parentRoute: typeof DashboardFiscalRoute
+    }
+    '/_dashboard/fiscal/metrics': {
+      id: '/_dashboard/fiscal/metrics'
+      path: '/metrics'
+      fullPath: '/fiscal/metrics'
+      preLoaderRoute: typeof DashboardFiscalMetricsRouteImport
+      parentRoute: typeof DashboardFiscalRoute
     }
     '/_dashboard/fiscal/config': {
       id: '/_dashboard/fiscal/config'
@@ -1996,11 +2092,19 @@ const DashboardClientsRouteWithChildren =
 interface DashboardFiscalRouteChildren {
   DashboardFiscalIdRoute: typeof DashboardFiscalIdRoute
   DashboardFiscalConfigRoute: typeof DashboardFiscalConfigRoute
+  DashboardFiscalMetricsRoute: typeof DashboardFiscalMetricsRoute
+  DashboardFiscalPortalRoute: typeof DashboardFiscalPortalRoute
+  DashboardFiscalSearchRoute: typeof DashboardFiscalSearchRoute
+  DashboardFiscalServicesRoute: typeof DashboardFiscalServicesRoute
 }
 
 const DashboardFiscalRouteChildren: DashboardFiscalRouteChildren = {
   DashboardFiscalIdRoute: DashboardFiscalIdRoute,
   DashboardFiscalConfigRoute: DashboardFiscalConfigRoute,
+  DashboardFiscalMetricsRoute: DashboardFiscalMetricsRoute,
+  DashboardFiscalPortalRoute: DashboardFiscalPortalRoute,
+  DashboardFiscalSearchRoute: DashboardFiscalSearchRoute,
+  DashboardFiscalServicesRoute: DashboardFiscalServicesRoute,
 }
 
 const DashboardFiscalRouteWithChildren = DashboardFiscalRoute._addFileChildren(
@@ -2192,6 +2296,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCronRunRoute: ApiCronRunRoute,
   ApiWebhooksAmazonRoute: ApiWebhooksAmazonRoute,
   ApiWebhooksEvolutionRoute: ApiWebhooksEvolutionRoute,
+  ApiWebhooksFocusNfeRoute: ApiWebhooksFocusNfeRoute,
   ApiWebhooksInstagramRoute: ApiWebhooksInstagramRoute,
   ApiWebhooksMelhorEnvioRoute: ApiWebhooksMelhorEnvioRoute,
   ApiWebhooksMercadoLivreRoute: ApiWebhooksMercadoLivreRoute,

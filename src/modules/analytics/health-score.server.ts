@@ -10,7 +10,8 @@ export async function computeHealthScore(clientId: string): Promise<number> {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const [clientRes, ordersRes, customersRes, flowsRes, slaDash, sacRes, csatRes] = await Promise.all([
+  const [clientRes, ordersRes, customersRes, flowsRes, slaDash, sacRes, csatRes, fiscalRes] =
+    await Promise.all([
     supabaseAdmin.from("clients").select("roas_avg, last_contact_days").eq("id", clientId).single(),
     supabaseAdmin
       .from("orders")
@@ -30,6 +31,11 @@ export async function computeHealthScore(clientId: string): Promise<number> {
       .select("score")
       .eq("client_id", clientId)
       .not("score", "is", null)
+      .gte("created_at", thirtyDaysAgo.toISOString()),
+    supabaseAdmin
+      .from("nfe_emissions")
+      .select("status, created_at")
+      .eq("client_id", clientId)
       .gte("created_at", thirtyDaysAgo.toISOString()),
   ]);
 
@@ -64,13 +70,31 @@ export async function computeHealthScore(clientId: string): Promise<number> {
   const csatAvg = csatScores.length > 0 ? csatScores.reduce((s, v) => s + v, 0) / csatScores.length : 4;
   const sacScore = clampScore(100 - sacPenalty + (csatAvg - 3) * 10);
 
+  const fiscalEmissions = fiscalRes.data ?? [];
+  const rejectedNf = fiscalEmissions.filter((e) => e.status === "rejeitada").length;
+  const fiscalPenalty = Math.min(25, rejectedNf * 3);
+
+  const { data: fiscalConfig } = await supabaseAdmin
+    .from("fiscal_configs")
+    .select("cert_expires_at")
+    .eq("client_id", clientId)
+    .maybeSingle();
+  const certExpires = fiscalConfig?.cert_expires_at
+    ? new Date(fiscalConfig.cert_expires_at)
+    : null;
+  const certPenalty =
+    certExpires && certExpires.getTime() - Date.now() < 30 * 24 * 60 * 60 * 1000 ? 10 : 0;
+
+  const fiscalScore = clampScore(100 - fiscalPenalty - certPenalty);
+
   const weighted =
-    roasScore * 0.27 +
-    slaScore * 0.23 +
-    ltvScore * 0.18 +
-    engagementScore * 0.12 +
-    csScore * 0.1 +
-    sacScore * 0.1;
+    roasScore * 0.25 +
+    slaScore * 0.21 +
+    ltvScore * 0.17 +
+    engagementScore * 0.11 +
+    csScore * 0.09 +
+    sacScore * 0.09 +
+    fiscalScore * 0.08;
 
   return clampScore(weighted);
 }

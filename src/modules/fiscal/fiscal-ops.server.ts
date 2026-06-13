@@ -10,6 +10,12 @@ import { logAudit, logJob, startTimer } from "@/shared/lib/logger";
 import { emitDomainEvent } from "@/shared/lib/domain-events.server";
 import { createNfeXmlSignedUrl, uploadNfeXmlToStorage } from "./nfe-storage.server";
 import { buildNfePayloadForOrder } from "./nfe-payload.server";
+import { classifySefazError, shouldAutoRetry } from "./fiscal-error-classify.server";
+import type { NormalizedOrderItem } from "@/modules/logistics/order-ingestion.server";
+import {
+  itemsFromOrderMetadata,
+  releaseStock,
+} from "@/modules/logistics/stock-reservation.server";
 import { recordNfeFiscalEvent } from "./nfe-fiscal-events.server";
 
 const CANCEL_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -142,12 +148,15 @@ export async function retryNfeEmission(emissionId: string): Promise<void> {
       new_data: { ref, retries: nextRetries },
     });
   } catch (err) {
+    const msg = (err as Error).message;
+    const errorKind = classifySefazError(msg);
     await supabaseAdmin
       .from("nfe_emissions")
       .update({
         status: "rejeitada",
-        last_error: (err as Error).message,
+        last_error: msg,
         retries: nextRetries,
+        metadata: { sefaz_error_kind: errorKind },
         updated_at: new Date().toISOString(),
       })
       .eq("id", emissionId);
@@ -192,6 +201,12 @@ export async function cancelNfeEmission(
     .eq("id", emissionId);
 
   if (emission.order_id) {
+    const { data: order } = await supabaseAdmin
+      .from("orders")
+      .select("id, client_id, status, metadata")
+      .eq("id", emission.order_id)
+      .single();
+
     await supabaseAdmin
       .from("orders")
       .update({
@@ -200,6 +215,16 @@ export async function cancelNfeEmission(
         updated_at: new Date().toISOString(),
       })
       .eq("id", emission.order_id);
+
+    if (order?.status === "separacao" && order.metadata) {
+      const meta = order.metadata as Record<string, unknown>;
+      const items = (meta.items ?? []) as NormalizedOrderItem[];
+      try {
+        await releaseStock(order.client_id as string, itemsFromOrderMetadata(items));
+      } catch (releaseErr) {
+        console.warn("[fiscal/cancel] stock release:", (releaseErr as Error).message);
+      }
+    }
   }
 
   await logAudit({
@@ -321,7 +346,7 @@ export async function reprocessRejectedNfes(): Promise<{ retried: number; failed
 
   const { data: rows } = await supabaseAdmin
     .from("nfe_emissions")
-    .select("id")
+    .select("id, last_error, retries, metadata")
     .eq("status", "rejeitada")
     .lt("retries", MAX_RETRIES)
     .not("order_id", "is", null)
@@ -329,6 +354,12 @@ export async function reprocessRejectedNfes(): Promise<{ retried: number; failed
     .limit(20);
 
   for (const row of rows ?? []) {
+    const meta = (row.metadata ?? {}) as Record<string, unknown>;
+    const kind = (meta.sefaz_error_kind as string) ?? classifySefazError(row.last_error as string);
+    if (!shouldAutoRetry(kind as "temporary" | "definitive" | "unknown", row.retries ?? 0)) {
+      failed += 1;
+      continue;
+    }
     try {
       await retryNfeEmission(row.id);
       retried += 1;

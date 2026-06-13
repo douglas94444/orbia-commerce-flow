@@ -1,19 +1,71 @@
 import { getServerConfig } from "@/lib/config.server";
-import { emitNFeWithRetry } from "@/integrations/focus-nfe";
+import { emitNFe, emitNFeWithRetry } from "@/integrations/focus-nfe";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { logAudit } from "@/shared/lib/logger";
 import { emitDomainEvent } from "@/shared/lib/domain-events.server";
 import { createNfeXmlSignedUrl, uploadNfeXmlToStorage } from "./nfe-storage.server";
 import { buildNfePayloadForOrder } from "./nfe-payload.server";
 import { validateFiscalReadiness } from "./fiscal-readiness.server";
-import { loadProductFiscalBySkus } from "./product-fiscal.server";
 import {
   findActiveNfeEmissionForOrder,
   markOrderNfRejected,
   resolveOrCreateNfeEmission,
 } from "./nfe-idempotency.server";
 import { validateProductFiscalForEmission } from "./product-fiscal-emission-validation.server";
+import { reserveSeriesNumber } from "./fiscal-series.server";
 import type { NormalizedOrderItem } from "@/modules/logistics/order-ingestion.server";
+
+async function finalizeAuthorizedNfe(
+  emissionId: string,
+  orderId: string,
+  clientId: string,
+  emitRef: string,
+  result: {
+    chave_nfe?: string;
+    caminho_xml_nota_fiscal?: string;
+    caminho_danfe?: string;
+    status: string;
+  },
+  viaWebhook = false,
+): Promise<void> {
+  const storagePath = result.caminho_xml_nota_fiscal
+    ? await uploadNfeXmlToStorage(clientId, emitRef, result.caminho_xml_nota_fiscal)
+    : null;
+  const xmlSigned = storagePath ? await createNfeXmlSignedUrl(storagePath) : null;
+
+  await supabaseAdmin
+    .from("nfe_emissions")
+    .update({
+      status: "autorizada",
+      access_key: result.chave_nfe ?? null,
+      xml_url: xmlSigned ?? result.caminho_xml_nota_fiscal ?? null,
+      xml_storage_path: storagePath,
+      danfe_url: result.caminho_danfe ?? null,
+      authorized_at: new Date().toISOString(),
+      webhook_received_at: viaWebhook ? new Date().toISOString() : undefined,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", emissionId);
+
+  await supabaseAdmin
+    .from("orders")
+    .update({ nf_status: "autorizada", status: "separacao", updated_at: new Date().toISOString() })
+    .eq("id", orderId);
+
+  await supabaseAdmin.from("order_events").insert({
+    order_id: orderId,
+    status: "separacao",
+    source: "fiscal",
+    metadata: { nfe_ref: emitRef, chave: result.chave_nfe, via: viaWebhook ? "webhook" : "sync" },
+  });
+
+  await emitDomainEvent("nfe.authorized", {
+    orderId,
+    clientId,
+    danfeUrl: result.caminho_danfe ?? null,
+    xmlUrl: xmlSigned ?? result.caminho_xml_nota_fiscal ?? null,
+  });
+}
 
 export async function emitNfeForOrder(orderId: string): Promise<void> {
   const { focusNfe } = getServerConfig();
@@ -30,6 +82,14 @@ export async function emitNfeForOrder(orderId: string): Promise<void> {
 
   if (orderError || !order) throw new Error(`Order ${orderId} not found`);
   if (order.nf_status === "autorizada") return;
+
+  const { data: fiscalFlags } = await supabaseAdmin
+    .from("fiscal_configs")
+    .select("auto_emit_nfe")
+    .eq("client_id", order.client_id)
+    .maybeSingle();
+
+  if (fiscalFlags?.auto_emit_nfe === false) return;
 
   const existing = await findActiveNfeEmissionForOrder(orderId);
   if (existing?.status === "autorizada") return;
@@ -48,7 +108,7 @@ export async function emitNfeForOrder(orderId: string): Promise<void> {
   const { data: fiscal, error: fiscalError } = await supabaseAdmin
     .from("fiscal_configs")
     .select(
-      "cnpj, company_name, default_cfop, default_cst, default_ncm, state_uf, state_registration, tax_regime",
+      "cnpj, company_name, default_cfop, default_cst, default_ncm, state_uf, state_registration, tax_regime, focus_environment",
     )
     .eq("client_id", order.client_id)
     .maybeSingle();
@@ -78,6 +138,11 @@ export async function emitNfeForOrder(orderId: string): Promise<void> {
     "-",
   );
 
+  const clientFocusEnv =
+    (fiscal as { focus_environment?: string }).focus_environment ?? focusNfe.env;
+
+  const series = await reserveSeriesNumber(order.client_id, "nfe", clientFocusEnv);
+
   const emission = await resolveOrCreateNfeEmission({
     clientId: order.client_id,
     orderId: order.id,
@@ -85,11 +150,14 @@ export async function emitNfeForOrder(orderId: string): Promise<void> {
     valueCents: order.value_cents,
   });
 
-  if (!emission.isNew && existing?.status === "pendente") {
-    return;
-  }
+  if (!emission.isNew && existing?.status === "pendente") return;
 
   const emitRef = emission.externalRef;
+
+  await supabaseAdmin
+    .from("nfe_emissions")
+    .update({ series: series.serie, number: series.number })
+    .eq("id", emission.id);
 
   let payload;
   try {
@@ -101,7 +169,7 @@ export async function emitNfeForOrder(orderId: string): Promise<void> {
         tax_regime: fiscal.tax_regime ?? "simples",
       },
       { value_cents: order.value_cents, metadata, channel: order.channel },
-      focusNfe.env,
+      clientFocusEnv,
     );
   } catch (err) {
     const msg = (err as Error).message;
@@ -114,42 +182,25 @@ export async function emitNfeForOrder(orderId: string): Promise<void> {
   }
 
   try {
-    const result = await emitNFeWithRetry(emitRef, payload, focusNfe.token);
+    const emitFn = focusNfe.asyncEmission ? emitNFe : emitNFeWithRetry;
+    const result = await emitFn(emitRef, payload, focusNfe.token);
 
-    const storagePath = result.caminho_xml_nota_fiscal
-      ? await uploadNfeXmlToStorage(order.client_id, emitRef, result.caminho_xml_nota_fiscal)
-      : null;
+    if (result.status === "processando_autorizacao" && focusNfe.asyncEmission) {
+      await supabaseAdmin
+        .from("nfe_emissions")
+        .update({ status: "pendente", updated_at: new Date().toISOString() })
+        .eq("id", emission.id);
+      await logAudit({
+        client_id: order.client_id,
+        action: "nfe_emit_async",
+        resource: "nfe_emission",
+        resource_id: emission.id,
+        new_data: { ref: emitRef, status: result.status },
+      });
+      return;
+    }
 
-    const xmlSigned = storagePath ? await createNfeXmlSignedUrl(storagePath) : null;
-
-    await supabaseAdmin
-      .from("nfe_emissions")
-      .update({
-        status: "autorizada",
-        access_key: result.chave_nfe ?? null,
-        xml_url: xmlSigned ?? result.caminho_xml_nota_fiscal ?? null,
-        xml_storage_path: storagePath,
-        danfe_url: result.caminho_danfe ?? null,
-        authorized_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", emission.id);
-
-    await supabaseAdmin
-      .from("orders")
-      .update({
-        nf_status: "autorizada",
-        status: "separacao",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", order.id);
-
-    await supabaseAdmin.from("order_events").insert({
-      order_id: order.id,
-      status: "separacao",
-      source: "fiscal",
-      metadata: { nfe_ref: emitRef, chave: result.chave_nfe },
-    });
+    await finalizeAuthorizedNfe(emission.id, order.id, order.client_id, emitRef, result);
 
     await logAudit({
       client_id: order.client_id,
@@ -157,13 +208,6 @@ export async function emitNfeForOrder(orderId: string): Promise<void> {
       resource: "nfe_emission",
       resource_id: emission.id,
       new_data: { ref: emitRef, status: result.status },
-    });
-
-    await emitDomainEvent("nfe.authorized", {
-      orderId: order.id,
-      clientId: order.client_id,
-      danfeUrl: result.caminho_danfe ?? null,
-      xmlUrl: xmlSigned ?? result.caminho_xml_nota_fiscal ?? null,
     });
   } catch (err) {
     const msg = (err as Error).message;

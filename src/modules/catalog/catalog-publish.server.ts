@@ -16,12 +16,24 @@ export async function publishSkuToChannel(
   channel: CatalogChannel,
   sku: string,
 ): Promise<{ priceCents: number; stockQty: number } | null> {
+  const { data: fiscal } = await supabaseAdmin
+    .from("fiscal_configs")
+    .select("auto_emit_nfe")
+    .eq("client_id", clientId)
+    .maybeSingle();
+
   const { data: product } = await supabaseAdmin
     .from("products")
-    .select("id, price_cents")
+    .select("id, price_cents, ncm")
     .eq("client_id", clientId)
     .eq("sku", sku)
     .maybeSingle();
+
+  if (fiscal?.auto_emit_nfe && !product?.ncm?.trim()) {
+    throw new Error(
+      `SKU ${sku} sem NCM — publicação bloqueada enquanto auto_emit_nfe estiver ativo. Configure em /catalog/fiscal`,
+    );
+  }
 
   if (!product?.price_cents) return null;
 

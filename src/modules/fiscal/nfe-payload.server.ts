@@ -44,7 +44,7 @@ import {
 
 } from "./product-fiscal.server";
 
-import { resolveLocalDestino } from "./tax-engine.server";
+import { resolveLocalDestino, loadClientTaxRules, findTaxRuleFromList } from "./tax-engine.server";
 
 
 
@@ -122,6 +122,7 @@ export async function buildNfePayloadForOrder(
   const skus = items.map((i) => i.sku).filter(Boolean);
 
   const productFiscal = await loadProductFiscalBySkus(clientId, skus);
+  const taxRules = await loadClientTaxRules(clientId);
 
 
 
@@ -159,9 +160,25 @@ export async function buildNfePayloadForOrder(
 
             destUf,
 
+            findTaxRuleFromList(
+              taxRules,
+              destUf,
+              productFiscal.get(item.sku)?.ncm ?? fiscal.default_ncm ?? "",
+            ),
+
           );
 
-          return buildFocusNfeItemFromEnriched(enriched, i, fiscalDefaults, localDestino);
+          return buildFocusNfeItemFromEnriched(
+            enriched,
+            i,
+            fiscalDefaults,
+            localDestino,
+            findTaxRuleFromList(
+              taxRules,
+              destUf,
+              productFiscal.get(item.sku)?.ncm ?? fiscal.default_ncm ?? "",
+            ),
+          );
 
         })
 
@@ -211,7 +228,21 @@ export async function buildNfePayloadForOrder(
 
   const isHomolog = focusEnv !== "producao";
 
-
+  const shippingMeta = (order.metadata.shipping ?? {}) as Record<string, unknown>;
+  const pesoBruto = Number(shippingMeta.weightKg ?? shippingMeta.peso_bruto ?? 0) || undefined;
+  const pesoLiquido =
+    Number(shippingMeta.netWeightKg ?? shippingMeta.peso_liquido ?? pesoBruto) || pesoBruto;
+  const volumes =
+    shippingMeta.volumes != null
+      ? (shippingMeta.volumes as Array<{
+          quantidade: number;
+          especie: string;
+          peso_bruto?: number;
+          peso_liquido?: number;
+        }>)
+      : pesoBruto
+        ? [{ quantidade: 1, especie: "CAIXA", peso_bruto: pesoBruto, peso_liquido: pesoLiquido }]
+        : undefined;
 
   const base: FocusNfePayload = {
 
@@ -270,6 +301,10 @@ export async function buildNfePayloadForOrder(
     cnpj_intermediador: intermediador.cnpj,
 
     items: nfeItems,
+
+    ...(pesoBruto ? { peso_bruto: pesoBruto, peso_liquido: pesoLiquido } : {}),
+
+    ...(volumes ? { volumes } : {}),
 
   };
 

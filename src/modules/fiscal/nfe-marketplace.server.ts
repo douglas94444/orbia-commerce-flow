@@ -23,6 +23,35 @@ export function resolveMarketplaceIntermediador(
 export interface OrderPaymentMeta {
   formaPagamento: string;
   meioPagamento: string;
+  /** Detalhamento split marketplace (quando aplicável) */
+  splitNotes?: string;
+}
+
+export interface MarketplacePaymentSplit {
+  marketplaceCents: number;
+  sellerCents: number;
+  paymentMethod: string;
+}
+
+export function resolveMarketplacePaymentSplit(
+  metadata: Record<string, unknown>,
+): MarketplacePaymentSplit | null {
+  const marketplaceFee = Number(metadata.marketplace_fee_cents ?? metadata.fee_cents ?? 0);
+  const total = Number(metadata.total_cents ?? metadata.order_total_cents ?? 0);
+  const sellerNet = Number(metadata.seller_net_cents ?? metadata.net_cents ?? 0);
+
+  if (marketplaceFee <= 0 && sellerNet <= 0) return null;
+
+  const seller = sellerNet > 0 ? sellerNet : Math.max(0, total - marketplaceFee);
+  const marketplace = marketplaceFee > 0 ? marketplaceFee : Math.max(0, total - seller);
+
+  const method = String(metadata.payment_method ?? metadata.payment_type ?? "marketplace").toLowerCase();
+
+  return {
+    marketplaceCents: marketplace,
+    sellerCents: seller,
+    paymentMethod: method,
+  };
 }
 
 export function resolvePaymentFromMetadata(metadata: Record<string, unknown>): OrderPaymentMeta {
@@ -53,5 +82,13 @@ export function buildInformacoesComplementares(
   const extId = metadata.raw_id ?? metadata.external_id;
   if (extId) parts.push(`Pedido marketplace: ${extId}`);
   if (channel) parts.push(`Canal: ${channel}`);
+
+  const split = resolveMarketplacePaymentSplit(metadata);
+  if (split) {
+    parts.push(
+      `Pagamento via marketplace: ${split.paymentMethod}; líquido vendedor R$ ${(split.sellerCents / 100).toFixed(2)}`,
+    );
+  }
+
   return parts.join(" | ").slice(0, 2000);
 }

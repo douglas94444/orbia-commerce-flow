@@ -87,12 +87,23 @@ export async function checkMarketplacePenalties(): Promise<{
 
     nearDeadlineNoNf += 1;
     const penaltyCents = 2500;
+
+    const { data: nfeEmission } = await supabaseAdmin
+      .from("nfe_emissions")
+      .select("id")
+      .eq("order_id", order.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const fiscalLink = nfeEmission?.id ? `/fiscal/${nfeEmission.id}` : "/fiscal";
+
     await supabaseAdmin.from("operation_alerts").insert({
       client_id: order.client_id,
       kind: "sla",
       severity: "warning",
       title: "SLA em risco — NF pendente",
-      message: `Pedido ${order.external_id} (${order.channel}) sem NF autorizada e prazo em ${Math.round(hoursLeft)}h (est. R$ ${(penaltyCents / 100).toFixed(2)})`,
+      message: `Pedido ${order.external_id} (${order.channel}) sem NF autorizada e prazo em ${Math.round(hoursLeft)}h (est. R$ ${(penaltyCents / 100).toFixed(2)}). Ver fiscal: ${fiscalLink}`,
       is_resolved: false,
     });
 

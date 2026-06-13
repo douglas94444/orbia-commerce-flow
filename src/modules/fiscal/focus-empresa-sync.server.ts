@@ -18,7 +18,7 @@ export interface FiscalConfigRow {
 }
 
 export async function syncFiscalConfigToFocus(clientId: string): Promise<void> {
-  const { focusNfe } = getServerConfig();
+  const { focusNfe, appUrl } = getServerConfig();
   if (!focusNfe.token) {
     console.warn("[fiscal] FOCUS_NFE_TOKEN not set — skipping Focus empresa sync");
     return;
@@ -40,6 +40,8 @@ export async function syncFiscalConfigToFocus(clientId: string): Promise<void> {
     fiscal.cert_password,
   );
 
+  const webhookUrl = `${appUrl.replace(/\/$/, "")}/api/webhooks/focus-nfe`;
+
   const payload = {
     nome: fiscal.company_name,
     nome_fantasia: fiscal.company_name.slice(0, 60),
@@ -53,6 +55,7 @@ export async function syncFiscalConfigToFocus(clientId: string): Promise<void> {
     habilita_nfe: true,
     habilita_nfce: true,
     habilita_nfse: Boolean(fiscal.municipal_registration),
+    url_notificacao: webhookUrl,
     ...(cert?.base64 && cert.password
       ? {
           arquivo_certificado_base64: cert.base64,

@@ -8,6 +8,10 @@ import {
   resolveLocalDestino,
   resolveReturnCfop,
   resolveSaleCfop,
+  resolveIpiCst,
+  resolveFcpAliquota,
+  resolveIcmsStMva,
+  type FiscalTaxRule,
   type LocalDestino,
   type ProductFiscalRow,
 } from "./tax-engine.server";
@@ -61,6 +65,7 @@ export function enrichSaleItemFiscal(
   fiscal: ProductFiscalConfigDefaults,
   localDestino: LocalDestino,
   destUf: string,
+  taxRule?: FiscalTaxRule | null,
 ): NormalizedOrderItem & {
   cfop: string;
   cst: string;
@@ -69,6 +74,10 @@ export function enrichSaleItemFiscal(
   icms_origem: string;
   icms_aliquota?: number;
   icms_st?: boolean;
+  ipi_cst?: string;
+  fcp_aliquota?: number;
+  mva_st?: number | null;
+  difal_enabled?: boolean;
 } {
   const cfop = resolveSaleCfop(localDestino, fiscal.default_cfop, product ?? null);
   const cst = resolveDefaultCst(
@@ -81,6 +90,7 @@ export function enrichSaleItemFiscal(
     fiscal.state_uf,
     destUf,
     product?.icms_rates ?? {},
+    taxRule,
   );
 
   return {
@@ -91,7 +101,11 @@ export function enrichSaleItemFiscal(
     cest: product?.cest ?? undefined,
     icms_origem: product?.icms_origem ?? "0",
     icms_aliquota,
-    icms_st: product?.icms_st ?? false,
+    icms_st: product?.icms_st ?? Boolean(taxRule?.mva_st),
+    ipi_cst: resolveIpiCst(taxRule),
+    fcp_aliquota: resolveFcpAliquota(taxRule),
+    mva_st: resolveIcmsStMva(taxRule),
+    difal_enabled: taxRule?.difal_enabled ?? false,
   };
 }
 
@@ -105,10 +119,15 @@ export function buildFocusNfeItemFromEnriched(
     icms_aliquota?: number;
     icms_st?: boolean;
     barcode?: string;
+    ipi_cst?: string;
+    fcp_aliquota?: number;
+    mva_st?: number | null;
+    difal_enabled?: boolean;
   },
   index: number,
   fiscal: ProductFiscalConfigDefaults,
   localDestino: LocalDestino,
+  taxRule?: FiscalTaxRule | null,
 ): FocusNfeItem {
   const valorBruto = (item.unitPriceCents * item.quantity) / 100;
   const icmsAliquota = item.icms_aliquota ?? 0;
@@ -141,7 +160,7 @@ export function buildFocusNfeItemFromEnriched(
     cofins_aliquota: taxes.cofins_aliquota,
     cofins_base_calculo: taxes.icms_base,
     cofins_valor: Math.round((taxes.icms_base * taxes.cofins_aliquota) / 100 * 100) / 100,
-    ipi_situacao_tributaria: "53",
+    ipi_situacao_tributaria: item.ipi_cst ?? "53",
   };
 
   if (item.cest) base.cest = item.cest;
@@ -151,6 +170,24 @@ export function buildFocusNfeItemFromEnriched(
   }
   if (item.icms_st) base.icms_modalidade_base_calculo_st = "4";
   if (item.barcode) base.codigo_barras_comercial = item.barcode;
+
+  const fcpAliq = item.fcp_aliquota ?? resolveFcpAliquota(taxRule);
+  if (fcpAliq > 0) {
+    base.percentual_fcp = fcpAliq;
+    base.valor_fcp = Math.round((valorBruto * fcpAliq) / 100 * 100) / 100;
+  }
+
+  const mva = item.mva_st ?? resolveIcmsStMva(taxRule);
+  if (item.icms_st && mva != null && mva > 0) {
+    const baseSt = Math.round(valorBruto * (1 + mva / 100) * 100) / 100;
+    base.icms_base_calculo_st = baseSt;
+    base.icms_aliquota_st = icmsAliquota;
+    base.icms_valor_st = Math.round((baseSt * icmsAliquota) / 100 * 100) / 100;
+  }
+
+  if ((item.difal_enabled || taxRule?.difal_enabled) && localDestino === "2" && icmsAliquota > 0) {
+    base.percentual_icms_interestadual = icmsAliquota;
+  }
 
   return base;
 }

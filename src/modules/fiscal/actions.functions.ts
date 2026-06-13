@@ -23,9 +23,14 @@ function mapEmissionRow(row: {
   order_id: string | null;
   external_ref: string | null;
   authorized_at: string | null;
+  series?: string | null;
+  number?: number | null;
+  webhook_received_at?: string | null;
+  metadata?: Record<string, unknown> | null;
   clients: { name: string } | null;
 }): NfEmission {
   const created = new Date(row.created_at);
+  const meta = (row.metadata ?? {}) as Record<string, unknown>;
   return {
     id: row.id.slice(0, 12).toUpperCase(),
     emissionId: row.id,
@@ -44,6 +49,10 @@ function mapEmissionRow(row: {
     externalRef: row.external_ref,
     authorizedAt: row.authorized_at,
     canCancel: row.status === "autorizada" && canCancelWithinWindow(row.authorized_at),
+    series: row.series ?? null,
+    number: row.number ?? null,
+    webhookReceivedAt: row.webhook_received_at ?? null,
+    qrCodeUrl: (meta.qr_code_url as string) ?? row.danfe_url ?? null,
   };
 }
 
@@ -55,7 +64,7 @@ export const listNfEmissions = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("nfe_emissions")
       .select(
-        "id, type, status, value_cents, retries, created_at, access_key, last_error, danfe_url, xml_url, order_id, external_ref, authorized_at, clients(name)",
+        "id, type, status, value_cents, retries, created_at, access_key, last_error, danfe_url, xml_url, order_id, external_ref, authorized_at, series, number, webhook_received_at, metadata, clients(name)",
       )
       .order("created_at", { ascending: false })
       .limit(50);
@@ -73,7 +82,7 @@ export const getNfeEmissionDetail = createServerFn({ method: "GET" })
     const { data: row, error } = await context.supabase
       .from("nfe_emissions")
       .select(
-        "id, type, status, value_cents, retries, created_at, access_key, last_error, danfe_url, xml_url, order_id, external_ref, authorized_at, clients(name)",
+        "id, type, status, value_cents, retries, created_at, access_key, last_error, danfe_url, xml_url, order_id, external_ref, authorized_at, series, number, webhook_received_at, metadata, clients(name)",
       )
       .eq("id", data.emissionId)
       .maybeSingle();
@@ -102,6 +111,14 @@ export interface FiscalConfig {
   hasCertPassword: boolean;
   certExpiringSoon: boolean;
   focusSyncedAt: string | null;
+  autoEmitNfe: boolean;
+  autoEmitNfce: boolean;
+  autoEmitNfse: boolean;
+  nfceCscId: string | null;
+  nfceCscToken: string | null;
+  issRetido: boolean;
+  naturezaOperacaoNfse: string | null;
+  focusEnvironment: string;
 }
 
 export const getFiscalConfig = createServerFn({ method: "GET" })
@@ -119,7 +136,7 @@ export const getFiscalConfig = createServerFn({ method: "GET" })
     const { data, error } = await supabaseAdmin
       .from("fiscal_configs")
       .select(
-        "id, cnpj, company_name, tax_regime, state_uf, state_registration, municipal_registration, municipality_code, default_cfop, default_cst, default_ncm, cert_expires_at, cert_path, cert_password, focus_synced_at",
+        "id, cnpj, company_name, tax_regime, state_uf, state_registration, municipal_registration, municipality_code, default_cfop, default_cst, default_ncm, cert_expires_at, cert_path, cert_password, focus_synced_at, auto_emit_nfe, auto_emit_nfce, auto_emit_nfse, nfce_csc_id, nfce_csc_token, iss_retido, natureza_operacao_nfse, focus_environment",
       )
       .eq("client_id", member.client_id)
       .maybeSingle();
@@ -149,6 +166,14 @@ export const getFiscalConfig = createServerFn({ method: "GET" })
       hasCertPassword: Boolean(data.cert_password),
       certExpiringSoon,
       focusSyncedAt: data.focus_synced_at,
+      autoEmitNfe: data.auto_emit_nfe ?? true,
+      autoEmitNfce: data.auto_emit_nfce ?? false,
+      autoEmitNfse: data.auto_emit_nfse ?? false,
+      nfceCscId: data.nfce_csc_id,
+      nfceCscToken: data.nfce_csc_token,
+      issRetido: data.iss_retido ?? false,
+      naturezaOperacaoNfse: data.natureza_operacao_nfse,
+      focusEnvironment: (data as { focus_environment?: string }).focus_environment ?? "homologacao",
     };
   });
 
@@ -239,6 +264,9 @@ export interface FiscalStats {
   missingCert: boolean;
   configIncomplete: boolean;
   rejectionReasons: Array<{ reason: string; count: number }>;
+  nfsePending: number;
+  nfceCount30d: number;
+  nfseCount30d: number;
 }
 
 export const getFiscalStats = createServerFn({ method: "GET" })
@@ -251,7 +279,7 @@ export const getFiscalStats = createServerFn({ method: "GET" })
     const [{ data: rows }, { data: config }, readiness] = await Promise.all([
       context.supabase
         .from("nfe_emissions")
-        .select("status, retries, created_at, last_error")
+        .select("status, retries, created_at, last_error, type")
         .gte("created_at", thirtyDaysAgo),
       context.supabase
         .from("fiscal_configs")
@@ -308,6 +336,9 @@ export const getFiscalStats = createServerFn({ method: "GET" })
       missingCert: !config?.cert_path,
       configIncomplete: !readiness.ready,
       rejectionReasons,
+      nfsePending: emissions.filter((r) => r.type === "NFS-e" && r.status === "pendente").length,
+      nfceCount30d: emissions.filter((r) => r.type === "NFC-e").length,
+      nfseCount30d: emissions.filter((r) => r.type === "NFS-e").length,
     };
   });
 
@@ -529,7 +560,7 @@ export const emitNfceForOrderFn = createServerFn({ method: "POST" })
   .inputValidator(z.object({ orderId: z.string().uuid() }))
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
-    const { emitNfceForOrder } = await import("./emit-nfce-nfse.server");
+    const { emitNfceForOrder } = await import("./emit-nfce.server");
     const emissionId = await emitNfceForOrder(data.orderId);
     await logAudit({
       user_id: context.userId,
@@ -549,7 +580,7 @@ export const emitNfseForOrderFn = createServerFn({ method: "POST" })
   )
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
-    const { emitNfseForOrder } = await import("./emit-nfce-nfse.server");
+    const { emitNfseForOrder } = await import("./emit-nfse.server");
     const emissionId = await emitNfseForOrder(data.orderId, data.serviceDescription);
     await logAudit({
       user_id: context.userId,
@@ -668,4 +699,487 @@ export const listNfeFiscalEventsFn = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const { listNfeFiscalEvents } = await import("./nfe-fiscal-events.server");
     return listNfeFiscalEvents(data.emissionId);
+  });
+
+// ─── Fiscal series & auto-emit ────────────────────────────────
+
+export const listFiscalSeriesFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: member } = await context.supabase
+      .from("client_members")
+      .select("client_id")
+      .eq("user_id", context.userId)
+      .eq("status", "active")
+      .single();
+    if (!member) throw new Error("Cliente não encontrado");
+    const { listFiscalSeries } = await import("./fiscal-series.server");
+    return listFiscalSeries(member.client_id);
+  });
+
+export const upsertFiscalSeriesFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      docType: z.enum(["nfe", "nfce", "nfse"]),
+      serie: z.string().min(1).max(3),
+      lastNumber: z.number().int().min(0),
+      environment: z.string().min(1),
+    }),
+  )
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { data: member } = await context.supabase
+      .from("client_members")
+      .select("client_id")
+      .eq("user_id", context.userId)
+      .eq("status", "active")
+      .single();
+    if (!member) throw new Error("Cliente não encontrado");
+    const { upsertFiscalSeries } = await import("./fiscal-series.server");
+    await upsertFiscalSeries({
+      clientId: member.client_id,
+      docType: data.docType,
+      serie: data.serie,
+      lastNumber: data.lastNumber,
+      environment: data.environment,
+    });
+    return { success: true };
+  });
+
+export const updateFiscalAutoEmitFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      autoEmitNfe: z.boolean().optional(),
+      autoEmitNfce: z.boolean().optional(),
+      autoEmitNfse: z.boolean().optional(),
+      nfceCscId: z.string().max(20).optional().nullable(),
+      nfceCscToken: z.string().max(100).optional().nullable(),
+      issRetido: z.boolean().optional(),
+      naturezaOperacaoNfse: z.string().max(100).optional().nullable(),
+      focusEnvironment: z.enum(["homologacao", "producao"]).optional(),
+    }),
+  )
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { data: member } = await context.supabase
+      .from("client_members")
+      .select("client_id")
+      .eq("user_id", context.userId)
+      .eq("status", "active")
+      .single();
+    if (!member) throw new Error("Cliente não encontrado");
+
+    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (data.autoEmitNfe !== undefined) patch.auto_emit_nfe = data.autoEmitNfe;
+    if (data.autoEmitNfce !== undefined) patch.auto_emit_nfce = data.autoEmitNfce;
+    if (data.autoEmitNfse !== undefined) patch.auto_emit_nfse = data.autoEmitNfse;
+    if (data.nfceCscId !== undefined) patch.nfce_csc_id = data.nfceCscId;
+    if (data.nfceCscToken !== undefined) patch.nfce_csc_token = data.nfceCscToken;
+    if (data.issRetido !== undefined) patch.iss_retido = data.issRetido;
+    if (data.naturezaOperacaoNfse !== undefined) {
+      patch.natureza_operacao_nfse = data.naturezaOperacaoNfse;
+    }
+    if (data.focusEnvironment !== undefined) {
+      patch.focus_environment = data.focusEnvironment;
+    }
+
+    const { error } = await supabaseAdmin
+      .from("fiscal_configs")
+      .update(patch)
+      .eq("client_id", member.client_id);
+    if (error) throw new Error(error.message);
+
+    if (data.nfceCscId !== undefined || data.nfceCscToken !== undefined) {
+      await supabaseAdmin.from("fiscal_nfce_settings").upsert(
+        {
+          client_id: member.client_id,
+          csc_id: data.nfceCscId ?? null,
+          csc_token: data.nfceCscToken ?? null,
+        },
+        { onConflict: "client_id" },
+      );
+    }
+
+    return { success: true };
+  });
+
+// ─── Fiscal service catalog ───────────────────────────────────
+
+export interface FiscalServiceRow {
+  id: string;
+  itemListaServico: string;
+  codigoTributacaoMunicipio: string | null;
+  aliquotaIss: number;
+  descricao: string;
+  municipalityCode: string | null;
+  isDefault: boolean;
+}
+
+export const listFiscalServicesFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<FiscalServiceRow[]> => {
+    const { data, error } = await context.supabase
+      .from("fiscal_service_catalog")
+      .select(
+        "id, item_lista_servico, codigo_tributacao_municipio, aliquota_iss, descricao, municipality_code, is_default",
+      )
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((r) => ({
+      id: r.id,
+      itemListaServico: r.item_lista_servico,
+      codigoTributacaoMunicipio: r.codigo_tributacao_municipio,
+      aliquotaIss: Number(r.aliquota_iss),
+      descricao: r.descricao,
+      municipalityCode: r.municipality_code,
+      isDefault: r.is_default,
+    }));
+  });
+
+export const upsertFiscalServiceFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      id: z.string().uuid().optional(),
+      itemListaServico: z.string().min(1).max(20),
+      codigoTributacaoMunicipio: z.string().max(30).optional().nullable(),
+      aliquotaIss: z.number().min(0).max(100),
+      descricao: z.string().min(2).max(200),
+      municipalityCode: z.string().max(10).optional().nullable(),
+      isDefault: z.boolean().optional(),
+    }),
+  )
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { data: member } = await context.supabase
+      .from("client_members")
+      .select("client_id")
+      .eq("user_id", context.userId)
+      .eq("status", "active")
+      .single();
+    if (!member) throw new Error("Cliente não encontrado");
+
+    if (data.isDefault) {
+      await supabaseAdmin
+        .from("fiscal_service_catalog")
+        .update({ is_default: false })
+        .eq("client_id", member.client_id);
+    }
+
+    const row = {
+      client_id: member.client_id,
+      item_lista_servico: data.itemListaServico,
+      codigo_tributacao_municipio: data.codigoTributacaoMunicipio ?? null,
+      aliquota_iss: data.aliquotaIss,
+      descricao: data.descricao,
+      municipality_code: data.municipalityCode ?? null,
+      is_default: data.isDefault ?? false,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (data.id) {
+      const { error } = await supabaseAdmin
+        .from("fiscal_service_catalog")
+        .update(row)
+        .eq("id", data.id)
+        .eq("client_id", member.client_id);
+      if (error) throw new Error(error.message);
+      return { id: data.id };
+    }
+
+    const { data: inserted, error } = await supabaseAdmin
+      .from("fiscal_service_catalog")
+      .insert(row)
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    return { id: inserted.id };
+  });
+
+export const deleteFiscalServiceFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ id: z.string().uuid() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("fiscal_service_catalog")
+      .delete()
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { success: true };
+  });
+
+// ─── Fiscal metrics & tax rules ───────────────────────────────
+
+export const getFiscalMetricsFn = createServerFn({ method: "GET" })
+  .inputValidator(z.object({ days: z.number().optional() }).optional())
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { data: member } = await context.supabase
+      .from("client_members")
+      .select("client_id")
+      .eq("user_id", context.userId)
+      .eq("status", "active")
+      .single();
+    if (!member) throw new Error("Cliente não encontrado");
+    const { getFiscalMetrics } = await import("./fiscal-metrics.server");
+    return getFiscalMetrics(member.client_id, data?.days ?? 30);
+  });
+
+export const importTaxRulesFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ csv: z.string().min(10) }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { data: member } = await context.supabase
+      .from("client_members")
+      .select("client_id")
+      .eq("user_id", context.userId)
+      .eq("status", "active")
+      .single();
+    if (!member) throw new Error("Cliente não encontrado");
+    const { importTaxRulesFromCsv } = await import("./fiscal-metrics.server");
+    return importTaxRulesFromCsv(member.client_id, data.csv);
+  });
+
+export const sendNfSecondCopyFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      emissionId: z.string().uuid(),
+      phone: z.string().optional(),
+      email: z.string().email().optional(),
+    }),
+  )
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { data: row, error } = await context.supabase
+      .from("nfe_emissions")
+      .select("id, type, status, danfe_url, xml_storage_path, xml_url, order_id")
+      .eq("id", data.emissionId)
+      .single();
+    if (error || !row) throw new Error("Emissão não encontrada");
+    if (row.status !== "autorizada") throw new Error("NF ainda não autorizada");
+
+    let url = row.danfe_url as string | null;
+    if (row.xml_storage_path) {
+      const { createNfeXmlSignedUrl } = await import("./nfe-storage.server");
+      url = (await createNfeXmlSignedUrl(row.xml_storage_path as string)) ?? url;
+    } else if (row.xml_url) {
+      url = row.xml_url as string;
+    }
+    if (!url) throw new Error("Documento indisponível");
+
+    if (data.phone) {
+      const { data: member } = await context.supabase
+        .from("client_members")
+        .select("client_id")
+        .eq("user_id", context.userId)
+        .eq("status", "active")
+        .single();
+      const { sendWhatsAppMessage } = await import("@/integrations/whatsapp");
+      const { getWhatsAppCredentials } = await import("@/integrations/whatsapp/provider");
+      const creds = member ? await getWhatsAppCredentials(member.client_id) : null;
+      if (creds?.provider === "meta") {
+        await sendWhatsAppMessage({
+          phoneNumberId: creds.phoneNumberId,
+          accessToken: creds.accessToken,
+          to: data.phone,
+          body: `Segunda via ${row.type}: ${url}`,
+          clientId: member!.client_id,
+          documentUrl: url,
+        });
+      }
+    }
+
+    return { url, type: row.type };
+  });
+
+// ─── Search / ZIP / Onboarding / Portal / Returns ─────────────
+
+export const searchNfEmissionsFn = createServerFn({ method: "GET" })
+  .inputValidator(
+    z
+      .object({
+        accessKey: z.string().optional(),
+        orderId: z.string().uuid().optional(),
+        cpfCnpj: z.string().optional(),
+        days: z.number().optional(),
+        type: z.enum(["NF-e", "NFC-e", "NFS-e"]).optional(),
+      })
+      .optional(),
+  )
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }): Promise<NfEmission[]> => {
+    const days = data?.days ?? 90;
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+    let query = context.supabase
+      .from("nfe_emissions")
+      .select(
+        "id, type, status, value_cents, retries, created_at, access_key, last_error, danfe_url, xml_url, order_id, external_ref, authorized_at, series, number, webhook_received_at, metadata, clients(name)",
+      )
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (data?.accessKey) query = query.ilike("access_key", `%${data.accessKey.replace(/\D/g, "")}%`);
+    if (data?.orderId) query = query.eq("order_id", data.orderId);
+    if (data?.type) query = query.eq("type", data.type);
+
+    const { data: rows, error } = await query;
+    if (error) throw new Error(error.message);
+
+    let results = (rows ?? []).map((row) =>
+      mapEmissionRow(row as Parameters<typeof mapEmissionRow>[0]),
+    );
+
+    if (data?.cpfCnpj) {
+      const doc = data.cpfCnpj.replace(/\D/g, "");
+      const { data: orders } = await context.supabase
+        .from("orders")
+        .select("id, metadata")
+        .gte("created_at", since);
+      const orderIds = new Set(
+        (orders ?? [])
+          .filter((o) => {
+            const meta = JSON.stringify(o.metadata ?? {});
+            return meta.includes(doc);
+          })
+          .map((o) => o.id),
+      );
+      results = results.filter((r) => r.orderId && orderIds.has(r.orderId));
+    }
+
+    return results;
+  });
+
+export const exportNfePeriodZipFn = createServerFn({ method: "GET" })
+  .inputValidator(z.object({ days: z.number().optional() }).optional())
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const days = data?.days ?? 30;
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+    const { data: rows, error } = await context.supabase
+      .from("nfe_emissions")
+      .select("id, external_ref, xml_storage_path, xml_url, access_key, type, created_at")
+      .eq("status", "autorizada")
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (error) throw new Error(error.message);
+
+    const { createNfeXmlSignedUrl } = await import("./nfe-storage.server");
+    const files: Array<{ name: string; url: string }> = [];
+
+    for (const row of rows ?? []) {
+      let url = row.xml_url as string | null;
+      if (row.xml_storage_path) {
+        url = await createNfeXmlSignedUrl(row.xml_storage_path as string);
+      }
+      if (!url) continue;
+      const name = `${row.type}-${row.access_key ?? row.external_ref ?? row.id}.xml`;
+      files.push({ name, url });
+    }
+
+    return { files, count: files.length, periodDays: days };
+  });
+
+export const getFiscalOnboardingChecklistFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: member } = await context.supabase
+      .from("client_members")
+      .select("client_id")
+      .eq("user_id", context.userId)
+      .eq("status", "active")
+      .single();
+    if (!member) throw new Error("Cliente não encontrado");
+    const { getFiscalOnboardingChecklist } = await import("./fiscal-onboarding.server");
+    return getFiscalOnboardingChecklist(member.client_id);
+  });
+
+export const getReturnFiscalStatusFn = createServerFn({ method: "GET" })
+  .inputValidator(z.object({ returnRequestId: z.string().uuid() }))
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { data: req } = await context.supabase
+      .from("return_requests")
+      .select("id, order_id, status")
+      .eq("id", data.returnRequestId)
+      .single();
+
+    if (!req?.order_id) return { saleNfe: null, returnNfe: null };
+
+    const { data: emissions } = await context.supabase
+      .from("nfe_emissions")
+      .select("id, type, status, access_key, authorized_at, last_error, external_ref")
+      .eq("order_id", req.order_id)
+      .order("created_at", { ascending: false });
+
+    const saleNfe = (emissions ?? []).find(
+      (e) => e.type === "NF-e" && e.status === "autorizada",
+    );
+    const returnNfe = (emissions ?? []).find(
+      (e) =>
+        e.type === "NF-e" &&
+        (e.external_ref as string | null)?.includes("dev") &&
+        e.status !== "cancelada",
+    );
+
+    return {
+      returnStatus: req.status,
+      saleNfe: saleNfe
+        ? {
+            id: saleNfe.id,
+            accessKey: saleNfe.access_key,
+            status: saleNfe.status,
+            authorizedAt: saleNfe.authorized_at,
+          }
+        : null,
+      returnNfe: returnNfe
+        ? {
+            id: returnNfe.id,
+            accessKey: returnNfe.access_key,
+            status: returnNfe.status,
+            lastError: returnNfe.last_error,
+            authorizedAt: returnNfe.authorized_at,
+          }
+        : null,
+    };
+  });
+
+export const getFiscalAccountantExportFn = createServerFn({ method: "GET" })
+  .inputValidator(z.object({ days: z.number().optional() }).optional())
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const days = data?.days ?? 30;
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+    const { data: rows, error } = await context.supabase
+      .from("nfe_emissions")
+      .select("id, type, status, value_cents, access_key, created_at, authorized_at, series, number")
+      .eq("status", "autorizada")
+      .gte("created_at", since)
+      .order("created_at", { ascending: false });
+
+    if (error) throw new Error(error.message);
+
+    const header = "id,tipo,serie,numero,valor_cents,chave,criado_em,autorizado_em";
+    const lines = (rows ?? []).map((r) =>
+      [
+        r.id,
+        r.type,
+        r.series ?? "",
+        r.number ?? "",
+        r.value_cents,
+        r.access_key ?? "",
+        r.created_at,
+        r.authorized_at ?? "",
+      ].join(","),
+    );
+
+    return {
+      csv: [header, ...lines].join("\n"),
+      filename: `fiscal-contador-${days}d.csv`,
+      count: rows?.length ?? 0,
+    };
   });

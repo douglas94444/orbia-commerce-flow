@@ -8,7 +8,7 @@ import { PageIntro, Panel } from '@/components/dashboard/panel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useFiscalConfig, useUpsertFiscalConfig, useUploadFiscalCertificate, useInutilizarNumeracao, useFiscalReadiness } from '@/modules/fiscal/hooks/use-fiscal'
+import { useFiscalConfig, useUpsertFiscalConfig, useUploadFiscalCertificate, useInutilizarNumeracao, useFiscalReadiness, useFiscalSeries, useUpsertFiscalSeries, useUpdateFiscalAutoEmit, useFiscalOnboardingChecklist } from '@/modules/fiscal/hooks/use-fiscal'
 import { StatusPill } from '@/components/dashboard/status-pill'
 
 export const Route = createFileRoute('/_dashboard/fiscal/config')({
@@ -48,6 +48,22 @@ function FiscalConfigPage() {
   const { mutate, isPending } = useUpsertFiscalConfig()
   const uploadCert = useUploadFiscalCertificate()
   const inutilizar = useInutilizarNumeracao()
+  const { data: series = [] } = useFiscalSeries()
+  const upsertSeries = useUpsertFiscalSeries()
+  const updateAutoEmit = useUpdateFiscalAutoEmit()
+  const [autoEmitNfe, setAutoEmitNfe] = useState(true)
+  const [autoEmitNfce, setAutoEmitNfce] = useState(false)
+  const [autoEmitNfse, setAutoEmitNfse] = useState(false)
+  const [nfceCscId, setNfceCscId] = useState('')
+  const [nfceCscToken, setNfceCscToken] = useState('')
+  const [issRetido, setIssRetido] = useState(false)
+  const [naturezaOperacaoNfse, setNaturezaOperacaoNfse] = useState('')
+  const [focusEnvironment, setFocusEnvironment] = useState<'homologacao' | 'producao'>('homologacao')
+  const { data: onboarding } = useFiscalOnboardingChecklist()
+  const [seriesDocType, setSeriesDocType] = useState<'nfe' | 'nfce' | 'nfse'>('nfe')
+  const [seriesSerie, setSeriesSerie] = useState('1')
+  const [seriesLastNumber, setSeriesLastNumber] = useState('0')
+  const [seriesEnv, setSeriesEnv] = useState('homologacao')
   const [certPassword, setCertPassword] = useState('')
   const [certExpiresAt, setCertExpiresAt] = useState('')
   const [inutSerie, setInutSerie] = useState('1')
@@ -91,6 +107,14 @@ function FiscalConfigPage() {
         defaultCst:  config.defaultCst ?? '',
         defaultNcm:  config.defaultNcm ?? '',
       })
+      setAutoEmitNfe(config.autoEmitNfe ?? true)
+      setAutoEmitNfce(config.autoEmitNfce ?? false)
+      setAutoEmitNfse(config.autoEmitNfse ?? false)
+      setNfceCscId(config.nfceCscId ?? '')
+      setNfceCscToken('')
+      setIssRetido(config.issRetido ?? false)
+      setNaturezaOperacaoNfse(config.naturezaOperacaoNfse ?? '')
+      setFocusEnvironment((config.focusEnvironment as 'homologacao' | 'producao') ?? 'homologacao')
     }
   }, [config, reset])
 
@@ -133,6 +157,69 @@ function FiscalConfigPage() {
         <div className="h-64 animate-pulse rounded-xl bg-muted/40" />
       ) : (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {onboarding && (
+            <Panel
+              title="Checklist semana 1"
+              subtitle={onboarding.ready ? 'Pronto para go-live fiscal' : 'Complete antes de emitir em produção'}
+            >
+              <div className="space-y-2">
+                {onboarding.items.map((item) => (
+                  <div key={item.key} className="flex items-center justify-between gap-2 text-sm">
+                    <span className={item.done ? 'text-foreground' : 'text-muted-foreground'}>
+                      {item.done ? '✓' : '○'} {item.label}
+                    </span>
+                    {item.href && !item.done && (
+                      <Link to={item.href} className="text-xs text-primary hover:underline">
+                        Configurar
+                      </Link>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="mt-3 text-xs text-muted-foreground">
+                Cobertura NCM: {onboarding.coveragePct}% dos SKUs ativos
+              </p>
+            </Panel>
+          )}
+
+          <Panel title="Ambiente Focus NFe" subtitle="Homologação não gera documento fiscal válido">
+            <div className="flex flex-wrap items-center gap-4">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="focusEnv"
+                  checked={focusEnvironment === 'homologacao'}
+                  onChange={() => setFocusEnvironment('homologacao')}
+                />
+                Homologação (testes)
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="focusEnv"
+                  checked={focusEnvironment === 'producao'}
+                  onChange={() => setFocusEnvironment('producao')}
+                />
+                Produção (SEFAZ real)
+              </label>
+            </div>
+            {focusEnvironment === 'producao' && (
+              <p className="mt-2 text-xs text-amber-600">
+                Notas emitidas em produção são válidas fiscalmente e não podem ser apagadas — apenas canceladas em até 24h.
+              </p>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-4"
+              disabled={updateAutoEmit.isPending}
+              onClick={() => updateAutoEmit.mutate({ focusEnvironment })}
+            >
+              Salvar ambiente
+            </Button>
+          </Panel>
+
           {readiness && (
             <Panel title="Prontidão para emissão" subtitle={readiness.ready ? 'Tudo pronto para emitir NF-e' : 'Complete os itens abaixo'}>
               <div className="flex flex-wrap gap-2">
@@ -227,7 +314,154 @@ function FiscalConfigPage() {
                 <Label htmlFor="municipalityCode">Código município (IBGE)</Label>
                 <Input id="municipalityCode" placeholder="3550308" className="font-mono" {...register('municipalityCode')} />
               </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="naturezaOperacaoNfse">Natureza da operação NFS-e</Label>
+                <Input
+                  id="naturezaOperacaoNfse"
+                  placeholder="Prestação de serviço"
+                  value={naturezaOperacaoNfse}
+                  onChange={(e) => setNaturezaOperacaoNfse(e.target.value)}
+                />
+              </div>
+              <label className="flex items-center gap-2 text-sm sm:col-span-2">
+                <input type="checkbox" checked={issRetido} onChange={(e) => setIssRetido(e.target.checked)} />
+                ISS retido na fonte
+              </label>
             </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-4"
+              disabled={updateAutoEmit.isPending}
+              onClick={() =>
+                updateAutoEmit.mutate({
+                  issRetido,
+                  naturezaOperacaoNfse: naturezaOperacaoNfse || null,
+                })
+              }
+            >
+              Salvar parâmetros NFS-e
+            </Button>
+          </Panel>
+
+          <Panel title="Emissão automática" subtitle="Controla gatilhos por tipo de documento">
+            <div className="flex flex-wrap gap-6 text-sm">
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={autoEmitNfe} onChange={(e) => setAutoEmitNfe(e.target.checked)} />
+                NF-e automática (e-commerce)
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={autoEmitNfce} onChange={(e) => setAutoEmitNfce(e.target.checked)} />
+                NFC-e automática (PDV/balcão)
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={autoEmitNfse} onChange={(e) => setAutoEmitNfse(e.target.checked)} />
+                NFS-e automática (serviços/fulfillment)
+              </label>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-4"
+              disabled={updateAutoEmit.isPending}
+              onClick={() =>
+                updateAutoEmit.mutate({
+                  autoEmitNfe,
+                  autoEmitNfce,
+                  autoEmitNfse,
+                  nfceCscId: nfceCscId || null,
+                  nfceCscToken: nfceCscToken || null,
+                })
+              }
+            >
+              Salvar preferências de emissão
+            </Button>
+          </Panel>
+
+          <Panel title="NFC-e (varejo)" subtitle="CSC credenciado na SEFAZ estadual">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="nfceCscId">CSC ID</Label>
+                <Input id="nfceCscId" value={nfceCscId} onChange={(e) => setNfceCscId(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="nfceCscToken">CSC Token</Label>
+                <Input
+                  id="nfceCscToken"
+                  type="password"
+                  placeholder={config?.nfceCscToken ? '••••••••' : 'Token CSC'}
+                  value={nfceCscToken}
+                  onChange={(e) => setNfceCscToken(e.target.value)}
+                />
+              </div>
+            </div>
+          </Panel>
+
+          <Panel title="Séries e numeração" subtitle="Último número emitido por tipo e ambiente">
+            {series.length > 0 && (
+              <div className="mb-4 space-y-2 text-sm">
+                {series.map((s) => (
+                  <div key={s.id} className="flex gap-4 font-mono text-xs text-muted-foreground">
+                    <span>{s.doc_type.toUpperCase()}</span>
+                    <span>série {s.serie}</span>
+                    <span>último nº {s.last_number}</span>
+                    <span>{s.environment}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label>Tipo</Label>
+                <select
+                  className="h-9 w-full rounded-lg border border-input bg-muted/40 px-3 text-sm"
+                  value={seriesDocType}
+                  onChange={(e) => setSeriesDocType(e.target.value as 'nfe' | 'nfce' | 'nfse')}
+                >
+                  <option value="nfe">NF-e</option>
+                  <option value="nfce">NFC-e</option>
+                  <option value="nfse">NFS-e</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Ambiente</Label>
+                <select
+                  className="h-9 w-full rounded-lg border border-input bg-muted/40 px-3 text-sm"
+                  value={seriesEnv}
+                  onChange={(e) => setSeriesEnv(e.target.value)}
+                >
+                  <option value="homologacao">Homologação</option>
+                  <option value="producao">Produção</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Série</Label>
+                <Input value={seriesSerie} onChange={(e) => setSeriesSerie(e.target.value)} maxLength={3} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Último número</Label>
+                <Input type="number" value={seriesLastNumber} onChange={(e) => setSeriesLastNumber(e.target.value)} />
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-4"
+              disabled={upsertSeries.isPending}
+              onClick={() =>
+                upsertSeries.mutate({
+                  docType: seriesDocType,
+                  serie: seriesSerie,
+                  lastNumber: Number(seriesLastNumber),
+                  environment: seriesEnv,
+                })
+              }
+            >
+              Atualizar série
+            </Button>
           </Panel>
 
           <Panel title="Padrões de emissão" subtitle="Usados como valores default em novas NF-e. Podem ser sobrescritos por pedido.">

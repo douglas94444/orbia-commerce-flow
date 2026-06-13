@@ -21,12 +21,12 @@ const FOCUS_SYNC_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 export async function validateFiscalReadiness(
   clientId: string,
-  options?: { attemptFocusSync?: boolean },
+  options?: { attemptFocusSync?: boolean; docType?: "nfe" | "nfce" | "nfse" },
 ): Promise<FiscalReadinessResult> {
   const { data: fiscal } = await supabaseAdmin
     .from("fiscal_configs")
     .select(
-      "cnpj, company_name, tax_regime, state_uf, state_registration, municipal_registration, municipality_code, default_ncm, cert_path, cert_password, cert_expires_at, focus_synced_at",
+      "cnpj, company_name, tax_regime, state_uf, state_registration, municipal_registration, municipality_code, default_ncm, cert_path, cert_password, cert_expires_at, focus_synced_at, nfce_csc_id, nfce_csc_token, auto_emit_nfe",
     )
     .eq("client_id", clientId)
     .maybeSingle();
@@ -145,6 +145,53 @@ export async function validateFiscalReadiness(
       ? undefined
       : `${productReadiness.incomplete} SKU(s) sem NCM (${productReadiness.coveragePct}% cobertura)`,
   });
+
+  if (options?.docType === "nfce" || options?.docType === undefined) {
+    const { data: nfceSettings } = await supabaseAdmin
+      .from("fiscal_nfce_settings")
+      .select("csc_id, csc_token")
+      .eq("client_id", clientId)
+      .maybeSingle();
+
+    const hasCsc =
+      Boolean(fiscal.nfce_csc_id && fiscal.nfce_csc_token) ||
+      Boolean(nfceSettings?.csc_id && nfceSettings?.csc_token);
+
+    if (options?.docType === "nfce") {
+      items.push({
+        key: "nfce_csc",
+        label: "CSC NFC-e",
+        status: hasCsc ? "ok" : "error",
+        message: hasCsc ? undefined : "Configure CSC id/token em /fiscal/config",
+      });
+    }
+  }
+
+  if (options?.docType === "nfse") {
+    items.push({
+      key: "municipal_registration",
+      label: "Inscrição municipal",
+      status: fiscal.municipal_registration?.trim() ? "ok" : "error",
+      message: "Obrigatória para NFS-e",
+    });
+    items.push({
+      key: "municipality_code",
+      label: "Código município IBGE",
+      status: fiscal.municipality_code?.trim() ? "ok" : "error",
+    });
+
+    const { count } = await supabaseAdmin
+      .from("fiscal_service_catalog")
+      .select("id", { count: "exact", head: true })
+      .eq("client_id", clientId);
+
+    items.push({
+      key: "service_catalog",
+      label: "Catálogo de serviços ISS",
+      status: (count ?? 0) > 0 ? "ok" : "error",
+      message: (count ?? 0) > 0 ? undefined : "Cadastre serviços em /fiscal/services",
+    });
+  }
 
   const blocking = items.filter((i) => i.status === "error");
   return {
