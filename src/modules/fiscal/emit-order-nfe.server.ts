@@ -163,7 +163,7 @@ export async function emitNfeForOrder(orderId: string): Promise<void> {
       .update({
         status: "rejeitada",
         last_error: (err as Error).message,
-        retries: 1,
+        retries: 3,
         updated_at: new Date().toISOString(),
       })
       .eq("id", emission.id);

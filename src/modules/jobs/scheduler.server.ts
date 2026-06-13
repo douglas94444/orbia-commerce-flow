@@ -51,6 +51,7 @@ export type CronJobName =
   | "charge-fulfillment-overage"
   | "attribute-traffic-conversions"
   | "integration-health"
+  | "retry-fiscal-nfe"
   | "marketplace-advanced-sync"
   | "all";
 
@@ -241,6 +242,11 @@ async function runJob(name: Exclude<CronJobName, "all">): Promise<JobResult> {
         metadata = await runIntegrationHealthJob();
         break;
       }
+      case "retry-fiscal-nfe": {
+        const { reprocessRejectedNfes } = await import("@/modules/fiscal/fiscal-ops.server");
+        metadata = await reprocessRejectedNfes();
+        break;
+      }
       case "marketplace-advanced-sync": {
         const { runMarketplaceAdvancedSync } = await import("@/modules/marketplaces");
         metadata = await runMarketplaceAdvancedSync();
@@ -280,6 +286,7 @@ const JOB_SEQUENCE: Array<Exclude<CronJobName, "all">> = [
   "integration-health",
   "health-recalc",
   "check-alerts",
+  "retry-fiscal-nfe",
   "check-sla",
   "check-marketplace-penalties",
   "marketplace-advanced-sync",

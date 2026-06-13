@@ -94,7 +94,8 @@ export async function refreshOperationAlerts(clientId: string): Promise<void> {
     .from("nfe_emissions")
     .select("id")
     .eq("client_id", clientId)
-    .eq("status", "erro")
+    .eq("status", "rejeitada")
+    .gte("retries", 3)
     .gte("updated_at", twoDaysAgo.toISOString());
 
   if ((failedNfe?.length ?? 0) >= 3) {

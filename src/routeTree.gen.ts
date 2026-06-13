@@ -71,6 +71,7 @@ import { Route as DashboardLogisticsDispatchRouteImport } from './routes/_dashbo
 import { Route as DashboardLogisticsCarriersRouteImport } from './routes/_dashboard.logistics.carriers'
 import { Route as DashboardLogisticsAnalyticsRouteImport } from './routes/_dashboard.logistics.analytics'
 import { Route as DashboardFiscalConfigRouteImport } from './routes/_dashboard.fiscal.config'
+import { Route as DashboardFiscalIdRouteImport } from './routes/_dashboard.fiscal.$id'
 import { Route as DashboardClientsIdRouteImport } from './routes/_dashboard.clients.$id'
 import { Route as DashboardChannelsTiktokRouteImport } from './routes/_dashboard.channels.tiktok'
 import { Route as DashboardChannelsShopeeRouteImport } from './routes/_dashboard.channels.shopee'
@@ -414,6 +415,11 @@ const DashboardFiscalConfigRoute = DashboardFiscalConfigRouteImport.update({
   path: '/config',
   getParentRoute: () => DashboardFiscalRoute,
 } as any)
+const DashboardFiscalIdRoute = DashboardFiscalIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => DashboardFiscalRoute,
+} as any)
 const DashboardClientsIdRoute = DashboardClientsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -550,6 +556,7 @@ export interface FileRoutesByFullPath {
   '/channels/shopee': typeof DashboardChannelsShopeeRoute
   '/channels/tiktok': typeof DashboardChannelsTiktokRoute
   '/clients/$id': typeof DashboardClientsIdRoute
+  '/fiscal/$id': typeof DashboardFiscalIdRoute
   '/fiscal/config': typeof DashboardFiscalConfigRoute
   '/logistics/analytics': typeof DashboardLogisticsAnalyticsRoute
   '/logistics/carriers': typeof DashboardLogisticsCarriersRoute
@@ -630,6 +637,7 @@ export interface FileRoutesByTo {
   '/channels/shopee': typeof DashboardChannelsShopeeRoute
   '/channels/tiktok': typeof DashboardChannelsTiktokRoute
   '/clients/$id': typeof DashboardClientsIdRoute
+  '/fiscal/$id': typeof DashboardFiscalIdRoute
   '/fiscal/config': typeof DashboardFiscalConfigRoute
   '/logistics/analytics': typeof DashboardLogisticsAnalyticsRoute
   '/logistics/carriers': typeof DashboardLogisticsCarriersRoute
@@ -713,6 +721,7 @@ export interface FileRoutesById {
   '/_dashboard/channels/shopee': typeof DashboardChannelsShopeeRoute
   '/_dashboard/channels/tiktok': typeof DashboardChannelsTiktokRoute
   '/_dashboard/clients/$id': typeof DashboardClientsIdRoute
+  '/_dashboard/fiscal/$id': typeof DashboardFiscalIdRoute
   '/_dashboard/fiscal/config': typeof DashboardFiscalConfigRoute
   '/_dashboard/logistics/analytics': typeof DashboardLogisticsAnalyticsRoute
   '/_dashboard/logistics/carriers': typeof DashboardLogisticsCarriersRoute
@@ -796,6 +805,7 @@ export interface FileRouteTypes {
     | '/channels/shopee'
     | '/channels/tiktok'
     | '/clients/$id'
+    | '/fiscal/$id'
     | '/fiscal/config'
     | '/logistics/analytics'
     | '/logistics/carriers'
@@ -876,6 +886,7 @@ export interface FileRouteTypes {
     | '/channels/shopee'
     | '/channels/tiktok'
     | '/clients/$id'
+    | '/fiscal/$id'
     | '/fiscal/config'
     | '/logistics/analytics'
     | '/logistics/carriers'
@@ -958,6 +969,7 @@ export interface FileRouteTypes {
     | '/_dashboard/channels/shopee'
     | '/_dashboard/channels/tiktok'
     | '/_dashboard/clients/$id'
+    | '/_dashboard/fiscal/$id'
     | '/_dashboard/fiscal/config'
     | '/_dashboard/logistics/analytics'
     | '/_dashboard/logistics/carriers'
@@ -1472,6 +1484,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardFiscalConfigRouteImport
       parentRoute: typeof DashboardFiscalRoute
     }
+    '/_dashboard/fiscal/$id': {
+      id: '/_dashboard/fiscal/$id'
+      path: '/$id'
+      fullPath: '/fiscal/$id'
+      preLoaderRoute: typeof DashboardFiscalIdRouteImport
+      parentRoute: typeof DashboardFiscalRoute
+    }
     '/_dashboard/clients/$id': {
       id: '/_dashboard/clients/$id'
       path: '/$id'
@@ -1634,10 +1653,12 @@ const DashboardClientsRouteWithChildren =
   DashboardClientsRoute._addFileChildren(DashboardClientsRouteChildren)
 
 interface DashboardFiscalRouteChildren {
+  DashboardFiscalIdRoute: typeof DashboardFiscalIdRoute
   DashboardFiscalConfigRoute: typeof DashboardFiscalConfigRoute
 }
 
 const DashboardFiscalRouteChildren: DashboardFiscalRouteChildren = {
+  DashboardFiscalIdRoute: DashboardFiscalIdRoute,
   DashboardFiscalConfigRoute: DashboardFiscalConfigRoute,
 }
 

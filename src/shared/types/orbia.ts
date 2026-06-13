@@ -50,7 +50,7 @@ export type OrderStatus =
   | 'cancelado'
   | 'devolvido'
 
-export type NfStatus = 'autorizada' | 'pendente' | 'rejeitada'
+export type NfStatus = 'autorizada' | 'pendente' | 'rejeitada' | 'cancelada'
 
 export interface Order {
   id: string
@@ -81,12 +81,22 @@ export interface Campaign {
 
 export interface NfEmission {
   id: string
+  emissionId: string
   client: string
   type: 'NF-e' | 'NFC-e' | 'NFS-e'
   status: NfStatus
   value: number
   retries: number
   time: string
+  date: string
+  accessKey: string | null
+  lastError: string | null
+  danfeUrl: string | null
+  xmlUrl: string | null
+  orderId: string | null
+  externalRef: string | null
+  authorizedAt: string | null
+  canCancel: boolean
 }
 
 export interface AutomationFlow {

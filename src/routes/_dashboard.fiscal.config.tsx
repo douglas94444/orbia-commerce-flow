@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { ArrowLeft, Save, ShieldCheck } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { PageIntro, Panel } from '@/components/dashboard/panel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -36,6 +36,8 @@ function FiscalConfigPage() {
   const { data: config, isLoading } = useFiscalConfig()
   const { mutate, isPending } = useUpsertFiscalConfig()
   const uploadCert = useUploadFiscalCertificate()
+  const [certPassword, setCertPassword] = useState('')
+  const [certExpiresAt, setCertExpiresAt] = useState('')
 
   const {
     register,
@@ -157,6 +159,11 @@ function FiscalConfigPage() {
           </Panel>
 
           <Panel title="Certificado A1" subtitle="Arquivo .pfx armazenado de forma privada no Supabase Storage">
+            {config?.certExpiringSoon && (
+              <div className="mb-4 rounded-lg border border-warning/30 bg-warning/8 px-4 py-3 text-sm text-warning">
+                Certificado vence em menos de 30 dias — renove antes do prazo.
+              </div>
+            )}
             {config?.certPath || config?.certExpiresAt ? (
               <div className="mb-4 flex items-center gap-3 rounded-lg border border-border bg-muted/20 px-4 py-3">
                 <ShieldCheck className="size-5 text-success" />
@@ -167,27 +174,60 @@ function FiscalConfigPage() {
                       Vence em {new Date(config.certExpiresAt).toLocaleDateString('pt-BR')}
                     </p>
                   )}
+                  {config.hasCertPassword && (
+                    <p className="text-xs text-muted-foreground">Senha do PFX cadastrada</p>
+                  )}
                 </div>
               </div>
             ) : null}
-            <div className="space-y-2">
-              <Label htmlFor="certFile">Upload certificado (.pfx)</Label>
-              <Input
-                id="certFile"
-                type="file"
-                accept=".pfx,.p12"
-                disabled={uploadCert.isPending}
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (!file) return
-                  const reader = new FileReader()
-                  reader.onload = () => {
-                    const base64 = (reader.result as string).split(',')[1]
-                    if (base64) uploadCert.mutate({ fileBase64: base64, fileName: file.name })
-                  }
-                  reader.readAsDataURL(file)
-                }}
-              />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="certFile">Upload certificado (.pfx)</Label>
+                <Input
+                  id="certFile"
+                  type="file"
+                  accept=".pfx,.p12"
+                  disabled={uploadCert.isPending}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    const reader = new FileReader()
+                    reader.onload = () => {
+                      const base64 = (reader.result as string).split(',')[1]
+                      if (base64) {
+                        uploadCert.mutate({
+                          fileBase64: base64,
+                          fileName: file.name,
+                          certPassword: certPassword || undefined,
+                          certExpiresAt: certExpiresAt
+                            ? new Date(certExpiresAt).toISOString()
+                            : undefined,
+                        })
+                      }
+                    }
+                    reader.readAsDataURL(file)
+                  }}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="certPassword">Senha do certificado</Label>
+                <Input
+                  id="certPassword"
+                  type="password"
+                  placeholder="Senha do arquivo .pfx"
+                  value={certPassword}
+                  onChange={(e) => setCertPassword(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="certExpiresAt">Validade do certificado</Label>
+                <Input
+                  id="certExpiresAt"
+                  type="date"
+                  value={certExpiresAt}
+                  onChange={(e) => setCertExpiresAt(e.target.value)}
+                />
+              </div>
             </div>
           </Panel>
 

@@ -136,3 +136,39 @@ export async function emitNFeWithRetry(
 
   throw lastError ?? new Error("Focus NFe emission failed");
 }
+
+export async function cancelNFe(
+  ref: string,
+  justificativa: string,
+  token: string,
+): Promise<FocusNfeResponse> {
+  const end = startTimer();
+  const base = getFocusNfeBaseUrl();
+  const res = await fetch(`${base}/v2/nfe/${encodeURIComponent(ref)}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: authHeader(token),
+    },
+    body: JSON.stringify({ justificativa }),
+  });
+
+  const body = (await res.json()) as FocusNfeResponse;
+  await logIntegration({
+    provider: "focus_nfe",
+    operation: "cancelNFe",
+    status: res.ok && body.status !== "erro_cancelamento" ? "success" : "error",
+    response_code: res.status,
+    duration_ms: end(),
+    error_message: body.mensagem_sefaz ?? body.erros?.[0]?.mensagem,
+    metadata: { ref, status: body.status },
+  });
+
+  if (!res.ok) {
+    throw new Error(
+      body.mensagem_sefaz ?? body.erros?.[0]?.mensagem ?? `Focus NFe cancel HTTP ${res.status}`,
+    );
+  }
+
+  return body;
+}
