@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { generatePricingRecommendations } from "./pricing.server";
 
 const clientIdSchema = z.object({ clientId: z.string().uuid() });
@@ -41,6 +40,16 @@ export const applyPricingRecommendation = createServerFn({ method: "POST" })
   .inputValidator(z.object({ recommendationId: z.string().uuid() }))
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
+    const { data: profile } = await context.supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", context.userId)
+      .single();
+    if (!profile || !["orbia_admin", "orbia_staff"].includes(profile.role as string)) {
+      throw new Error("Apenas equipe Orbia.");
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: rec } = await supabaseAdmin
       .from("pricing_recommendations")
       .select("client_id, sku, suggested_cents")
