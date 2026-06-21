@@ -79,9 +79,11 @@ export interface StockBufferRow {
 }
 
 async function resolveClientId(
-  supabase: { rpc: (fn: string) => Promise<{ data: string | null; error: unknown }>; from: (t: string) => unknown },
+  supabase: { rpc: (fn: never, ...args: never[]) => unknown; from: (t: string) => unknown },
 ): Promise<string> {
-  const { data: clientId } = await supabase.rpc("current_client_id");
+  const { data: clientId } = (await (supabase.rpc as (fn: string) => Promise<{ data: string | null }>)(
+    "current_client_id",
+  ));
   if (clientId) return clientId;
   const q = supabase.from("clients") as {
     select: (c: string) => { limit: (n: number) => Promise<{ data: Array<{ id: string }> | null }> };

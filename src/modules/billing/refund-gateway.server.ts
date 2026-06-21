@@ -1,6 +1,6 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getServerConfig } from "@/lib/config.server";
-import { logIntegration } from "@/shared/lib/logger";
+import { logIntegration, type IntegrationProvider } from "@/shared/lib/logger";
 
 interface RefundResult {
   provider: string;
@@ -192,7 +192,7 @@ export async function refundOrderPayment(
   } catch (err) {
     await logIntegration({
       client_id: clientId,
-      provider: paymentProvider || "payment",
+      provider: (paymentProvider || "pagar_me") as IntegrationProvider,
       operation: "refund",
       status: "error",
       error_message: (err as Error).message,

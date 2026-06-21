@@ -71,7 +71,12 @@ export function normalizeAmazonOrder(payload: unknown): NormalizedOrder | null {
     name: String(item.Title ?? item.title ?? "Produto Amazon"),
     quantity: Number(item.QuantityOrdered ?? item.quantity ?? 1),
     unitPriceCents: Math.round(
-      Number(item.ItemPrice?.Amount ?? item.price ?? item.unit_price ?? 0) * 100,
+      Number(
+        (item.ItemPrice as { Amount?: number | string } | undefined)?.Amount ??
+          item.price ??
+          item.unit_price ??
+          0,
+      ) * 100,
     ),
     externalProductId: String(item.ASIN ?? item.asin ?? ""),
   }));

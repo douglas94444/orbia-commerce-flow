@@ -42,6 +42,10 @@ export type IntegrationProvider =
   | 'total_express'
   | 'melhor_envio'
   | 'resend'
+  | 'evolution'
+  | 'fcm'
+  | 'twilio'
+  | 'whatsapp'
 
 export type IntegrationStatus = 'success' | 'error' | 'timeout' | 'retrying'
 export type JobStatus = 'started' | 'completed' | 'failed' | 'retrying'
@@ -58,6 +62,15 @@ export type AuditAction =
   | 'member_invite'
   | 'nfe_emit'
   | 'webhook_process'
+  | 'nfe_emit'
+  | 'nfe_emit_manual'
+  | 'nfe_emit_async'
+  | 'nfe_retry'
+  | 'nfe_cancel'
+  | 'nfe_cce'
+  | 'nfe_inutilizacao'
+  | 'nfce_emit'
+  | 'nfse_emit'
 
 // ─── Integration logger ───────────────────────────────────────
 // Use for every call to an external API (Meta, SEFAZ, Claude, etc.)
@@ -71,11 +84,16 @@ export async function logIntegration(entry: {
   duration_ms?: number
   error_message?: string
   request_hash?: string  // SHA-256 of sanitized, PII-free payload
+  request_data?: Record<string, unknown>  // sanitized, PII-free request payload
   metadata?: Record<string, unknown>
 }): Promise<void> {
   try {
     const supabase = getLoggerClient()
-    await supabase.from('integration_logs').insert(entry)
+    const { request_data, metadata, ...rest } = entry
+    await supabase.from('integration_logs').insert({
+      ...rest,
+      metadata: request_data ? { ...(metadata ?? {}), request_data } : metadata,
+    })
   } catch (err) {
     // Logger must never throw — log to console as fallback
     console.error('[logger.integration] failed to write:', err)

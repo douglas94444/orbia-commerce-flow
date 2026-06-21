@@ -40,7 +40,7 @@ export async function saveWebhookEvent(
       event_id: input.eventId,
       event_type: input.eventType,
       client_id: input.clientId ?? null,
-      payload: input.payload as Record<string, unknown>,
+      payload: input.payload as import("@/integrations/supabase/types").Json,
       status: "queued",
     })
     .select("id")
@@ -103,7 +103,7 @@ export async function processWebhookEventInternal(
     await logJob({
       job_type: "webhook",
       job_id: eventId,
-      client_id: event.client_id,
+      client_id: event.client_id ?? undefined,
       status: "completed",
       duration_ms: Date.now() - start,
       metadata: { provider: event.provider, event_type: event.event_type },
@@ -128,7 +128,7 @@ export async function processWebhookEventInternal(
     await logJob({
       job_type: "webhook",
       job_id: eventId,
-      client_id: event.client_id,
+      client_id: event.client_id ?? undefined,
       status: "failed",
       duration_ms: Date.now() - start,
       error: (err as Error).message,
