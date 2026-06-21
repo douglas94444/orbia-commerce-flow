@@ -62,6 +62,15 @@ export type AuditAction =
   | 'member_invite'
   | 'nfe_emit'
   | 'webhook_process'
+  | 'nfe_emit'
+  | 'nfe_emit_manual'
+  | 'nfe_emit_async'
+  | 'nfe_retry'
+  | 'nfe_cancel'
+  | 'nfe_cce'
+  | 'nfe_inutilizacao'
+  | 'nfce_emit'
+  | 'nfse_emit'
 
 // ─── Integration logger ───────────────────────────────────────
 // Use for every call to an external API (Meta, SEFAZ, Claude, etc.)
