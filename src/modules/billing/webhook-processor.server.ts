@@ -40,7 +40,7 @@ export async function saveWebhookEvent(
       event_id: input.eventId,
       event_type: input.eventType,
       client_id: input.clientId ?? null,
-      payload: input.payload as Record<string, unknown>,
+      payload: input.payload as import("@/integrations/supabase/types").Json,
       status: "queued",
     })
     .select("id")
