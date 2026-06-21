@@ -192,7 +192,7 @@ export async function refundOrderPayment(
   } catch (err) {
     await logIntegration({
       client_id: clientId,
-      provider: paymentProvider || "payment",
+      provider: (paymentProvider || "pagar_me") as IntegrationProvider,
       operation: "refund",
       status: "error",
       error_message: (err as Error).message,
