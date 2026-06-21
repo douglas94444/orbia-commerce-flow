@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { logAudit } from "@/shared/lib/logger";
 import { emitDomainEvent } from "@/shared/lib/domain-events.server";
 import { computeSlaDueDates } from "../sla/sac-sla.server";
+import type { Json } from "@/integrations/supabase/types";
 
 export type SacChannel =
   | "whatsapp"
@@ -76,7 +77,7 @@ export async function createSacTicket(input: CreateTicketInput): Promise<{
       subject: input.subject ?? null,
       sla_response_due_at: sla.responseDueAt,
       sla_resolution_due_at: sla.resolutionDueAt,
-      metadata: input.metadata ?? {},
+      metadata: (input.metadata ?? {}) as Json,
     })
     .select("id, protocol")
     .single();
@@ -155,7 +156,7 @@ export async function addSacMessage(input: {
       body: input.body,
       sender_type: input.senderType,
       staff_id: input.staffId ?? null,
-      attachments: input.attachments ?? [],
+      attachments: (input.attachments ?? []) as unknown as Json,
     })
     .select("id")
     .single();

@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Json } from "@/integrations/supabase/types";
 
 export interface EnrollInput {
   clientId: string;
@@ -44,7 +45,7 @@ export async function enrollInSequence(input: EnrollInput): Promise<string | nul
       current_step_index: 0,
       status: "active",
       next_run_at: nextRunAt,
-      context: input.context ?? {},
+      context: (input.context ?? {}) as Json,
     })
     .select("id")
     .single();

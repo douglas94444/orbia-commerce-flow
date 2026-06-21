@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { emitDomainEvent } from "@/shared/lib/domain-events.server";
 import { recordStockMovement } from "./receiving-stock.server";
+import type { Json } from "@/integrations/supabase/types";
 
 export interface ReceivingLineInput {
   sku: string;
@@ -108,7 +109,7 @@ export async function createReceivingAppointment(
     .insert({
       client_id: clientId,
       scheduled_at: scheduledAt,
-      expected_items: expectedItems,
+      expected_items: expectedItems as unknown as Json,
       appointment_type: options?.appointmentType ?? "inbound",
       return_request_id: options?.returnRequestId ?? null,
       notes: options?.notes ?? null,

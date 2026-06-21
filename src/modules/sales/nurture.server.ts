@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Json } from "@/integrations/supabase/types";
 
 const FOLLOW_UP_STEPS = [
   { day: 1, template: "followup_d1_questions", channel: "email" },
@@ -60,7 +61,7 @@ export async function processSalesNurtureBatch(): Promise<number> {
         kind: "email",
         channel,
         notes: `[Automático] Follow-up ${step.template}`,
-        metadata: { auto: true, template: step.template },
+        metadata: { auto: true, template: step.template } as Json,
       });
 
       step.sent = true;
@@ -71,7 +72,7 @@ export async function processSalesNurtureBatch(): Promise<number> {
     if (updated) {
       await supabaseAdmin
         .from("sales_prospects")
-        .update({ metadata: { ...meta, nurture_steps: steps } })
+        .update({ metadata: { ...meta, nurture_steps: steps } as Json })
         .eq("id", p.id);
     }
   }

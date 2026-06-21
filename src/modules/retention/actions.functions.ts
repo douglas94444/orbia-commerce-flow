@@ -6,6 +6,7 @@ import { logAudit } from "@/shared/lib/logger";
 import type { AutomationFlow } from "@/shared/types/orbia";
 import { simulateSequence } from "./flow-simulator.server";
 import { listWhatsAppTemplates } from "./whatsapp-compliance.server";
+import type { Json } from "@/integrations/supabase/types";
 
 const CHANNEL_LABEL: Record<string, "Email" | "SMS" | "WhatsApp" | "Push"> = {
   email: "Email",
@@ -376,7 +377,7 @@ export const saveAutomationFlow = createServerFn({ method: "POST" })
         .update({
           name: data.name,
           trigger: data.trigger,
-          flow_definition: data.flowDefinition ?? {},
+          flow_definition: (data.flowDefinition ?? {}) as Json,
           updated_at: new Date().toISOString(),
         })
         .eq("id", sequenceId);
@@ -389,7 +390,7 @@ export const saveAutomationFlow = createServerFn({ method: "POST" })
           client_id: clientId,
           name: data.name,
           trigger: data.trigger,
-          flow_definition: data.flowDefinition ?? {},
+          flow_definition: (data.flowDefinition ?? {}) as Json,
         })
         .select("id")
         .single();

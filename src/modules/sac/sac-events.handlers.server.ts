@@ -2,6 +2,7 @@ import { onDomainEvent } from "@/shared/lib/domain-events.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { analyzeSacSentiment } from "./metrics/sentiment.server";
 import { createSacTicket } from "./tickets/ticket-factory.server";
+import type { Json } from "@/integrations/supabase/types";
 
 onDomainEvent("sac.ticket.created", async (payload) => {
   const ticketId = String(payload.ticketId ?? "");
@@ -18,7 +19,7 @@ onDomainEvent("sac.ticket.escalated", async (payload) => {
     ticket_id: ticketId,
     event_type: "escalated",
     new_value: String(payload.reason ?? "escalated"),
-    metadata: payload,
+    metadata: payload as Json,
   });
 });
 

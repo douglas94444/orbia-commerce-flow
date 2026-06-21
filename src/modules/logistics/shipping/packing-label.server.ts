@@ -3,6 +3,7 @@ import { getCarrierProvider } from "@/integrations/carriers";
 import { logAudit } from "@/shared/lib/logger";
 import { getCarrierToken, selectBestCarrier } from "./routing-engine.server";
 import { computeOrderShipmentSpecs } from "./shipment-specs.server";
+import type { Json } from "@/integrations/supabase/types";
 
 export async function purchasePackingLabel(
   orderId: string,
@@ -64,7 +65,7 @@ export async function purchasePackingLabel(
       carrier: quote.providerName,
       tracking_code: label.trackingCode,
       shipment_external_id: label.shipmentId,
-      metadata: nextMetadata,
+      metadata: nextMetadata as Json,
       updated_at: new Date().toISOString(),
     })
     .eq("id", orderId);
