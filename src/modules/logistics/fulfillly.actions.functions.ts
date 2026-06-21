@@ -117,7 +117,7 @@ import {
 
 async function requireStaff(
   userId: string,
-  supabase: { from: (t: string) => ReturnType<typeof supabaseAdmin.from> },
+  supabase: import("@supabase/supabase-js").SupabaseClient<import("@/integrations/supabase/types").Database>,
 ) {
   const { data: profile } = await supabase
     .from("profiles")
@@ -131,7 +131,7 @@ async function requireStaff(
 
 async function getClientIdForUser(
   userId: string,
-  supabase: { from: (t: string) => ReturnType<typeof supabaseAdmin.from> },
+  supabase: import("@supabase/supabase-js").SupabaseClient<import("@/integrations/supabase/types").Database>,
   explicitClientId?: string,
 ): Promise<string> {
   if (explicitClientId) {
