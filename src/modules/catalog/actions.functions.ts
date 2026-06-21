@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { TablesUpdate } from "@/integrations/supabase/types";
 import { logAudit } from "@/shared/lib/logger";
 import {
   cestSchema,
@@ -79,23 +80,18 @@ export interface StockBufferRow {
 }
 
 async function resolveClientId(
-  supabase: { rpc: (fn: never, ...args: never[]) => unknown; from: (t: string) => unknown },
+  supabase: import("@supabase/supabase-js").SupabaseClient<import("@/integrations/supabase/types").Database>,
 ): Promise<string> {
-  const { data: clientId } = (await (supabase.rpc as (fn: string) => Promise<{ data: string | null }>)(
-    "current_client_id",
-  ));
+  const { data: clientId } = await supabase.rpc("current_client_id");
   if (clientId) return clientId;
-  const q = supabase.from("clients") as {
-    select: (c: string) => { limit: (n: number) => Promise<{ data: Array<{ id: string }> | null }> };
-  };
-  const { data: clients } = await q.select("id").limit(1);
+  const { data: clients } = await supabase.from("clients").select("id").limit(1);
   if (!clients?.[0]?.id) throw new Error("Cliente não identificado");
   return clients[0].id;
 }
 
 async function requireStaff(
   userId: string,
-  supabase: { from: (t: string) => ReturnType<import("@supabase/supabase-js").SupabaseClient["from"]> },
+  supabase: import("@supabase/supabase-js").SupabaseClient<import("@/integrations/supabase/types").Database>,
 ) {
   const { data: profile } = await supabase
     .from("profiles")
@@ -533,7 +529,7 @@ export const bulkImportProductFiscalFn = createServerFn({ method: "POST" })
       const sku = cols[skuIdx];
       if (!sku) continue;
 
-      const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      const patch: TablesUpdate<"products"> = { updated_at: new Date().toISOString() };
       if (ncmIdx >= 0 && cols[ncmIdx]) {
         const n = cols[ncmIdx].replace(/\D/g, "");
         if (n.length === 8) patch.ncm = n;

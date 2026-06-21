@@ -3,6 +3,7 @@ import { enrollInSequence } from "./enrollment.server";
 import { hashContact } from "./customer-sync.server";
 import { buildEnrollmentContextForCustomer, persistCustomerContact } from "./contact-resolver.server";
 import { processExpiringPoints, processTierReminders } from "./loyalty.server";
+import type { Json } from "@/integrations/supabase/types";
 
 export async function processReactivationCrons(): Promise<{ enrolled: number }> {
   const days = 30;
@@ -337,7 +338,7 @@ export async function recordAbandonedCart(input: {
     contact_email: input.email?.trim().toLowerCase() ?? null,
     contact_phone: input.phone?.trim() ?? null,
     value_cents: input.valueCents,
-    items: input.items,
+    items: input.items as unknown as Json,
     checkout_url: input.checkoutUrl ?? null,
     marketing_opt_in: input.marketingOptIn ?? false,
     status: "open",

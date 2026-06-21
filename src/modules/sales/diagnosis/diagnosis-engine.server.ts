@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Json } from "@/integrations/supabase/types";
 
 export interface DiagnosisDimension {
   key: string;
@@ -195,8 +196,8 @@ export async function saveDiagnosis(
       prospect_id: prospectId,
       type: "full",
       overall_score: result.overallScore,
-      dimensions: result.dimensions,
-      gaps: result.gaps,
+      dimensions: result.dimensions as unknown as Json,
+      gaps: result.gaps as unknown as Json,
       potential_growth_pct: result.potentialGrowthPct,
       narrative: result.narrative,
     })

@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sendChannelMessage } from "./channel-senders";
 import { pickAbVariant } from "./ab-testing.server";
+import type { Json } from "@/integrations/supabase/types";
 
 const BATCH_SIZE = 100;
 const ATTRIBUTION_DAYS = 7;
@@ -175,7 +176,7 @@ async function processEnrollment(
     if (enrichedContext !== enrollment.context) {
       await supabaseAdmin
         .from("automation_enrollments")
-        .update({ context: enrichedContext, updated_at: new Date().toISOString() })
+        .update({ context: enrichedContext as Json, updated_at: new Date().toISOString() })
         .eq("id", enrollment.id);
       enrollment.context = enrichedContext;
     }

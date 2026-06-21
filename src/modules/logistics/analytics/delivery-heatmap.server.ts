@@ -17,7 +17,7 @@ export async function buildDeliveryHeatMap(clientId: string, days = 30): Promise
 
   const { data: orders } = await supabaseAdmin
     .from("orders")
-    .select("city, state, status")
+    .select("city, status")
     .eq("client_id", clientId)
     .in("status", ["em_transito", "entregue", "despachado"])
     .gte("updated_at", since.toISOString())
@@ -26,8 +26,8 @@ export async function buildDeliveryHeatMap(clientId: string, days = 30): Promise
   const map = new Map<string, DeliveryHeatPoint>();
 
   for (const o of orders ?? []) {
-    const city = (o.city as string) || "Desconhecida";
-    const state = (o.state as string) || null;
+    const city = o.city || "Desconhecida";
+    const state: string | null = null;
     const key = `${city}|${state ?? ""}`;
     const coords = resolveCityCoords(city, state);
     const entry = map.get(key) ?? {
@@ -46,14 +46,14 @@ export async function buildDeliveryHeatMap(clientId: string, days = 30): Promise
 
   const { data: incidents } = await supabaseAdmin
     .from("delivery_incidents")
-    .select("city, state")
-    .eq("client_id", clientId)
+    .select("orders!inner(client_id, city)")
+    .eq("orders.client_id", clientId)
     .gte("created_at", since.toISOString())
     .limit(500);
 
   for (const inc of incidents ?? []) {
-    const city = (inc.city as string) || "Desconhecida";
-    const state = (inc.state as string) || null;
+    const city = inc.orders?.city || "Desconhecida";
+    const state: string | null = null;
     const key = `${city}|${state ?? ""}`;
     const coords = resolveCityCoords(city, state);
     const entry = map.get(key) ?? {

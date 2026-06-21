@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { PLAN_ORDER_LIMITS, type PlanTier } from "@/shared/constants/plans";
+import type { Json } from "@/integrations/supabase/types";
 
 export async function scanUpsellOpportunities(): Promise<number> {
   const { data: clients } = await supabaseAdmin
@@ -107,7 +108,7 @@ async function upsertOpportunity(
     trigger_type: triggerType,
     from_plan: fromPlan,
     to_plan: toPlan,
-    roi_params: roiParams,
+    roi_params: roiParams as unknown as Json,
     status: "open",
   });
 }

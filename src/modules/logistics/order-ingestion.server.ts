@@ -20,6 +20,7 @@ import { normalizeAmazonOrder } from "@/integrations/amazon/orders";
 import { normalizeTiktokOrder } from "@/integrations/tiktok/orders";
 import { normalizeInstagramOrder } from "@/integrations/instagram/orders";
 import { parseCustomerDocumentFromSources } from "@/modules/fiscal/nfe-destinatario.server";
+import type { Json } from "@/integrations/supabase/types";
 
 export { enrichMercadoLivrePayload } from "./order-enrichment.server";
 
@@ -434,7 +435,7 @@ export async function upsertOrderFromWebhook(
         nf_status: "pendente",
         value_cents: order.valueCents,
         city: order.city,
-        metadata,
+        metadata: metadata as Json,
         sla_deadline_at: slaDeadline,
         sla_alert_sent: false,
         sla_breached: false,

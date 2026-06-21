@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { emitDomainEvent } from "@/shared/lib/domain-events.server";
 import { pushOrderStatusToChannel } from "./channel-status-push.server";
 import { sendTrackingWhatsApp } from "../notifications/whatsapp-alerts.server";
+import type { Json } from "@/integrations/supabase/types";
 
 const PROBLEM_STATUSES = new Set([
   "undelivered",
@@ -143,7 +144,7 @@ export async function applyTrackingTransition(
       .from("orders")
       .update({
         status: newStatus,
-        metadata: meta,
+        metadata: meta as Json,
         updated_at: new Date().toISOString(),
       })
       .eq("id", order.id);
@@ -157,7 +158,7 @@ export async function applyTrackingTransition(
   } else {
     await supabaseAdmin
       .from("orders")
-      .update({ metadata: meta, updated_at: new Date().toISOString() })
+      .update({ metadata: meta as Json, updated_at: new Date().toISOString() })
       .eq("id", order.id);
   }
 
@@ -237,7 +238,7 @@ export async function applyTrackingTransition(
   if (metaDirty) {
     await supabaseAdmin
       .from("orders")
-      .update({ metadata: meta, updated_at: new Date().toISOString() })
+      .update({ metadata: meta as Json, updated_at: new Date().toISOString() })
       .eq("id", order.id);
   }
 

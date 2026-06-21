@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Json } from "@/integrations/supabase/types";
 
 export type NfeFiscalEventType = "cancelamento" | "carta_correcao" | "inutilizacao";
 
@@ -14,7 +15,7 @@ export async function recordNfeFiscalEvent(input: {
     nfe_emission_id: input.nfeEmissionId ?? null,
     event_type: input.eventType,
     description: input.description ?? null,
-    payload: input.payload ?? {},
+    payload: (input.payload ?? {}) as Json,
   });
 }
 
@@ -26,7 +27,7 @@ export async function listNfeFiscalEvents(
     eventType: string;
     description: string | null;
     createdAt: string;
-    payload: Record<string, unknown>;
+    payload: Json;
   }>
 > {
   const { data } = await supabaseAdmin
@@ -40,6 +41,6 @@ export async function listNfeFiscalEvents(
     eventType: r.event_type as string,
     description: r.description as string | null,
     createdAt: r.created_at as string,
-    payload: (r.payload as Record<string, unknown>) ?? {},
+    payload: (r.payload as Json) ?? {},
   }));
 }

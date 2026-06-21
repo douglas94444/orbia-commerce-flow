@@ -12,6 +12,7 @@ import { buildDiagnosticPdf, pdfToBase64 } from "./diagnosis/diagnostic-pdf.serv
 import { computeLeadScore, getCapturedStageId, getStageIdByKey } from "./lead-scoring.server";
 import { resolvePartnerByReferral } from "./partners/partners.server";
 import { getCampaignDiagnostics } from "./traffic-diagnostics.server";
+import type { Json } from "@/integrations/supabase/types";
 
 // ─── Submit diagnostic form (public) ─────────────────────────
 
@@ -322,7 +323,7 @@ export const trackProspectEvent = createServerFn({ method: "POST" })
     await supabaseAdmin.from("sales_prospect_events").insert({
       prospect_id: prospectId,
       event_type: data.eventType,
-      metadata: data.metadata ?? {},
+      metadata: (data.metadata ?? {}) as Json,
     });
 
     if (data.eventType === "proposal_opened") {

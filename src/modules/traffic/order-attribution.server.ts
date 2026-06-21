@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { recalculateClientMetrics } from "@/modules/analytics/health-score.server";
 import type { NormalizedOrder } from "@/modules/logistics/order-ingestion.server";
+import type { Json } from "@/integrations/supabase/types";
 
 const ATTRIBUTION_WINDOW_DAYS = 7;
 
@@ -219,7 +220,7 @@ export async function captureAttributionOnIngest(
     .from("orders")
     .update({
       attribution_source: signals.source,
-      attribution_meta: meta,
+      attribution_meta: meta as Json,
       attributed_campaign_id: campaignId,
       updated_at: new Date().toISOString(),
     })

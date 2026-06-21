@@ -1,6 +1,7 @@
 // Domain event bus — handlers in-process + durable outbox for retry.
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Json } from "@/integrations/supabase/types";
 
 type EventHandler = (payload: Record<string, unknown>) => Promise<void>;
 
@@ -28,7 +29,7 @@ export async function emitDomainEvent(
   try {
     const { data: row } = await supabaseAdmin
       .from("domain_event_outbox")
-      .insert({ event_name: event, payload, status: "processing" })
+      .insert({ event_name: event, payload: payload as Json, status: "processing" })
       .select("id")
       .single();
     outboxId = row?.id ?? null;

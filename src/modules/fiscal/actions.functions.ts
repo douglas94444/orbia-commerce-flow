@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { TablesUpdate } from "@/integrations/supabase/types";
 import { logAudit } from "@/shared/lib/logger";
 import type { NfEmission, NfStatus } from "@/shared/types/orbia";
 import { canCancelWithinWindow } from "./fiscal-ops.server";
@@ -769,7 +770,7 @@ export const updateFiscalAutoEmitFn = createServerFn({ method: "POST" })
       .single();
     if (!member) throw new Error("Cliente não encontrado");
 
-    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    const patch: TablesUpdate<"fiscal_configs"> = { updated_at: new Date().toISOString() };
     if (data.autoEmitNfe !== undefined) patch.auto_emit_nfe = data.autoEmitNfe;
     if (data.autoEmitNfce !== undefined) patch.auto_emit_nfce = data.autoEmitNfce;
     if (data.autoEmitNfse !== undefined) patch.auto_emit_nfse = data.autoEmitNfse;
@@ -983,7 +984,6 @@ export const sendNfSecondCopyFn = createServerFn({ method: "POST" })
           to: data.phone,
           body: `Segunda via ${row.type}: ${url}`,
           clientId: member!.client_id,
-          documentUrl: url,
         });
       }
     }

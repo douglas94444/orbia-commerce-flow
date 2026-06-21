@@ -13,6 +13,7 @@ import { getPartnerDashboard, getPartnerRanking, computePartnerTier } from "./pa
 import { listUpsellOpportunities, scanUpsellOpportunities } from "./upsell/upsell-engine.server";
 import { getCommercialOnboardingProgress } from "./onboarding/commercial-onboarding.server";
 import { getCampaignDiagnostics, saveProspectMetaOAuth } from "./traffic-diagnostics.server";
+import type { Json } from "@/integrations/supabase/types";
 
 // ─── Create proposal ─────────────────────────────────────────
 
@@ -74,7 +75,7 @@ export const createProposal = createServerFn({ method: "POST" })
         prospect_id: data.prospectId,
         recommended_plan: content.recommendedPlan,
         roi_params: content.roiParams,
-        content,
+        content: content as Json,
         valid_until: validUntil,
         version,
         status: "sent",

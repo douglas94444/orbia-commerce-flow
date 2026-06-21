@@ -7,6 +7,7 @@ import type { NormalizedOrderItem } from "../order-ingestion.server";
 import { pushOrderStatusToChannel } from "./channel-status-push.server";
 import { getCarrierToken, selectBestCarrier } from "./routing-engine.server";
 import { computeOrderShipmentSpecs } from "./shipment-specs.server";
+import type { Json } from "@/integrations/supabase/types";
 import {
   applyTrackingTransition,
   normalizeCarrierStatus,
@@ -149,7 +150,7 @@ export async function dispatchOrder(
       carrier,
       tracking_code: trackingCode,
       shipment_external_id: shipmentId,
-      metadata: nextMetadata,
+      metadata: nextMetadata as Json,
       updated_at: dispatchedAt,
     })
     .eq("id", orderId);

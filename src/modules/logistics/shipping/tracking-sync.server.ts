@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { syncTracking as syncOrderTracking } from "../shipping.server";
+import type { Json } from "@/integrations/supabase/types";
 
 const BATCH = 100;
 const FAILURE_ALERT_THRESHOLD = 3;
@@ -41,7 +42,7 @@ async function resetSyncFailures(orderId: string, metadata: Record<string, unkno
   const { tracking_sync_failures: _f, tracking_sync_alert_sent: _a, ...rest } = metadata;
   await supabaseAdmin
     .from("orders")
-    .update({ metadata: rest, updated_at: new Date().toISOString() })
+    .update({ metadata: rest as Json, updated_at: new Date().toISOString() })
     .eq("id", orderId);
 }
 

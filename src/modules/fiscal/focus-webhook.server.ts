@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { getServerConfig } from "@/lib/config.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Json } from "@/integrations/supabase/types";
 import { logIntegration, logJob, startTimer } from "@/shared/lib/logger";
 import { emitDomainEvent } from "@/shared/lib/domain-events.server";
 import { createNfeXmlSignedUrl, uploadNfeXmlToStorage } from "./nfe-storage.server";
@@ -42,7 +43,7 @@ export async function saveFocusWebhookEvent(
       event_id: eventId,
       event_type: eventType,
       client_id: clientId ?? null,
-      payload: payload as Record<string, unknown>,
+      payload: payload as unknown as Json,
       status: "queued",
     })
     .select("id")

@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Json } from "@/integrations/supabase/types";
 
 const DEFAULT_FEE_RATES: Record<string, number> = {
   mercado_livre: 0.16,
@@ -62,7 +63,7 @@ export async function snapshotOrderFees(
       payment_fee_cents: paymentFee,
       other_fee_cents: otherFee,
       net_revenue_cents: netRevenue,
-      metadata: metadata ?? {},
+      metadata: (metadata ?? {}) as Json,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "order_id" },
