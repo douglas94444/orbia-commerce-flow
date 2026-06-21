@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Json } from "@/integrations/supabase/types";
 import { recalculateAllClients } from "@/modules/analytics/health-score.server";
 import { syncAllCatalogs } from "@/modules/catalog/sync-catalog.server";
 import {
@@ -67,7 +68,7 @@ export interface JobResult {
   job: string;
   status: "completed" | "failed";
   durationMs: number;
-  metadata?: Record<string, unknown>;
+  metadata?: Json;
   error?: string;
 }
 
@@ -317,7 +318,7 @@ async function runJob(name: Exclude<CronJobName, "all">): Promise<JobResult> {
       metadata,
     });
 
-    return { job: name, status: "completed", durationMs, metadata };
+    return { job: name, status: "completed", durationMs, metadata: metadata as Json };
   } catch (err) {
     const durationMs = end();
     const error = (err as Error).message;

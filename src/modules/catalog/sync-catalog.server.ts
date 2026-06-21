@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Json } from "@/integrations/supabase/types";
 import { decryptToken } from "@/lib/crypto.server";
 import { pullAmazonProducts } from "@/integrations/amazon/catalog";
 import { pullMercadoLivreProducts } from "@/integrations/mercado-livre/catalog";
@@ -102,7 +103,7 @@ async function upsertCatalogRows(
         external_variant_id: row.externalVariantId,
         listing_status: "active",
         last_synced_at: new Date().toISOString(),
-        metadata,
+        metadata: metadata as Json,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "client_id,channel,external_product_id,external_variant_id" },

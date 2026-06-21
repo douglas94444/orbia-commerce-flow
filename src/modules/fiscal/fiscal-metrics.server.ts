@@ -30,7 +30,7 @@ export async function getFiscalMetrics(clientId: string, days = 30): Promise<Fis
       .from("products")
       .select("id, ncm")
       .eq("client_id", clientId)
-      .eq("status", "active"),
+      .eq("is_active", true),
     supabaseAdmin
       .from("fiscal_configs")
       .select("cert_expires_at")

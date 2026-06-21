@@ -28,14 +28,14 @@ function toUiClient(row: Tables<"clients">): Client {
     id: row.id,
     name: row.name,
     initials,
-    plan: row.plan,
+    plan: row.plan as Client["plan"],
     healthScore: row.health_score,
     gmv30d: Math.round(row.gmv_30d / 100), // cents → reais
     roas: Number(row.roas_avg),
     lastContactDays: row.last_contact_days,
     onboardingStage: row.onboarding_week,
     segment: row.segment ?? "Geral",
-    status: row.status,
+    status: row.status as Client["status"],
   };
 }
 

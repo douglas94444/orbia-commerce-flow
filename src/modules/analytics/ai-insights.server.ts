@@ -38,13 +38,13 @@ async function buildClientSnapshot(clientId: string): Promise<ClientSnapshot | n
       .select("status, value_cents")
       .eq("client_id", clientId)
       .gte("created_at", thirtyDaysAgo),
-    (supabaseAdmin as any)
+    supabaseAdmin
       .from("operation_alerts")
       .select("id")
       .eq("client_id", clientId)
       .eq("is_resolved", false)
       .eq("severity", "critical"),
-    (supabaseAdmin as any)
+    supabaseAdmin
       .from("customers")
       .select("rfm_segment")
       .eq("client_id", clientId)
@@ -60,8 +60,8 @@ async function buildClientSnapshot(clientId: string): Promise<ClientSnapshot | n
   const sla30d = orders.length > 0 ? (delivered / orders.length) * 100 : 0;
 
   const rfmSegments: Record<string, number> = {};
-  for (const c of (rfmRes as any).data ?? []) {
-    const seg = String((c as any).rfm_segment ?? "indefinido");
+  for (const c of rfmRes.data ?? []) {
+    const seg = String(c.rfm_segment ?? "indefinido");
     rfmSegments[seg] = (rfmSegments[seg] ?? 0) + 1;
   }
 
@@ -71,7 +71,7 @@ async function buildClientSnapshot(clientId: string): Promise<ClientSnapshot | n
     roasAvg: Number(client.roas_avg ?? 0),
     gmv30d,
     sla30d,
-    criticalAlerts: (alertsRes as any).data?.length ?? 0,
+    criticalAlerts: alertsRes.data?.length ?? 0,
     rfmSegments,
   };
 }

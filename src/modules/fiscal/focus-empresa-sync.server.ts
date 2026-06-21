@@ -1,6 +1,7 @@
 import { getServerConfig } from "@/lib/config.server";
 import { mapTaxRegimeToFocus, upsertFocusEmpresa } from "@/integrations/focus-nfe/empresa";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { TablesUpdate } from "@/integrations/supabase/types";
 import { loadCertificateForClient } from "./fiscal-cert.server";
 
 export interface FiscalConfigRow {
@@ -66,7 +67,7 @@ export async function syncFiscalConfigToFocus(clientId: string): Promise<void> {
 
   await upsertFocusEmpresa(payload, focusNfe.token, focusNfe.env);
 
-  const updateFields: Record<string, string> = {
+  const updateFields: TablesUpdate<"fiscal_configs"> = {
     focus_synced_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };

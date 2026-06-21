@@ -209,14 +209,11 @@ export const dispatchOrder = createServerFn({ method: "POST" })
   });
 
 async function resolveClientId(
-  supabase: { rpc: (fn: string) => Promise<{ data: string | null; error: unknown }>; from: (t: string) => unknown },
+  supabase: import("@supabase/supabase-js").SupabaseClient<import("@/integrations/supabase/types").Database>,
 ): Promise<string> {
   const { data: clientId } = await supabase.rpc("current_client_id");
   if (clientId) return clientId;
-  const q = supabase.from("clients") as {
-    select: (c: string) => { limit: (n: number) => Promise<{ data: Array<{ id: string }> | null }> };
-  };
-  const { data: clients } = await q.select("id").limit(1);
+  const { data: clients } = await supabase.from("clients").select("id").limit(1);
   if (!clients?.[0]?.id) throw new Error("Cliente não identificado");
   return clients[0].id;
 }

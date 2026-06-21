@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Json } from "@/integrations/supabase/types";
 import { encryptToken } from "@/lib/crypto.server";
 import {
   exchangeMercadoLivreCode,
@@ -47,7 +48,7 @@ export async function createOAuthState(
     client_id: clientId,
     provider,
     redirect_to: `/clients/${clientId}`,
-    metadata,
+    metadata: metadata as Json,
   });
 
   if (error) throw new Error(`Failed to create OAuth state: ${error.message}`);
@@ -90,7 +91,7 @@ export async function storeOAuthConnection(input: {
       scopes: input.scopes ?? [],
       is_active: true,
       last_refreshed_at: new Date().toISOString(),
-      metadata: input.metadata ?? {},
+      metadata: (input.metadata ?? {}) as Json,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "client_id,provider,external_account" },
