@@ -7,8 +7,8 @@ import type { NormalizedOrderItem } from "../order-ingestion.server";
 import { pushOrderStatusToChannel } from "./channel-status-push.server";
 import { getCarrierToken, selectBestCarrier } from "./routing-engine.server";
 import { computeOrderShipmentSpecs } from "./shipment-specs.server";
-import {
 import type { Json } from "@/integrations/supabase/types";
+import {
   applyTrackingTransition,
   normalizeCarrierStatus,
   type TrackingOrderContext,
