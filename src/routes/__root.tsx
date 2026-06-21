@@ -92,6 +92,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "Orbia — Centro de Operações" },
+      { name: "description", content: "Orbia Commerce Flow is an e-commerce management platform that handles store operations, marketing, logistics, and fiscal compliance." },
+      { property: "og:description", content: "Orbia Commerce Flow is an e-commerce management platform that handles store operations, marketing, logistics, and fiscal compliance." },
+      { name: "twitter:description", content: "Orbia Commerce Flow is an e-commerce management platform that handles store operations, marketing, logistics, and fiscal compliance." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/5986422b-dd82-41da-be32-0d9cff732fcc/id-preview-63bac599--61782ffc-769d-49cd-a126-1fe70202badb.lovable.app-1781325675592.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/5986422b-dd82-41da-be32-0d9cff732fcc/id-preview-63bac599--61782ffc-769d-49cd-a126-1fe70202badb.lovable.app-1781325675592.png" },
     ],
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
