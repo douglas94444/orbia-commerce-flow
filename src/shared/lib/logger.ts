@@ -42,6 +42,10 @@ export type IntegrationProvider =
   | 'total_express'
   | 'melhor_envio'
   | 'resend'
+  | 'evolution'
+  | 'fcm'
+  | 'twilio'
+  | 'whatsapp'
 
 export type IntegrationStatus = 'success' | 'error' | 'timeout' | 'retrying'
 export type JobStatus = 'started' | 'completed' | 'failed' | 'retrying'
