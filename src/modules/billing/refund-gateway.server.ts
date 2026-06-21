@@ -1,6 +1,6 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getServerConfig } from "@/lib/config.server";
-import { logIntegration } from "@/shared/lib/logger";
+import { logIntegration, type IntegrationProvider } from "@/shared/lib/logger";
 
 interface RefundResult {
   provider: string;
