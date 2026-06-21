@@ -128,7 +128,7 @@ export async function processWebhookEventInternal(
     await logJob({
       job_type: "webhook",
       job_id: eventId,
-      client_id: event.client_id,
+      client_id: event.client_id ?? undefined,
       status: "failed",
       duration_ms: Date.now() - start,
       error: (err as Error).message,
